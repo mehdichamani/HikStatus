@@ -1,0 +1,358 @@
+# English translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-11-15 14:24+0330\n"
+"PO-Revision-Date: 2025-11-13 15:06+0330\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: templates/index.html:7
+msgid "CCTV Mailer - Web Service"
+msgstr ""
+
+#: templates/index.html:17 templates/login.html:16
+msgid "CCTV Mailer"
+msgstr ""
+
+#: templates/index.html:22 templates/login.html:41
+msgid "Language"
+msgstr ""
+
+#: templates/index.html:30
+msgid "Loading..."
+msgstr ""
+
+#: templates/index.html:41
+msgid "Logout"
+msgstr ""
+
+#: templates/index.html:51
+msgid "Status Dashboard"
+msgstr ""
+
+#: templates/index.html:56
+msgid "Log Search & Filter"
+msgstr ""
+
+#: templates/index.html:61
+msgid "Configuration"
+msgstr ""
+
+#: templates/index.html:73
+msgid "Total NVRs"
+msgstr ""
+
+#: templates/index.html:81
+msgid "Total Cameras"
+msgstr ""
+
+#: templates/index.html:89 templates/index.html:168
+msgid "Online"
+msgstr ""
+
+#: templates/index.html:97 templates/index.html:169
+msgid "Offline"
+msgstr ""
+
+#: templates/index.html:106
+msgid "Refresh"
+msgstr ""
+
+#: templates/index.html:108
+msgid "Last updated: -"
+msgstr ""
+
+#: templates/index.html:120
+msgid "Predefined Filters"
+msgstr ""
+
+#: templates/index.html:130
+msgid "Advanced Search"
+msgstr ""
+
+#: templates/index.html:136
+msgid "Keyword"
+msgstr ""
+
+#: templates/index.html:137
+msgid "Search in messages"
+msgstr ""
+
+#: templates/index.html:140
+msgid "Camera Name"
+msgstr ""
+
+#: templates/index.html:141
+msgid "Filter by camera"
+msgstr ""
+
+#: templates/index.html:144
+msgid "Alert Type"
+msgstr ""
+
+#: templates/index.html:146
+msgid "All Types"
+msgstr ""
+
+#: templates/index.html:147
+msgid "Camera Down"
+msgstr ""
+
+#: templates/index.html:148
+msgid "NVR Error"
+msgstr ""
+
+#: templates/index.html:149
+msgid "Camera Up"
+msgstr ""
+
+#: templates/index.html:156 templates/index.html:205
+msgid "Severity"
+msgstr ""
+
+#: templates/index.html:158
+msgid "All Severities"
+msgstr ""
+
+#: templates/index.html:159
+msgid "Info"
+msgstr ""
+
+#: templates/index.html:160
+msgid "Warning"
+msgstr ""
+
+#: templates/index.html:161
+msgid "Error"
+msgstr ""
+
+#: templates/index.html:165 templates/index.html:204
+msgid "Status"
+msgstr ""
+
+#: templates/index.html:167
+msgid "All Statuses"
+msgstr ""
+
+#: templates/index.html:173
+msgid "Last N Hours"
+msgstr ""
+
+#: templates/index.html:174
+msgid "Leave empty for all"
+msgstr ""
+
+#: templates/index.html:179
+msgid "Search"
+msgstr ""
+
+#: templates/index.html:182
+msgid "Clear"
+msgstr ""
+
+#: templates/index.html:185
+msgid "Export CSV"
+msgstr ""
+
+#: templates/index.html:193
+msgid "Results"
+msgstr ""
+
+#: templates/index.html:199
+msgid "Timestamp"
+msgstr ""
+
+#: templates/index.html:200
+msgid "Type"
+msgstr ""
+
+#: templates/index.html:201
+msgid "NVR"
+msgstr ""
+
+#: templates/index.html:202
+msgid "Camera IP"
+msgstr ""
+
+#: templates/index.html:203
+msgid "Camera"
+msgstr ""
+
+#: templates/index.html:206
+msgid "Message"
+msgstr ""
+
+#: templates/index.html:210
+msgid "No logs loaded"
+msgstr ""
+
+#: templates/index.html:226
+msgid "Service Configuration"
+msgstr ""
+
+#: templates/index.html:230
+msgid "Polling & Alert Settings"
+msgstr ""
+
+#: templates/index.html:233
+msgid "Polling Interval (seconds)"
+msgstr ""
+
+#: templates/index.html:237
+msgid "First Alert Delay (minutes)"
+msgstr ""
+
+#: templates/index.html:241
+msgid "Alert Frequency (minutes)"
+msgstr ""
+
+#: templates/index.html:246
+msgid "File Settings"
+msgstr ""
+
+#: templates/index.html:249
+msgid "Log File"
+msgstr ""
+
+#: templates/index.html:253
+msgid "State File"
+msgstr ""
+
+#: templates/index.html:259
+msgid "Camera Names File"
+msgstr ""
+
+#: templates/index.html:264
+msgid "Email Settings"
+msgstr ""
+
+#: templates/index.html:267
+msgid "SMTP Server"
+msgstr ""
+
+#: templates/index.html:271
+msgid "SMTP Port"
+msgstr ""
+
+#: templates/index.html:277
+msgid "Email Address"
+msgstr ""
+
+#: templates/index.html:281
+msgid "Email Password"
+msgstr ""
+
+#: templates/index.html:288
+msgid "Recipients (comma-separated)"
+msgstr ""
+
+#: templates/index.html:293
+msgid "NVR List"
+msgstr ""
+
+#: templates/index.html:294
+msgid ""
+"Configure NVR IPs and usernames. The shared NVR password is set in "
+"secure.json."
+msgstr ""
+
+#: templates/index.html:298
+msgid "Add NVR"
+msgstr ""
+
+#: templates/index.html:303
+msgid "Update Configuration"
+msgstr ""
+
+#: templates/index.html:306
+msgid "Reload"
+msgstr ""
+
+#: templates/index.html:317
+msgid "Quick Actions"
+msgstr ""
+
+#: templates/index.html:321
+msgid "Download Config"
+msgstr ""
+
+#: templates/index.html:328
+msgid "Service Info"
+msgstr ""
+
+#: templates/index.html:331
+msgid "Status:"
+msgstr ""
+
+#: templates/index.html:331
+msgid "Unknown"
+msgstr ""
+
+#: templates/index.html:332
+msgid "Last Updated:"
+msgstr ""
+
+#: templates/index.html:333
+msgid "Config File:"
+msgstr ""
+
+#: templates/index.html:334
+msgid "Database:"
+msgstr ""
+
+#: templates/index.html:340 templates/index.html:353
+msgid "Change Password"
+msgstr ""
+
+#: templates/index.html:345
+msgid "New Password"
+msgstr ""
+
+#: templates/index.html:349
+msgid "Confirm Password"
+msgstr ""
+
+#: templates/login.html:6 templates/login.html:35
+msgid "Login"
+msgstr ""
+
+#: templates/login.html:32
+msgid "Password:"
+msgstr ""
+
+#~ msgid ""
+#~ "Configure your NVRs with their IP "
+#~ "addresses, usernames, and passwords for "
+#~ "authentication."
+#~ msgstr ""
+
+#~ msgid "Update & Restart Service"
+#~ msgstr ""
+
+#~ msgid "Restart Service"
+#~ msgstr ""
+
+#~ msgid "Polling Settings"
+#~ msgstr ""
+
+#~ msgid "Email Check Interval (checks)"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Configure NVR IPs and usernames. The "
+#~ "shared NVR password is set in "
+#~ "config.json."
+#~ msgstr ""
+

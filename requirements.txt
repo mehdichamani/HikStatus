@@ -1,0 +1,12 @@
+Flask==2.3.3
+Flask-SQLAlchemy==3.1.1
+Flask-CORS==4.0.0
+SQLAlchemy==2.0.31
+requests==2.31.0
+Werkzeug==2.3.7
+Flask-Babel
+Flask-WTF
+click
+gunicorn
+jdatetime
+pytz

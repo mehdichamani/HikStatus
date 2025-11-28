@@ -1,0 +1,11 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Instance folder (database)
+instance/
+*.db
+*.db-journal
+
+# Compiled translations
+*.mo

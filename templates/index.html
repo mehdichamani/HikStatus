@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<!-- 'lang' and 'dir' are set by Flask-Babel -->
+<html lang="{{ get_locale() }}" dir="{{ 'rtl' if get_locale() == 'fa' else 'ltr' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('CCTV Mailer Dashboard') }}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>{{ _('CCTV Mailer Dashboard') }}</h1>
+            <div class="header-controls">
+                <span>{{ _('Language') }}: 
+                    <a href="{{ url_for('set_language', lang='en') }}">EN</a> | 
+                    <a href="{{ url_for('set_language', lang='fa') }}">FA</a>
+                </span>
+                <!-- Dark Mode Toggle -->
+                <button id="dark-mode-toggle" class="dark-mode-toggle" aria-label="Toggle dark mode">
+                    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
+                <a href="{{ url_for('logout') }}" class="logout-btn">{{ _('Logout') }}</a>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-link active" data-tab="status">{{ _('Status') }}</button>
+            <button class="tab-link" data-tab="logs">{{ _('Logs') }}</button>
+            <button class="tab-link" data-tab="reports">{{ _('Reports') }}</button>
+            <button class="tab-link" data-tab="config">{{ _('Configuration') }}</button>
+        </nav>
+
+        <main>
+            <!-- Status Tab (New Small Card Layout) -->
+            <div id="status" class="tab-content active">
+                <!-- Global Summary Cards -->
+                <div id="global-summary-container" class="global-summary-container">
+                    <!-- Cards populated by JS (Total NVRs, Total Cams, Online, Offline) -->
+                </div>
+                
+                <!-- Camera Grid Container -->
+                <div id="camera-grid-container" class="camera-grid-container">
+                    <!-- Small camera cards will be loaded here by JS -->
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div id="logs" class="tab-content">
+                <div class="toolbar">
+                    <input type="text" id="log-filter-input" placeholder="{{ _('Filter logs...') }}">
+                </div>
+                <div class="table-container">
+                    <table id="logs-table">
+                        <thead>
+                            <tr>
+                                <th>{{ _('Date') }}</th>
+                                <th>{{ _('Time') }}</th>
+                                <th>{{ _('Event') }}</th>
+                                <th>{{ _('Severity') }}</th>
+                                <th>{{ _('NVR') }}</th>
+                                <th>{{ _('Camera Name') }}</th>
+                                <th>{{ _('IP') }}</th>
+                                <th>{{ _('Duration') }}</th>
+                                <th>{{ _('Details') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-table-body">
+                            <!-- Logs will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reports" class="tab-content">
+                <h2>{{ _('Camera Uptime (Last 24 Hours)') }}</h2>
+                <div class="table-container">
+                    <table id="reports-table">
+                        <thead>
+                            <tr>
+                                <th>{{ _('Camera Name') }}</th>
+                                <th>{{ _('IP') }}</th>
+                                <th>{{ _('NVR') }}</th>
+                                <th>{{ _('Uptime') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reports-table-body">
+                            <!-- Report data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Config Tab -->
+            <div id="config" class="tab-content">
+                <div class="config-container">
+                    <div class="config-section">
+                        <h2>{{ _('Alert Configuration') }}</h2>
+                        <div class="form-group">
+                            <label for="first-alert-delay">{{ _('First Alert Delay (minutes)') }}</label>
+                            <input type="number" id="first-alert-delay" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="alert-frequency">{{ _('Alert Frequency (minutes)') }}</label>
+                            <input type="number" id="alert-frequency" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="mute-after-n-alerts">{{ _('Mute After N Alerts') }}</label>
+                            <input type="number" id="mute-after-n-alerts" min="1">
+                        </div>
+                        <button id="save-config-btn" class="btn">{{ _('Save and Restart Monitor') }}</button>
+                    </div>
+
+                    <div class="config-section">
+                        <h2>{{ _('Security') }}</h2>
+                        <div class="form-group">
+                            <label for="new-password">{{ _('New Password') }}</label>
+                            <input type="password" id="new-password" placeholder="{{ _('Enter new password') }}">
+                        </div>
+                        <button id="change-password-btn" class="btn">{{ _('Change Password') }}</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <div id="toast-message" class="toast"></div>
+            <span id="last-updated">{{ _('Updating...') }}</span>
+        </footer>
+    </div>
+
+    <!-- Camera Detail Modal (Popup) -->
+    <div id="camera-detail-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button id="modal-close-btn" class="modal-close-btn">&times;</button>
+            <h2 id="modal-cam-name">Camera Name</h2>
+            <p><strong>Status:</strong> <span id="modal-cam-status"></span></p>
+            <p><strong>IP:</strong> <span id="modal-cam-ip"></span></p>
+            <p><strong>NVR:</strong> <span id="modal-cam-nvr"></span></p>
+            <p><strong>Downtime:</strong> <span id="modal-cam-downtime"></span></p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

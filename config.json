@@ -1,0 +1,34 @@
+{
+  "SECURITY_CONFIG_PATH": "C:\\Users\\Mehdi\\secure-config.json",
+  "FIRST_ALERT_DELAY_MINUTES": 15,
+  "ALERT_FREQUENCY_MINUTES": 30,
+  "MUTE_AFTER_N_ALERTS": 3,
+  "LOG_FILE": "nvr_status_log.csv",
+  "STATE_FILE": "camera_state.json",
+  "CAMERA_NAME_FILE": "camera_names.csv",
+  "MAIL_SERVER": "smtp.gmail.com",
+  "MAIL_PORT": 587,
+  "MAIL_USER": "unrealsmartmind@gmail.com",
+  "MAIL_RECIPIENTS": [
+    "unrealsmartmind@gmail.com",
+    "afshinnajjari@gmail.com"
+  ],
+  "NVR_LIST_CONFIG": [
+    {
+      "ip": "172.20.2.2",
+      "user": "admin"
+    },
+    {
+      "ip": "172.20.2.3",
+      "user": "admin"
+    },
+    {
+      "ip": "172.20.2.4",
+      "user": "admin"
+    },
+    {
+      "ip": "172.20.2.5",
+      "user": "admin"
+    }
+  ]
+}
