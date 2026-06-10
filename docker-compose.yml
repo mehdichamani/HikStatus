@@ -1,0 +1,13 @@
+services:
+  hikstatus:
+    build: .
+    container_name: hikstatus
+    restart: always
+    ports:
+      - '5423:5423'    
+    environment:
+      - TZ=Asia/Tehran     
+    network_mode: "host"
+    volumes:
+      - ./data:/app/data
+      - ./camera_names.csv:/app/camera_names.csv          
