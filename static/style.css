@@ -5,8 +5,8 @@
     --warn: #fdd835;
 }
 * { 
-    font-family: 'Vazirmatn';
-    ox-sizing: border-box;
+    font-family: 'Vazirmatn', sans-serif;
+    box-sizing: border-box;
     -webkit-tap-highlight-color: transparent; }
 
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');

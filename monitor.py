@@ -36,7 +36,10 @@ def poll_nvr_thread(nvr_data):
     ip, user, password = nvr_data
     url = f"http://{ip}/ISAPI/ContentMgmt/InputProxy/channels/status"
     try:
-        resp = requests.get(url, auth=HTTPDigestAuth(user, password), timeout=6, proxies={})
+        # Create a session and strictly disable environment proxy inheritance (Karing)
+        session = requests.Session()
+        session.trust_env = False 
+        resp = session.get(url, auth=HTTPDigestAuth(user, password), timeout=6, proxies={})
         if resp.status_code == 200:
             root = ET.fromstring(resp.content)
             namespace = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}

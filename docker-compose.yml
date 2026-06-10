@@ -3,11 +3,15 @@ services:
     build: .
     container_name: hikstatus
     restart: always
-    ports:
-      - '5423:5423'    
     environment:
-      - TZ=Asia/Tehran     
-    network_mode: "host"
+      - TZ=Asia/Tehran    
+    ports:
+      - '25423:5423'
     volumes:
       - ./data:/app/data
-      - ./camera_names.csv:/app/camera_names.csv          
+      - ./camera_names.csv:/app/camera_names.csv
+
+networks:
+  default:
+    name: npm
+    external: true

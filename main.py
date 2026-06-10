@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
     try: await monitor_task
     except: pass
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 security = HTTPBasic()
 
 def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):

@@ -12,7 +12,7 @@ def get_config_dict():
 def send_email_batch(subject, lines):
     conf = get_config_dict()
     if conf.get("MAIL_ENABLED") != "true" or not lines: return False
-    return send_email_raw(conf, subject, "<h3>خطای سیستمی</h3><ul>" + "".join([f"<li>{l}</li>" for l in lines]) + "</ul>")
+    return send_email_raw(conf, subject, "<h3>وضعیت:</h3><ul>" + "".join([f"<li>{l}</li>" for l in lines]) + "</ul>")
 
 def send_email_raw(conf, subject, body):
     try:
