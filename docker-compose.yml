@@ -6,7 +6,7 @@ services:
     environment:
       - TZ=Asia/Tehran    
     ports:
-      - '25423:5423'
+      - '28888:28888'
     volumes:
       - ./data:/app/data
       - ./camera_names.csv:/app/camera_names.csv

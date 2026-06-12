@@ -18,3 +18,5 @@ monitor_state.json
 monitor_events.csv
 *.log
 .env
+
+init_config.json

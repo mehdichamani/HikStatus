@@ -48,7 +48,7 @@ function createCard(c) {
     const stClass = c.status==='Online'?'status-online':'status-offline';
     const meta = encodeURIComponent(JSON.stringify(c));
     const star = c.importance === 3 ? '<span class="imp-star">★</span>' : '';
-    return `<div class="cam-card" onclick="showCam('${meta}')"><div class="cam-inner"><div class="face front imp-${c.importance} ${stClass}">${star}<div class="cam-name">${c.name}</div></div><div class="face back"><div>${c.ip}</div><div>CH ${c.channel_id}</div></div></div></div>`;
+    return `<div class="cam-card" onclick="showCam('${meta}')"><div class="cam-inner"><div class="face front imp-${c.importance} ${stClass}"><span class="status-dot"></span>${star}<div class="cam-name">${c.name}</div></div><div class="face back"><div>${c.ip}</div><div>CH ${c.channel_id}</div></div></div></div>`;
 }
 async function showCam(data) {
     const c = JSON.parse(decodeURIComponent(data));

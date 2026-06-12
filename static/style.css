@@ -72,7 +72,16 @@ body {
 .nvr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; padding: 12px; background: var(--border); border-top: 1px solid var(--border); }
 
 /* CAM CARDS */
-.cam-card { width: 100%; height: 50px; position: relative; perspective: 600px; cursor: pointer; }
+.cam-card { /* نام این کلاس را با نام کلاس کارت‌های خود در پروژه مطابقت دهید */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%; 
+    height: 50px; 
+    position: relative; 
+    perspective: 600px; 
+    cursor: pointer;
+}
 .cam-inner { width: 100%; height: 100%; position: relative; transition: transform 0.4s; transform-style: preserve-3d; }
 .cam-card:hover .cam-inner { transform: rotateX(180deg); }
 
@@ -196,4 +205,38 @@ input:checked + .slider:before { transform: translateX(16px); }
 
 .site-footer p {
     margin: 0;
+}
+
+/* --- STATUS DOT (چراغ وضعیت) --- */
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0; /* برای جلوگیری از تغییر اندازه در نام‌های طولانی */
+}
+
+/* رنگ سبز برای حالت متصل */
+.status-online .status-dot {
+    background-color: var(--success);
+    box-shadow: 0 0 6px var(--success);
+}
+
+/* رنگ قرمز چشمک‌زن برای حالت قطع */
+.status-offline .status-dot {
+    background-color: var(--danger);
+    box-shadow: 0 0 8px var(--danger);
+    animation: pulse-red 1.2s infinite;
+}
+
+/* افکت چشمک زن (Pulse) برای چراغ قرمز */
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(239, 83, 80, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0); }
+}
+
+/* (اختیاری) تقویت هاله قرمز پس‌زمینه برای دوربین‌های آفلاین تا بیشتر جلب توجه کند */
+.status-offline .front {
+    background-color: rgba(239, 83, 80, 0.15) !important;
+    border-color: var(--danger) !important;
 }

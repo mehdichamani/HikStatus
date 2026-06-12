@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import jdatetime
 from datetime import datetime, timedelta
@@ -21,29 +22,56 @@ monitor_task = None
 
 def seed_defaults():
     with Session(engine) as session:
-        defaults = [
-            ("MAIL_ENABLED", "false", "Enable Email"),
-            ("MAIL_SERVER", "smtp.gmail.com", "Server"),
-            ("MAIL_PORT", "587", "Port"),
-            ("MAIL_USER", "email@gmail.com", "User"),
-            ("MAIL_PASS", "password", "Pass"),
-            ("MAIL_RECIPIENTS", "admin@example.com", "Recipients"),
-            ("MAIL_FIRST_ALERT_DELAY_MINUTES", "1", "Normal Delay"),
-            ("MAIL_LOW_IMPORTANCE_DELAY_MINUTES", "30", "Low Imp. Delay"),
-            ("MAIL_ALERT_FREQUENCY_MINUTES", "60", "Frequency"),
-            ("MAIL_MUTE_AFTER_N_ALERTS", "3", "Mute After N"),
-            ("TELEGRAM_ENABLED", "false", "Enable Telegram"),
-            ("TELEGRAM_BOT_TOKEN", "", "Bot Token"),
-            ("TELEGRAM_CHAT_IDS", "", "Chat IDs"),
-            ("TELEGRAM_PROXY", "", "Proxy URL"),
-            ("TELEGRAM_FIRST_ALERT_DELAY_MINUTES", "1", "Normal Delay"),
-            ("TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES", "15", "Low Imp. Delay"),
-            ("TELEGRAM_ALERT_FREQUENCY_MINUTES", "30", "Frequency"),
-            ("TELEGRAM_MUTE_AFTER_N_ALERTS", "3", "Mute After N"),
-        ]
-        for key, val, desc in defaults:
+        # تنظیمات پیش‌فرض پایه (در صورت نبود فایل)
+        defaults = {
+            "MAIL_ENABLED": ("false", "Enable Email"),
+            "MAIL_SERVER": ("smtp.gmail.com", "Server"),
+            "MAIL_PORT": ("587", "Port"),
+            "MAIL_USER": ("email@gmail.com", "User"),
+            "MAIL_PASS": ("password", "Pass"),
+            "MAIL_RECIPIENTS": ("admin@example.com", "Recipients"),
+            "MAIL_FIRST_ALERT_DELAY_MINUTES": ("1", "Normal Delay"),
+            "MAIL_LOW_IMPORTANCE_DELAY_MINUTES": ("30", "Low Imp. Delay"),
+            "MAIL_ALERT_FREQUENCY_MINUTES": ("60", "Frequency"),
+            "MAIL_MUTE_AFTER_N_ALERTS": ("3", "Mute After N"),
+            "TELEGRAM_ENABLED": ("false", "Enable Telegram"),
+            "TELEGRAM_BOT_TOKEN": ("", "Bot Token"),
+            "TELEGRAM_CHAT_IDS": ("", "Chat IDs"),
+            "TELEGRAM_PROXY": ("", "Proxy URL"),
+            "TELEGRAM_FIRST_ALERT_DELAY_MINUTES": ("1", "Normal Delay"),
+            "TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES": ("15", "Low Imp. Delay"),
+            "TELEGRAM_ALERT_FREQUENCY_MINUTES": ("30", "Frequency"),
+            "TELEGRAM_MUTE_AFTER_N_ALERTS": ("3", "Mute After N"),
+        }
+
+        # تلاش برای خواندن فایل تنظیمات اولیه
+        init_data = {}
+        if os.path.exists("init_config.json"):
+            try:
+                with open("init_config.json", "r", encoding="utf-8") as f:
+                    init_data = json.load(f)
+            except Exception as e:
+                print(f"Error loading init_config.json: {e}")
+
+        # ۱. وارد کردن تنظیمات (ترکیب فایل JSON با پیش‌فرض‌ها)
+        json_settings = init_data.get("settings", {})
+        for key, (default_val, desc) in defaults.items():
+            # اگر در دیتابیس نبود، آن را ایجاد کن
             if not session.get(Settings, key):
-                session.add(Settings(key=key, value=val, description=desc))
+                val = json_settings.get(key, default_val)
+                session.add(Settings(key=key, value=str(val), description=desc))
+
+        # ۲. وارد کردن NVR های اولیه
+        json_nvrs = init_data.get("nvrs", [])
+        for nvr_data in json_nvrs:
+            if not session.get(NVR, nvr_data["ip"]):
+                session.add(NVR(
+                    ip=nvr_data["ip"],
+                    user=nvr_data["user"],
+                    password=nvr_data.get("password", ""),
+                    enabled=nvr_data.get("enabled", True)
+                ))
+
         session.commit()
 
 @asynccontextmanager
