@@ -5,10 +5,10 @@ import jdatetime
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 import secrets
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, PlainTextResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from sqlmodel import Session, select, col
 from database import init_db, get_session, Camera, Log, NVR, Settings, DowntimeEvent, engine, sqlite_file_name
@@ -17,6 +17,10 @@ from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidat
 
 class CsvContent(BaseModel):
     content: str
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 monitor_task = None
 
@@ -88,39 +92,71 @@ async def lifespan(app: FastAPI):
             pass
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-security = HTTPBasic()
 
-@app.get("/api/health")
-def health_check():
-    return {"status": "ok", "version": "1.0.0"}
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if response.status_code == 401 and not request.url.path.startswith("/api/"):
+            return RedirectResponse(url="/login")
+        return response
+
+app.add_middleware(AuthMiddleware)
+
+_sessions = {}
 
 def get_admin_credentials():
     username = os.environ.get("ADMIN_USER", "admin")
     password = os.environ.get("ADMIN_PASS", "admin")
     return username, password
 
-def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
+def create_session_token():
+    return secrets.token_hex(32)
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "version": "1.0.0"}
+
+def require_auth(request: Request):
+    token = request.cookies.get("session_token")
+    if not token or token not in _sessions:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return _sessions[token]
+
+@app.post("/api/auth/login")
+def login(payload: LoginRequest, response: Response):
     admin_user, admin_pass = get_admin_credentials()
-    correct_username = secrets.compare_digest(credentials.username, admin_user)
-    correct_password = secrets.compare_digest(credentials.password, admin_pass)
-    if not (correct_username and correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="نام کاربری یا رمز عبور اشتباه است",
-            headers={"WWW-Authenticate": "Basic"},
+    if payload.username == admin_user and payload.password == admin_pass:
+        token = create_session_token()
+        _sessions[token] = payload.username
+        response.set_cookie(
+            key="session_token",
+            value=token,
+            httponly=True,
+            samesite="lax",
+            max_age=86400
         )
-    return credentials.username
+        return {"status": "ok"}
+    raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
+
+@app.post("/api/auth/logout")
+def logout(request: Request, response: Response):
+    token = request.cookies.get("session_token")
+    if token and token in _sessions:
+        del _sessions[token]
+    response.delete_cookie("session_token")
+    return {"status": "ok"}
 # Serve Static Assets (CSS, JS)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-# Enforce authentication globally for all API requests under /api
-app.router.dependencies.append(Depends(authenticate_user))
 
-# Serve Index HTML
-@app.get("/", dependencies=[Depends(authenticate_user)])
+@app.get("/login")
+def login_page():
+    return FileResponse('static/login.html')
+
+@app.get("/", dependencies=[Depends(require_auth)])
 def read_root(): 
     return FileResponse('static/index.html')
 
-@app.post("/api/monitor/restart")
+@app.post("/api/monitor/restart", dependencies=[Depends(require_auth)])
 async def restart_monitor():
     global monitor_task
     if monitor_task:
@@ -132,7 +168,7 @@ async def restart_monitor():
     monitor_task = asyncio.create_task(start_monitor_loop())
     return {"status": "restarted"}
 
-@app.post("/api/data/purge")
+@app.post("/api/data/purge", dependencies=[Depends(require_auth)])
 def purge_data(session: Session = Depends(get_session)):
     # Reset Camera Status
     cameras = session.exec(select(Camera)).all()
@@ -154,14 +190,14 @@ def purge_data(session: Session = Depends(get_session)):
 
 
 # --- TEST ENDPOINTS ---
-@app.post("/api/test/email")
+@app.post("/api/test/email", dependencies=[Depends(require_auth)])
 def test_mail():
     conf = get_config_dict()
     res = send_email_raw(conf, "تست سامانه مانیتورینگ", "<h3>ایمیل به درستی کار میکنه!</h3>")
     if res is True: return {"status": "ok"}
     raise HTTPException(status_code=400, detail=str(res))
 
-@app.post("/api/test/telegram")
+@app.post("/api/test/telegram", dependencies=[Depends(require_auth)])
 def test_telegram():
     conf = get_config_dict()
     res = send_telegram_raw(conf, "✅ *تست سامانه مانیتورینگ*\nاعلان های تلگرام درسته!")
@@ -169,16 +205,16 @@ def test_telegram():
     raise HTTPException(status_code=400, detail=str(res))
 
 # --- API ---
-@app.get("/api/nvrs", response_model=list[NVR])
+@app.get("/api/nvrs", response_model=list[NVR], dependencies=[Depends(require_auth)])
 def get_nvrs(session: Session = Depends(get_session)): return session.exec(select(NVR)).all()
 
-@app.post("/api/nvrs")
+@app.post("/api/nvrs", dependencies=[Depends(require_auth)])
 def create_nvr(nvr: NVR, session: Session = Depends(get_session)):
     session.add(nvr)
     session.commit()
     return nvr
 
-@app.delete("/api/nvrs/{ip}")
+@app.delete("/api/nvrs/{ip}", dependencies=[Depends(require_auth)])
 def delete_nvr(ip: str, session: Session = Depends(get_session)):
     nvr = session.get(NVR, ip)
     if not nvr:
@@ -187,10 +223,10 @@ def delete_nvr(ip: str, session: Session = Depends(get_session)):
     session.commit()
     return {"ok": True}
 
-@app.get("/api/cameras", response_model=list[Camera])
+@app.get("/api/cameras", response_model=list[Camera], dependencies=[Depends(require_auth)])
 def get_cameras(session: Session = Depends(get_session)): return session.exec(select(Camera).order_by(Camera.nvr_ip, Camera.channel_id)).all()
 
-@app.put("/api/cameras/{id}")
+@app.put("/api/cameras/{id}", dependencies=[Depends(require_auth)])
 def update_cam(id: int, p: dict, session: Session = Depends(get_session)):
     c = session.get(Camera, id)
     if not c:
@@ -204,10 +240,10 @@ def update_cam(id: int, p: dict, session: Session = Depends(get_session)):
     session.commit()
     return c
 
-@app.get("/api/settings", response_model=list[Settings])
+@app.get("/api/settings", response_model=list[Settings], dependencies=[Depends(require_auth)])
 def get_settings(session: Session = Depends(get_session)): return session.exec(select(Settings)).all()
 
-@app.put("/api/settings/{key}")
+@app.put("/api/settings/{key}", dependencies=[Depends(require_auth)])
 def update_setting(key: str, p: Settings, session: Session = Depends(get_session)):
     s = session.get(Settings, key)
     if not s:
@@ -218,18 +254,18 @@ def update_setting(key: str, p: Settings, session: Session = Depends(get_session
     invalidate_config_cache()
     return s
 
-@app.get("/api/config/csv", response_class=PlainTextResponse)
+@app.get("/api/config/csv", response_class=PlainTextResponse, dependencies=[Depends(require_auth)])
 def get_csv():
     if os.path.exists("camera_names.csv"):
         with open("camera_names.csv", "r", encoding="utf-8-sig") as f: return f.read()
     return ""
 
-@app.post("/api/config/csv")
+@app.post("/api/config/csv", dependencies=[Depends(require_auth)])
 def save_csv(payload: CsvContent):
     with open("camera_names.csv", "w", encoding="utf-8-sig") as f: f.write(payload.content)
     return {"ok": True}
 
-@app.get("/api/logs")
+@app.get("/api/logs", dependencies=[Depends(require_auth)])
 def search_logs(q: str = None, limit: int = 50, offset: int = 0, session: Session = Depends(get_session)):
     query = select(Log).order_by(Log.timestamp.desc()).offset(offset).limit(limit)
     if q: 
@@ -265,14 +301,14 @@ def calculate_downtime_range(session, cam_id, start_ts, end_ts):
             total_minutes += (overlap_end - overlap_start).total_seconds() / 60
     return int(total_minutes)
 
-@app.get("/api/stats/{cam_id}")
+@app.get("/api/stats/{cam_id}", dependencies=[Depends(require_auth)])
 def get_cam_stats(cam_id: int, session: Session = Depends(get_session)):
     now = datetime.now()
     d1 = calculate_downtime_range(session, cam_id, now - timedelta(hours=1), now)
     d24 = calculate_downtime_range(session, cam_id, now - timedelta(hours=24), now)
     return {"down_1h": d1, "down_24h": d24}
 
-@app.get("/api/reports/generate")
+@app.get("/api/reports/generate", dependencies=[Depends(require_auth)])
 def generate_report(start: float, end: float, session: Session = Depends(get_session)):
     start_dt = datetime.fromtimestamp(start)
     end_dt = datetime.fromtimestamp(end)

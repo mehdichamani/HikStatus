@@ -5,6 +5,10 @@ let currentCamId, currentImp, settingsCache=[];
 async function apiFetch(url, options={}) {
     try {
         const res = await fetch(url, options);
+        if (res.status === 401) {
+            window.location.href = '/login';
+            throw new Error('Unauthorized');
+        }
         if (!res.ok) {
             const err = await res.json().catch(() => ({detail: res.statusText}));
             throw new Error(err.detail || 'Request failed');
@@ -439,3 +443,10 @@ document.addEventListener('DOMContentLoaded', () => {
     nav('summ');
     setInterval(fetchDash, 5000);
 });
+
+async function logout() {
+    try {
+        await apiFetch(`${API}/auth/logout`, { method: 'POST' });
+    } catch(e) {}
+    window.location.href = '/login';
+}
