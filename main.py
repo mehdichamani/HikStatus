@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select, col
 from database import init_db, get_session, Camera, Log, NVR, Settings, DowntimeEvent, engine, sqlite_file_name
 from monitor import start_monitor_loop
-from alerts import send_email_raw, send_telegram_raw, get_config_dict
+from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache
 
 class CsvContent(BaseModel):
     content: str
@@ -22,7 +22,6 @@ monitor_task = None
 
 def seed_defaults():
     with Session(engine) as session:
-        # تنظیمات پیش‌فرض پایه (در صورت نبود فایل)
         defaults = {
             "MAIL_ENABLED": ("false", "Enable Email"),
             "MAIL_SERVER": ("smtp.gmail.com", "Server"),
@@ -81,16 +80,29 @@ async def lifespan(app: FastAPI):
     seed_defaults()
     monitor_task = asyncio.create_task(start_monitor_loop())
     yield
-    if monitor_task: monitor_task.cancel()
-    try: await monitor_task
-    except: pass
+    if monitor_task:
+        monitor_task.cancel()
+        try:
+            await monitor_task
+        except asyncio.CancelledError:
+            pass
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 security = HTTPBasic()
 
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "version": "1.0.0"}
+
+def get_admin_credentials():
+    username = os.environ.get("ADMIN_USER", "admin")
+    password = os.environ.get("ADMIN_PASS", "admin")
+    return username, password
+
 def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = secrets.compare_digest(credentials.username, "admin")
-    correct_password = secrets.compare_digest(credentials.password, "admin")
+    admin_user, admin_pass = get_admin_credentials()
+    correct_username = secrets.compare_digest(credentials.username, admin_user)
+    correct_password = secrets.compare_digest(credentials.password, admin_pass)
     if not (correct_username and correct_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -113,8 +125,10 @@ async def restart_monitor():
     global monitor_task
     if monitor_task:
         monitor_task.cancel()
-        try: await monitor_task
-        except: pass
+        try:
+            await monitor_task
+        except asyncio.CancelledError:
+            pass
     monitor_task = asyncio.create_task(start_monitor_loop())
     return {"status": "restarted"}
 
@@ -166,7 +180,10 @@ def create_nvr(nvr: NVR, session: Session = Depends(get_session)):
 
 @app.delete("/api/nvrs/{ip}")
 def delete_nvr(ip: str, session: Session = Depends(get_session)):
-    session.delete(session.get(NVR, ip))
+    nvr = session.get(NVR, ip)
+    if not nvr:
+        raise HTTPException(status_code=404, detail="NVR not found")
+    session.delete(nvr)
     session.commit()
     return {"ok": True}
 
@@ -176,7 +193,13 @@ def get_cameras(session: Session = Depends(get_session)): return session.exec(se
 @app.put("/api/cameras/{id}")
 def update_cam(id: int, p: dict, session: Session = Depends(get_session)):
     c = session.get(Camera, id)
-    if "importance" in p: c.importance = int(p["importance"])
+    if not c:
+        raise HTTPException(status_code=404, detail="Camera not found")
+    if "importance" in p:
+        importance = int(p["importance"])
+        if importance not in (1, 2, 3):
+            raise HTTPException(status_code=400, detail="Importance must be 1, 2, or 3")
+        c.importance = importance
     session.add(c)
     session.commit()
     return c
@@ -187,9 +210,12 @@ def get_settings(session: Session = Depends(get_session)): return session.exec(s
 @app.put("/api/settings/{key}")
 def update_setting(key: str, p: Settings, session: Session = Depends(get_session)):
     s = session.get(Settings, key)
+    if not s:
+        raise HTTPException(status_code=404, detail="Setting not found")
     s.value = p.value
     session.add(s)
     session.commit()
+    invalidate_config_cache()
     return s
 
 @app.get("/api/config/csv", response_class=PlainTextResponse)

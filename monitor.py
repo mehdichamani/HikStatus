@@ -23,14 +23,16 @@ def load_csv_names():
                 for row in reader:
                     if len(row) >= 2 and row[0].strip():
                         mapping[row[0].strip()] = row[1].strip()
-        except: pass
+        except (csv.Error, UnicodeDecodeError, IOError) as e:
+            print(f"Warning: Failed to load camera_names.csv: {e}")
     return mapping
 
 def log_event(session, l_type, state, details):
     try:
         session.add(Log(log_type=l_type, state=state, details=details))
         session.commit() 
-    except: pass
+    except Exception as e:
+        print(f"Warning: Failed to log event: {e}")
 
 def poll_nvr_thread(nvr_data):
     ip, user, password = nvr_data

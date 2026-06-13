@@ -4,10 +4,26 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from database import Session, engine, Settings
 
+_config_cache = None
+_config_cache_time = 0
+_CACHE_TTL = 30
+
 def get_config_dict():
+    import time
+    global _config_cache, _config_cache_time
+    now = time.time()
+    if _config_cache and (now - _config_cache_time) < _CACHE_TTL:
+        return _config_cache
     with Session(engine) as session:
         settings = session.query(Settings).all()
-        return {s.key: s.value for s in settings}
+        _config_cache = {s.key: s.value for s in settings}
+        _config_cache_time = now
+        return _config_cache
+
+def invalidate_config_cache():
+    global _config_cache, _config_cache_time
+    _config_cache = None
+    _config_cache_time = 0
 
 def send_email_batch(subject, lines):
     conf = get_config_dict()

@@ -2,6 +2,20 @@ const API = '/api';
 let logOff=0, logFilter='', logSearchVal='', loading=false, allLoaded=false;
 let currentCamId, currentImp, settingsCache=[];
 
+async function apiFetch(url, options={}) {
+    try {
+        const res = await fetch(url, options);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({detail: res.statusText}));
+            throw new Error(err.detail || 'Request failed');
+        }
+        return res;
+    } catch(e) {
+        console.error('API Error:', e);
+        throw e;
+    }
+}
+
 function nav(id) {
     document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(e => e.classList.remove('active'));
@@ -16,7 +30,7 @@ function nav(id) {
 // --- DASHBOARD & SUMMARY ---
 function getNvrNum(ip) { return ip.split('.').pop(); }
 async function fetchDash() {
-    const res = await fetch(`${API}/cameras`); const cams = await res.json();
+    const res = await apiFetch(`${API}/cameras`); const cams = await res.json();
     const on = cams.filter(c=>c.status==='Online').length;
     const off = cams.filter(c=>c.status!=='Online');
     
@@ -58,16 +72,16 @@ async function showCam(data) {
     document.getElementById('m-det').textContent = `${c.ip} (CH ${c.channel_id})`;
     document.getElementById('m-imp').textContent = ['Low','Normal','Critical'][c.importance-1];
     document.getElementById('camModal').classList.add('open');
-    const res = await fetch(`${API}/stats/${c.id}`); const s = await res.json();
+    const res = await apiFetch(`${API}/stats/${c.id}`); const s = await res.json();
     document.getElementById('m-d1').textContent = s.down_1h+'m';
     document.getElementById('m-d24').textContent = s.down_24h+'m';
 }
-async function cycleImpModal() { let n = currentImp + 1; if(n>3)n=1; await fetch(`${API}/cameras/${currentCamId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({importance:n})}); currentImp=n; document.getElementById('m-imp').textContent = ['Low','Normal','Critical'][n-1]; fetchDash(); }
+async function cycleImpModal() { let n = currentImp + 1; if(n>3)n=1; await apiFetch(`${API}/cameras/${currentCamId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({importance:n})}); currentImp=n; document.getElementById('m-imp').textContent = ['Low','Normal','Critical'][n-1]; fetchDash(); }
 
 // --- SETTINGS ---
 async function loadSettings() {
-    const sRes = await fetch(`${API}/settings`); settingsCache = await sRes.json();
-    const cRes = await fetch(`${API}/config/csv`); document.getElementById('csvEditor').value = await cRes.text();
+    const sRes = await apiFetch(`${API}/settings`); settingsCache = await sRes.json();
+    const cRes = await apiFetch(`${API}/config/csv`); document.getElementById('csvEditor').value = await cRes.text();
     
     // Build Nav Buttons for sections
     const nav = document.getElementById('config-nav'); nav.innerHTML = '';
@@ -89,22 +103,22 @@ async function loadSettings() {
         con.innerHTML += html + '</div>';
     }
     // NVR List
-    const nRes = await fetch(`${API}/nvrs`); const nvrs = await nRes.json();
+    const nRes = await apiFetch(`${API}/nvrs`); const nvrs = await nRes.json();
     document.getElementById('nvr-list').innerHTML = nvrs.map(n => `<div class="list-item"><span>${n.ip} <span style="color:#666">(${n.user})</span></span><button class="btn-icon" onclick="delNVR('${n.ip}')"><span class="material-icons-round" style="font-size:16px; color:var(--danger)">delete</span></button></div>`).join('');
 }
-async function saveAll() { for(const s of settingsCache) { const el = document.getElementById(s.key); if(el) { let val = el.value; if(el.type==='checkbox') val=el.checked?'true':'false'; if(val!==s.value) await fetch(`${API}/settings/${s.key}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:s.key, value:val})}); } } await fetch(`${API}/config/csv`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:document.getElementById('csvEditor').value})}); alert('Saved'); }
-async function apply() { await saveAll(); await fetch(`${API}/monitor/restart`, {method:'POST'}); alert('Restarted'); location.reload(); }
-async function testConn(type) { try { const res = await fetch(`/api/test/${type}`, {method:'POST'}); if(res.ok) alert('Passed'); else alert('Failed'); } catch(e){alert(e);} }
-async function addNVR() { const ip=document.getElementById('nvrIp').value; const u=document.getElementById('nvrUser').value; const p=document.getElementById('nvrPass').value; await fetch(`${API}/nvrs`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ip, user:u, password:p||null, enabled:true})}); loadSettings(); }
-async function delNVR(ip) { if(confirm('Delete?')) { await fetch(`${API}/nvrs/${ip}`, {method:'DELETE'}); loadSettings(); } }
+async function saveAll() { for(const s of settingsCache) { const el = document.getElementById(s.key); if(el) { let val = el.value; if(el.type==='checkbox') val=el.checked?'true':'false'; if(val!==s.value) await apiFetch(`${API}/settings/${s.key}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:s.key, value:val})}); } } await apiFetch(`${API}/config/csv`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:document.getElementById('csvEditor').value})}); alert('Saved'); }
+async function apply() { await saveAll(); await apiFetch(`${API}/monitor/restart`, {method:'POST'}); alert('Restarted'); location.reload(); }
+async function testConn(type) { try { const res = await apiFetch(`/api/test/${type}`, {method:'POST'}); alert('Passed'); } catch(e){ alert('Failed: ' + e.message); } }
+async function addNVR() { const ip=document.getElementById('nvrIp').value; const u=document.getElementById('nvrUser').value; const p=document.getElementById('nvrPass').value; await apiFetch(`${API}/nvrs`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ip, user:u, password:p||null, enabled:true})}); loadSettings(); }
+async function delNVR(ip) { if(confirm('Delete?')) { await apiFetch(`${API}/nvrs/${ip}`, {method:'DELETE'}); loadSettings(); } }
 async function purgeData() {
     if (confirm('Are you sure you want to delete all logs and reset camera states? This action cannot be undone.')) {
-        const res = await fetch(`${API}/data/purge`, {method: 'POST'});
-        if (res.ok) {
+        try {
+            await apiFetch(`${API}/data/purge`, {method: 'POST'});
             alert('Data purged successfully.');
             location.reload();
-        } else {
-            alert('Failed to purge data.');
+        } catch(e) {
+            alert('Failed: ' + e.message);
         }
     }
 }
@@ -115,7 +129,7 @@ function setFilter(btn, val) { document.querySelectorAll('.btn-outline').forEach
 function resetLogs() { document.getElementById('log-list').innerHTML=''; logOff=0; allLoaded=false; fetchLogs(); }
 async function fetchLogs() {
     if(loading||allLoaded)return; loading=true; document.getElementById('logLoader').style.display='block';
-    const res = await fetch(`${API}/logs?q=${logFilter||logSearchVal}&limit=30&offset=${logOff}`); const logs = await res.json();
+    const res = await apiFetch(`${API}/logs?q=${logFilter||logSearchVal}&limit=30&offset=${logOff}`); const logs = await res.json();
     if(logs.length<30) allLoaded=true;
     document.getElementById('log-list').insertAdjacentHTML('beforeend', logs.map(l=>{
         let detail = l.details; if(detail.includes('mins')) detail = `<span class="downtime-tag">${detail.match(/\d+m/)}</span> ` + detail;
@@ -142,7 +156,7 @@ async function genReport() {
     const s = new Date(document.getElementById('startDt').value).getTime()/1000; const e = new Date(document.getElementById('endDt').value).getTime()/1000;
     if(!s || !e) return alert('Select Range');
     document.getElementById('rep-list').innerHTML = '<div style="padding:20px; text-align:center">Analyzing...</div>';
-    const res = await fetch(`${API}/reports/generate?start=${s}&end=${e}`); const data = await res.json();
+    const res = await apiFetch(`${API}/reports/generate?start=${s}&end=${e}`); const data = await res.json();
     if(data.length===0) { document.getElementById('rep-list').innerHTML='<div style="padding:20px; text-align:center">No downtime found.</div>'; return; }
     const max = Math.max(...data.map(i=>i.mins));
     document.getElementById('rep-list').innerHTML = data.map(i=>{
