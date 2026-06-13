@@ -4,7 +4,8 @@ services:
     container_name: hikstatus
     restart: always
     network_mode: host
-    network_mode: host
+    #ports:
+    #  - '28888:28888'    
     environment:
       - TZ=Asia/Tehran
       - ADMIN_USER=${ADMIN_USER:-admin}
@@ -13,7 +14,7 @@ services:
       - ./data:/app/data
       - ./camera_names.csv:/app/camera_names.csv
 
-##networks:
-##  default:
-##    name: npm
-##    external: true
+#networks:
+#  default:
+#    name: npm
+#    external: true
