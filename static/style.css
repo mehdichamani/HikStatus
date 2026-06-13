@@ -500,6 +500,15 @@ body {
     height: calc(100dvh - 200px);
 }
 
+#settings .panel-row {
+    height: auto;
+    align-items: flex-start;
+}
+
+#settings .panel-main {
+    overflow-y: visible;
+}
+
 .panel-side {
     width: 280px;
     background: var(--surface);
