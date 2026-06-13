@@ -3,177 +3,333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>HikStatus</title>
-    <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">   -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👁️</text></svg>">
-        <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <header class="company-header">
-        <img src="/static/logo.png" alt="لوگو شرکت" class="company-logo">
-        <div class="company-title">
-            <p>گروه صنعتی شیشه کاوه<br>
-            شرکت اروم شیشه ساچی<br>
-            سامانه مانیتورینگ دوربین‌های مداربسته</p>
+
+    <!-- Top Header -->
+    <header class="app-header">
+        <div class="header-content">
+            <div class="header-brand">
+                <img src="/static/logo.png" alt="لوگو" class="header-logo">
+                <div class="header-text">
+                    <h1>HikStatus</h1>
+                    <p>سامانه مانیتورینگ دوربین‌ها</p>
+                </div>
+            </div>
+            <div class="header-status" id="header-status">
+                <span class="pulse-dot"></span>
+                <span>فعال</span>
+            </div>
         </div>
     </header>
 
-    <nav class="top-nav">
-        <button class="nav-tab active" id="btn-summ" onclick="nav('summ')">وضعیت</button>
-        <button class="nav-tab" id="btn-dash" onclick="nav('dash')">داشبورد</button>
-        <button class="nav-tab" id="btn-logs" onclick="nav('logs')">گزارش</button>
-        <button class="nav-tab" id="btn-reports" onclick="nav('reports')">نمودار</button>
-        <button class="nav-tab" id="btn-settings" onclick="nav('settings')">تنظیمات</button>
+    <!-- Desktop Navigation -->
+    <nav class="desktop-nav">
+        <button class="nav-item active" data-view="summ" onclick="nav('summ')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>وضعیت</span>
+        </button>
+        <button class="nav-item" data-view="dash" onclick="nav('dash')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span>داشبورد</span>
+        </button>
+        <button class="nav-item" data-view="logs" onclick="nav('logs')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>گزارش</span>
+        </button>
+        <button class="nav-item" data-view="reports" onclick="nav('reports')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span>نمودار</span>
+        </button>
+        <button class="nav-item" data-view="settings" onclick="nav('settings')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>تنظیمات</span>
+        </button>
     </nav>
 
-    <div class="main-container">
+    <!-- Main Content -->
+    <main class="main-content">
 
-        <!-- SUMMARY -->
-        <div id="summ" class="view active">
-            <div class="summary-grid">
-                <div class="summ-card"><span class="summ-val" id="s-tot">-</span><span class="summ-lbl">کل</span></div>
-                <div class="summ-card" style="border-color:rgba(129, 199, 132, 0.3)"><span class="summ-val" style="color:var(--success)" id="s-on">-</span><span class="summ-lbl">وصل</span></div>
-                <div class="summ-card" style="border-color:rgba(239, 83, 80, 0.3)"><span class="summ-val" style="color:var(--danger)" id="s-off">-</span><span class="summ-lbl">قطع</span></div>
-            </div>
-            <div id="offline-section" style="display:none">
-                <h3 class="offline-list-title">🚨 دوربین های قطع شده</h3>
-                <div class="offline-grid" id="offline-grid"></div>
-            </div>
-            <div id="all-ok" style="text-align:center; padding:40px; color:var(--text-dim); display:none">
-                <span class="material-icons-round" style="font-size:48px; color:var(--success)">✅✅✅</span>
-                <p>همه چی آرومه 😊</p>
-            </div>
-        </div>
-
-        <!-- DASHBOARD -->
-        <div id="dash" class="view">
-            <div class="dash-header">
-                <div class="std-input-static"><span class="val" id="tot">-</span><span class="lbl">همه</span></div>
-                <div class="std-input-static"><span class="val" id="on" style="color:var(--success)">-</span><span class="lbl">وصل</span></div>
-                <div class="std-input-static"><span class="val" id="off" style="color:var(--danger)">-</span><span class="lbl">قطع</span></div>
-                <button class="btn" style="width:auto; padding:0 20px" onclick="fetchDash()">بروزرسانی</button>
-            </div>
-            <div id="nvr-container"></div>
-        </div>
-
-        <!-- LOGS -->
-        <div id="logs" class="view">
-            <div class="segment-container">
-                <div class="segment-side">
-                    <input class="std-input" id="logSearch" placeholder="متن جستجو..." onkeyup="delayLogSearch()">
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px">
-                        <button class="btn btn-outline active" onclick="setFilter(this, '')">همه</button>
-                        <button class="btn btn-outline" onclick="setFilter(this, 'Camera')">دوربین</button>
-                        <button class="btn btn-outline" onclick="setFilter(this, 'Telegram')">تلگرام</button>
-                        <button class="btn btn-outline" onclick="setFilter(this, 'Mail')">ایمیل</button>
+        <!-- SUMMARY VIEW -->
+        <section id="summ" class="view active">
+            <div class="stats-row">
+                <div class="stat-card stat-total">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="s-tot">-</span>
+                        <span class="stat-label">کل دوربین‌ها</span>
                     </div>
                 </div>
-                <div class="segment-main" id="logScroll" style="overflow-y:auto">
-                    <table class="log-table"><thead><tr><th>زمان</th><th>نوع</th><th>وضعیت</th><th>جزئیات</th></tr></thead><tbody id="log-list"></tbody></table>
-                    <div id="logLoader" style="text-align:center; padding:20px; color:#666; display:none">درحال بارگزاری...</div>
+                <div class="stat-card stat-online">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="s-on">-</span>
+                        <span class="stat-label">متصل</span>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- REPORTS -->
-        <div id="reports" class="view">
-            <div class="segment-container">
-                <div class="segment-side">
-                    <div style="margin-bottom:15px"><label class="lbl">محدوده های آماده</label><div style="display:flex; gap:5px; margin-top:5px"><button class="btn btn-outline" onclick="setPreset(1)">یک ساعت</button><button class="btn btn-outline" onclick="setPreset(8)">8 ساعت</button><button class="btn btn-outline" onclick="setPreset(24)">24 ساعت</button></div></div>
-                    <div style="margin-bottom:15px"><label class="lbl">شروع</label><input type="datetime-local" id="startDt" class="std-input" style="color-scheme:dark"></div>
-                    <div style="margin-bottom:15px"><label class="lbl">پایان</label><input type="datetime-local" id="endDt" class="std-input" style="color-scheme:dark"></div>
-                    <button class="btn" onclick="genReport()">ساخت گزارش</button>
-                </div>
-                <div class="segment-main">
-                    <div style="padding:15px; border-bottom:1px solid var(--border); font-weight:700">گزارش قطعی ها</div>
-                    <div id="rep-list" style="flex:1; overflow-y:auto">
-                        <div style="padding:40px; text-align:center; color:#444">برای شروع محدوده زمانی انتخاب کنید</div>
+                <div class="stat-card stat-offline">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="s-off">-</span>
+                        <span class="stat-label">قطع</span>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- SETTINGS (FIXED) -->
-        <div id="settings" class="view">
-            <div class="segment-container">
-                <!-- Navigation Sidebar -->
-                <div class="segment-side">
-                    <button class="btn btn-outline" style="width:100%; margin-bottom:10px" onclick="loadSettings()">بارگزاری مجدد</button>
-                    <div id="config-nav"></div>
+            <div id="offline-section" class="hidden">
+                <div class="section-header">
+                    <h2>دوربین‌های قطع شده</h2>
+                    <span class="badge badge-danger" id="offline-count">0</span>
                 </div>
-                
-                <!-- Main Content -->
-                <div class="segment-main" style="padding:20px; overflow-y:auto">
-                    <!-- NVRs -->
-                    <div class="config-card" id="sec-nvr">
-                        <div class="config-title">مدیریت NVRها</div>
-                        <div style="display:flex; gap:8px; margin-bottom:10px">
-                            <input id="nvrIp" class="std-input" placeholder="آی پی">
-                            <input id="nvrUser" class="std-input" placeholder="نام کاربری" style="width:80px">
-                            <input id="nvrPass" class="std-input" type="password" placeholder="رمز" style="width:80px">
-                            <button class="btn" onclick="addNVR()">+</button>
+                <div class="cam-grid" id="offline-grid"></div>
+            </div>
+
+            <div id="all-ok" class="all-ok hidden">
+                <div class="success-icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <h3>همه دوربین‌ها متصل هستند</h3>
+                <p>وضعیت شبکه عالی است</p>
+            </div>
+        </section>
+
+        <!-- DASHBOARD VIEW -->
+        <section id="dash" class="view">
+            <div class="dash-toolbar">
+                <div class="stats-row stats-row-sm">
+                    <div class="stat-chip"><span class="stat-chip-val" id="tot">-</span><span>همه</span></div>
+                    <div class="stat-chip stat-chip-online"><span class="stat-chip-val" id="on">-</span><span>وصل</span></div>
+                    <div class="stat-chip stat-chip-offline"><span class="stat-chip-val" id="off">-</span><span>قطع</span></div>
+                </div>
+                <button class="btn-icon" onclick="fetchDash()" title="بروزرسانی">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </button>
+            </div>
+            <div id="nvr-container" class="nvr-list"></div>
+        </section>
+
+        <!-- LOGS VIEW -->
+        <section id="logs" class="view">
+            <div class="panel-row">
+                <aside class="panel-side">
+                    <div class="search-box">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input id="logSearch" placeholder="جستجو..." onkeyup="delayLogSearch()">
+                    </div>
+                    <div class="filter-chips">
+                        <button class="chip active" onclick="setFilter(this, '')">همه</button>
+                        <button class="chip" onclick="setFilter(this, 'Camera')">دوربین</button>
+                        <button class="chip" onclick="setFilter(this, 'Telegram')">تلگرام</button>
+                        <button class="chip" onclick="setFilter(this, 'Mail')">ایمیل</button>
+                    </div>
+                </aside>
+                <div class="panel-main" id="logScroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>زمان</th>
+                                <th>نوع</th>
+                                <th>وضعیت</th>
+                                <th>جزئیات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-list"></tbody>
+                    </table>
+                    <div id="logLoader" class="loader hidden">
+                        <div class="spinner"></div>
+                        <span>درحال بارگذاری...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- REPORTS VIEW -->
+        <section id="reports" class="view">
+            <div class="panel-row">
+                <aside class="panel-side">
+                    <div class="side-section">
+                        <label class="form-label">محدوده زمانی</label>
+                        <div class="preset-btns">
+                            <button class="chip" onclick="setPreset(1)">۱ ساعت</button>
+                            <button class="chip" onclick="setPreset(8)">۸ ساعت</button>
+                            <button class="chip" onclick="setPreset(24)">۲۴ ساعت</button>
                         </div>
-                        <div id="nvr-list"></div>
                     </div>
-                    
-                    <!-- CSV -->
-                    <div class="config-card" id="sec-csv">
-                        <div class="config-title">نام دوربین ها</div>
-                        <textarea id="csvEditor" class="std-input" style="height:300px; font-family:monospace" spellcheck="false"></textarea>
+                    <div class="side-section">
+                        <label class="form-label">زمان شروع</label>
+                        <input type="datetime-local" id="startDt" class="form-input" style="color-scheme:dark">
+                    </div>
+                    <div class="side-section">
+                        <label class="form-label">زمان پایان</label>
+                        <input type="datetime-local" id="endDt" class="form-input" style="color-scheme:dark">
+                    </div>
+                    <button class="btn btn-primary" onclick="genReport()">ساخت گزارش</button>
+                </aside>
+                <div class="panel-main">
+                    <div class="panel-header">گزارش قطعی‌ها</div>
+                    <div id="rep-list" class="report-list">
+                        <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SETTINGS VIEW -->
+        <section id="settings" class="view">
+            <div class="panel-row">
+                <aside class="panel-side">
+                    <button class="btn btn-ghost" onclick="loadSettings()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        بارگذاری مجدد
+                    </button>
+                    <nav id="config-nav" class="settings-nav"></nav>
+                </aside>
+                <div class="panel-main panel-scroll">
+                    <!-- NVR Management -->
+                    <div class="card" id="sec-nvr">
+                        <div class="card-header">
+                            <h3>مدیریت NVRها</h3>
+                        </div>
+                        <div class="nvr-form">
+                            <input id="nvrIp" class="form-input" placeholder="آدرس IP">
+                            <input id="nvrUser" class="form-input form-input-sm" placeholder="نام کاربری">
+                            <input id="nvrPass" class="form-input form-input-sm" type="password" placeholder="رمز عبور">
+                            <button class="btn btn-primary btn-icon-only" onclick="addNVR()">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                        </div>
+                        <div id="nvr-list" class="list-container"></div>
+                    </div>
+
+                    <!-- Camera Names CSV -->
+                    <div class="card" id="sec-csv">
+                        <div class="card-header">
+                            <h3>نام دوربین‌ها</h3>
+                        </div>
+                        <textarea id="csvEditor" class="form-textarea" spellcheck="false"></textarea>
                     </div>
 
                     <!-- Dynamic Settings -->
                     <div id="config-forms"></div>
 
-                        <!-- Mini Guide -->
-                        <details class="mini-guide">
-                            <summary>ℹ️ توضیح درمورد پروکسی تلگرام</summary>
-                            <div class="guide-content">
-                                <p>به جای <code>127.0.0.1:10808</code> از <code>http://host.docker.internal:10808</code> استفاده کنید.
-                            </div>
-                        </details>
-
+                    <!-- Telegram Guide -->
+                    <details class="guide-card">
+                        <summary>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            راهنمای پروکسی تلگرام
+                        </summary>
+                        <div class="guide-body">
+                            <p>به جای <code>127.0.0.1:10808</code> از <code>http://host.docker.internal:10808</code> استفاده کنید.</p>
+                        </div>
+                    </details>
 
                     <!-- Danger Zone -->
-                    <div class="config-card" style="border-color: var(--danger);">
-                        <div class="config-title" style="color: var(--danger);">گزینه های حساس</div>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <p style="font-size:14px; color:var(--text-dim); margin:0;">این دکمه همه چی رو پاک میکنه<br><b>عملیات غیرقابل بازگشته دقت کنید!</b></p>
-                            <button class="btn" style="background:var(--danger); color:white" onclick="purgeData()">ریست کلی</button>
+                    <div class="card card-danger">
+                        <div class="card-header">
+                            <h3>منطقه خطر</h3>
+                        </div>
+                        <div class="danger-row">
+                            <div>
+                                <p class="danger-text">پاکسازی تمامی لاگ‌ها و ریست وضعیت دوربین‌ها</p>
+                                <p class="danger-warning">این عملیات غیرقابل بازگشت است</p>
+                            </div>
+                            <button class="btn btn-danger" onclick="purgeData()">ریست کامل</button>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <div class="fab-container">
-                <div class="fab fab-reload" onclick="apply()" title="Apply & Restart">ذخیره و ریستارت</div>
-                <div class="fab fab-save" onclick="saveAll()" title="Save Only">ذخیره</div>
+
+            <!-- FABs -->
+            <div class="fab-group">
+                <button class="fab fab-secondary" onclick="saveAll()" title="ذخیره">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                </button>
+                <button class="fab fab-primary" onclick="apply()" title="ذخیره و ریستارت">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Camera Detail Modal -->
+    <div class="modal-overlay" id="camModal" onclick="closeModal()">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h2 id="m-name">-</h2>
+                <button class="btn-close" onclick="closeModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="info-row">
+                    <span class="info-label">NVR</span>
+                    <span class="info-value mono" id="m-nvr">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">آدرس IP</span>
+                    <span class="info-value mono" id="m-det">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">اهمیت</span>
+                    <span class="info-value badge" id="m-imp">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">قطعی ۱ ساعت اخیر</span>
+                    <span class="info-value danger" id="m-d1">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">قطعی ۲۴ ساعت اخیر</span>
+                    <span class="info-value danger" id="m-d24">-</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="cycleImpModal()">تغییر اهمیت</button>
+                <button class="btn btn-ghost" onclick="closeModal()">بستن</button>
             </div>
         </div>
-
     </div>
 
-    <!-- MODAL -->
-    <div class="modal-overlay" id="camModal" onclick="this.classList.remove('open')">
-        <div class="modal" onclick="event.stopPropagation()">
-            <h2 id="m-name" style="margin-top:0">Cam</h2>
-            <div class="modal-row"><span style="color:var(--text-dim)">NVR</span><span id="m-nvr" style="font-family:monospace"></span></div>
-            <div class="modal-row"><span style="color:var(--text-dim)">آی پی</span><span id="m-det" style="font-family:monospace"></span></div>
-            <div class="modal-row"><span style="color:var(--text-dim)">اهمیت</span><span id="m-imp" style="font-weight:700; color:var(--primary)">-</span></div>
-            <div class="modal-row"><span style="color:var(--text-dim)">قطعی یک ساعت اخیر</span><span id="m-d1" style="color:var(--danger)">-</span></div>
-            <div class="modal-row"><span style="color:var(--text-dim)">قطعی 24 ساعت اخیر</span><span id="m-d24" style="color:var(--danger)">-</span></div>
-            <div style="display:flex; gap:10px; margin-top:20px">
-                <button class="btn" onclick="cycleImpModal()">تغییر اهمیت</button>
-                <button class="btn btn-outline" onclick="document.getElementById('camModal').classList.remove('open')">بستن</button>
-            </div>
-        </div>
-    </div>
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-nav">
+        <button class="mobile-nav-item active" data-view="summ" onclick="nav('summ')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>وضعیت</span>
+        </button>
+        <button class="mobile-nav-item" data-view="dash" onclick="nav('dash')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span>داشبورد</span>
+        </button>
+        <button class="mobile-nav-item" data-view="logs" onclick="nav('logs')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>گزارش</span>
+        </button>
+        <button class="mobile-nav-item" data-view="reports" onclick="nav('reports')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span>نمودار</span>
+        </button>
+        <button class="mobile-nav-item" data-view="settings" onclick="nav('settings')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>تنظیمات</span>
+        </button>
+    </nav>
 
     <script src="/static/app.js" defer></script>
-
-    <footer class="site-footer">
-        <p>© 2026 طراحی و توسعه: واحد فناوری اطلاعات شرکت</p>
-    </footer>
 </body>
 </html>
