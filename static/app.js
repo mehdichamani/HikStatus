@@ -145,6 +145,27 @@ async function cycleImpModal() {
 }
 
 // --- SETTINGS ---
+const settingLabels = {
+    'MAIL_ENABLED': 'فعال‌سازی ایمیل',
+    'MAIL_SERVER': 'سرور ایمیل',
+    'MAIL_PORT': 'پورت',
+    'MAIL_USER': 'نام کاربری',
+    'MAIL_PASS': 'رمز عبور',
+    'MAIL_RECIPIENTS': 'گیرندگان',
+    'MAIL_FIRST_ALERT_DELAY_MINUTES': 'تأخیر اعلان اولیه (دقیقه)',
+    'MAIL_LOW_IMPORTANCE_DELAY_MINUTES': 'تأخیر اعلان اهمیت کم (دقیقه)',
+    'MAIL_ALERT_FREQUENCY_MINUTES': 'فاصله اعلان‌ها (دقیقه)',
+    'MAIL_MUTE_AFTER_N_ALERTS': 'بی‌صدا پس از N اعلان',
+    'TELEGRAM_ENABLED': 'فعال‌سازی تلگرام',
+    'TELEGRAM_BOT_TOKEN': 'توکن ربات',
+    'TELEGRAM_CHAT_IDS': 'شناسه چت‌ها',
+    'TELEGRAM_PROXY': 'آدرس پروکسی',
+    'TELEGRAM_FIRST_ALERT_DELAY_MINUTES': 'تأخیر اعلان اولیه (دقیقه)',
+    'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES': 'تأخیر اعلان اهمیت کم (دقیقه)',
+    'TELEGRAM_ALERT_FREQUENCY_MINUTES': 'فاصله اعلان‌ها (دقیقه)',
+    'TELEGRAM_MUTE_AFTER_N_ALERTS': 'بی‌صدا پس از N اعلان',
+};
+
 async function loadSettings() {
     const sRes = await apiFetch(`${API}/settings`);
     settingsCache = await sRes.json();
@@ -182,7 +203,7 @@ async function loadSettings() {
         keys.forEach(k => {
             const item = settingsCache.find(s=>s.key===k);
             if(!item) return;
-            const label = k.split('_').slice(1).join(' ').toLowerCase().replace(/\b\w/g, c=>c.toUpperCase());
+            const label = settingLabels[k] || k;
 
             if(k.endsWith('ENABLED')) {
                 html += `<div class="toggle-row">
