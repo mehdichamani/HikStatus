@@ -9,8 +9,8 @@ from database import Session, engine, Settings
 def get_persian_datetime():
     now = jdatetime.datetime.now()
     months = {1:'فروردین',2:'اردیبهشت',3:'خرداد',4:'تیر',5:'مرداد',6:'شهریور',7:'مهر',8:'آبان',9:'آذر',10:'دی',11:'بهمن',12:'اسفند'}
-    days = {'Sat':'شنبه','Sun':'یکشنبه','Mon':'دوشنبه','Tue':'سه‌شنبه','Wed':'چهارشنبه','Thu':'پنج‌شنبه','Fri':'جمعه'}
-    return f"{days[now.strftime('%a')]} {now.day} {months[now.month]} {now.year} - ساعت {now.strftime('%H:%M')}"
+    days = ['دوشنبه','سه‌شنبه','چهارشنبه','پنج‌شنبه','جمعه','شنبه','یکشنبه']
+    return f"{days[now.weekday()]} {now.day} {months[now.month]} {now.year} - ساعت {now.strftime('%H:%M')}"
 
 _config_cache = None
 _config_cache_time = 0
