@@ -1,0 +1,31 @@
+{
+  "settings": {
+    "MAIL_ENABLED": "false",
+    "MAIL_SERVER": "smtp.gmail.com",
+    "MAIL_PORT": "587",
+    "MAIL_USER": "your-email@gmail.com",
+    "MAIL_PASS": "your-app-password",
+    "MAIL_RECIPIENTS": "admin@example.com",
+    "MAIL_FIRST_ALERT_DELAY_MINUTES": "5",
+    "MAIL_LOW_IMPORTANCE_DELAY_MINUTES": "10",
+    "MAIL_ALERT_FREQUENCY_MINUTES": "10",
+    "MAIL_MUTE_AFTER_N_ALERTS": "3",
+
+    "TELEGRAM_ENABLED": "false",
+    "TELEGRAM_BOT_TOKEN": "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz",
+    "TELEGRAM_CHAT_IDS": "your-chat-id",
+    "TELEGRAM_PROXY": "",
+    "TELEGRAM_FIRST_ALERT_DELAY_MINUTES": "30",
+    "TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES": "35",
+    "TELEGRAM_ALERT_FREQUENCY_MINUTES": "30",
+    "TELEGRAM_MUTE_AFTER_N_ALERTS": "3"
+  },
+  "nvrs": [
+    {
+      "ip": "192.168.1.100",
+      "user": "admin",
+      "password": "your-nvr-password",
+      "enabled": true
+    }
+  ]
+}

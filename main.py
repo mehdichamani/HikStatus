@@ -5,6 +5,8 @@ import jdatetime
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 import secrets
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
@@ -13,7 +15,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select, col
 from database import init_db, get_session, Camera, Log, NVR, Settings, DowntimeEvent, engine, sqlite_file_name
 from monitor import start_monitor_loop
-from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache
+from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime
 
 class CsvContent(BaseModel):
     content: str
@@ -103,6 +105,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 app.add_middleware(AuthMiddleware)
 
 _sessions = {}
+_login_attempts = {}
 
 def get_admin_credentials():
     username = os.environ.get("ADMIN_USER", "admin")
@@ -111,6 +114,16 @@ def get_admin_credentials():
 
 def create_session_token():
     return secrets.token_hex(32)
+
+def check_rate_limit(ip):
+    now = datetime.now()
+    if ip not in _login_attempts:
+        _login_attempts[ip] = []
+    _login_attempts[ip] = [t for t in _login_attempts[ip] if (now - t).seconds < 60]
+    if len(_login_attempts[ip]) >= 5:
+        return False
+    _login_attempts[ip].append(now)
+    return True
 
 @app.get("/api/health")
 def health_check():
@@ -123,7 +136,11 @@ def require_auth(request: Request):
     return _sessions[token]
 
 @app.post("/api/auth/login")
-def login(payload: LoginRequest, response: Response):
+def login(payload: LoginRequest, request: Request, response: Response):
+    client_ip = request.client.host
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="تعداد تلاش‌ها بیش از حد مجاز است. لطفاً یک دقیقه صبر کنید")
+    
     admin_user, admin_pass = get_admin_credentials()
     if payload.username == admin_user and payload.password == admin_pass:
         token = create_session_token()
@@ -193,16 +210,16 @@ def purge_data(session: Session = Depends(get_session)):
 @app.post("/api/test/email", dependencies=[Depends(require_auth)])
 def test_mail():
     conf = get_config_dict()
-    res = send_email_raw(conf, "تست سامانه مانیتورینگ", "<h3>ایمیل به درستی کار میکنه!</h3>")
+    res = send_email_raw(conf, "تست سامانه مانیتورینگ", "<div style='text-align:center;padding:20px;'><h3 style='color:#28a745;'>ایمیل به درستی کار میکنه!</h3><p>تاریخ: " + get_persian_datetime() + "</p></div>")
     if res is True: return {"status": "ok"}
-    raise HTTPException(status_code=400, detail=str(res))
+    raise HTTPException(status_code=400, detail="خطا در ارسال ایمیل. تنظیمات را بررسی کنید.")
 
 @app.post("/api/test/telegram", dependencies=[Depends(require_auth)])
 def test_telegram():
     conf = get_config_dict()
-    res = send_telegram_raw(conf, "✅ *تست سامانه مانیتورینگ*\nاعلان های تلگرام درسته!")
+    res = send_telegram_raw(conf, "✅ <b>تست سامانه مانیتورینگ</b>\nاعلان‌های تلگرام درسته!\n📅 " + get_persian_datetime())
     if res is True: return {"status": "ok"}
-    raise HTTPException(status_code=400, detail=str(res))
+    raise HTTPException(status_code=400, detail="خطا در ارسال تلگرام. تنظیمات را بررسی کنید.")
 
 # --- API ---
 @app.get("/api/nvrs", response_model=list[NVR], dependencies=[Depends(require_auth)])

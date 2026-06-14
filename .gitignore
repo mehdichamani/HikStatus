@@ -13,10 +13,11 @@ monitor.db
 # Ignores your specific camera list
 camera_names.csv
 
+# --- Secrets ---
+.env
+init_config.json
+
 # --- Legacy/Backup Files ---
 monitor_state.json
 monitor_events.csv
 *.log
-.env
-
-init_config.json

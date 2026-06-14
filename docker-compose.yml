@@ -3,16 +3,21 @@ services:
     build: .
     container_name: hikstatus
     restart: always
-    network_mode: host
-    #ports:
-    #  - '28888:28888'    
+    ports:
+      - '28888:28888'
     environment:
       - TZ=Asia/Tehran
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASS=${ADMIN_PASS:-admin}
     volumes:
       - ./data:/app/data
-      - ./camera_names.csv:/app/camera_names.csv
+
+# network_mode: host (Linux only, not compatible with Docker Desktop on Windows/macOS)
+# If you need host networking on Linux, replace ports + volumes with:
+#   network_mode: host
+#   volumes:
+#     - ./data:/app/data
+#     - ./camera_names.csv:/app/camera_names.csv
 
 #networks:
 #  default:

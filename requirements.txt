@@ -1,8 +1,7 @@
-fastapi
-uvicorn[standard]
-sqlmodel
-aiohttp
-requests
-pytz
-python-multipart
-jdatetime
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+sqlmodel==0.0.24
+requests==2.32.3
+python-multipart==0.0.20
+jdatetime==5.2.0
+python-dotenv==1.1.0

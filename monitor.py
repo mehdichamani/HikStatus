@@ -34,6 +34,18 @@ def log_event(session, l_type, state, details):
     except Exception as e:
         print(f"Warning: Failed to log event: {e}")
 
+def cleanup_old_data(session, days=90):
+    try:
+        cutoff = datetime.now() - timedelta(days=days)
+        session.query(Log).filter(Log.timestamp < cutoff).delete()
+        session.query(DowntimeEvent).filter(
+            DowntimeEvent.end_time < cutoff,
+            DowntimeEvent.end_time != None
+        ).delete()
+        session.commit()
+    except Exception as e:
+        print(f"Warning: Failed to cleanup old data: {e}")
+
 def poll_nvr_thread(nvr_data):
     ip, user, password = nvr_data
     url = f"http://{ip}/ISAPI/ContentMgmt/InputProxy/channels/status"
@@ -158,8 +170,8 @@ async def start_monitor_loop():
                         log_event(session, "Camera", "Error", error_message)
                         
                         # Send failure alerts
-                        await asyncio.to_thread(send_telegram_batch, "‼️ NVR Connection Failed", [error_message])
-                        await asyncio.to_thread(send_email_batch, "‼️ NVR Connection Failed", [error_message])
+                        await asyncio.to_thread(send_telegram_batch, "خطای اتصال NVR", [error_message], "error")
+                        await asyncio.to_thread(send_email_batch, "خطای اتصال NVR", [error_message], "error")
                         continue
                         
                     for d in payload:
@@ -200,14 +212,14 @@ async def start_monitor_loop():
                 t_alerts, m_alerts, t_recov, m_recov = await process_batch_alerts(session, cams_processed)
                 
                 if t_alerts:
-                    res = await asyncio.to_thread(send_telegram_batch, "⚠️ دوربین ها قطع شدند", t_alerts)
+                    res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها قطع شدند", t_alerts, "warning")
                     log_event(session, "Telegram", "Sent" if res is True else "Failed", f"Sent {len(t_alerts)} alerts")
                 if t_recov:
-                    await asyncio.to_thread(send_telegram_batch, "✅ دوربین ها برگشتند", t_recov)
+                    await asyncio.to_thread(send_telegram_batch, "دوربین‌ها برگشتند", t_recov, "success")
                 if m_alerts:
-                    await asyncio.to_thread(send_email_batch, "⚠️ دوربین ها قطع شدند", m_alerts)
+                    await asyncio.to_thread(send_email_batch, "دوربین‌ها قطع شدند", m_alerts, "warning")
                 if m_recov:
-                    await asyncio.to_thread(send_email_batch, "✅ دوربین ها برگشتند", m_recov)
+                    await asyncio.to_thread(send_email_batch, "دوربین‌ها برگشتند", m_recov, "success")
 
                 now = datetime.now()
                 if now.minute == 0 and now.hour != last_summary_hour:
@@ -222,12 +234,15 @@ async def start_monitor_loop():
                                 summary_lines.append(f"{c.name}: {minutes_down}m")
 
                     if summary_lines:
-                        header = f"📊 Hourly Downtime Summary ({now.strftime('%H:00')})"
-                        await asyncio.to_thread(send_telegram_batch, header, summary_lines)
+                        header = f"📊 گزارش قطعی ساعتی ({now.strftime('%H:00')})"
+                        await asyncio.to_thread(send_telegram_batch, header, summary_lines, "info")
                         log_event(session, "Telegram", "Sent", "Hourly Summary")
                     last_summary_hour = now.hour
 
                 session.commit()
+                
+                if now.hour == 2 and now.minute == 0:
+                    cleanup_old_data(session)
             await asyncio.sleep(60) 
 
         except asyncio.CancelledError:
