@@ -9,6 +9,16 @@ from sqlmodel import Session, select
 from database import engine, NVR, Camera, Log, Settings, DowntimeEvent
 from alerts import send_email_batch, send_telegram_batch
 
+_broadcast_callback = None
+
+def set_broadcast_callback(callback):
+    global _broadcast_callback
+    _broadcast_callback = callback
+
+async def broadcast(message):
+    if _broadcast_callback:
+        await _broadcast_callback(message)
+
 def get_setting(session, key, default):
     s = session.get(Settings, key)
     return s.value if s else default
@@ -240,6 +250,16 @@ async def start_monitor_loop():
                     last_summary_hour = now.hour
 
                 session.commit()
+                
+                cam_data = []
+                for c in cams_processed:
+                    cam_data.append({
+                        "id": c.id, "name": c.name, "ip": c.ip,
+                        "nvr_ip": c.nvr_ip, "channel_id": c.channel_id,
+                        "status": c.status, "importance": c.importance,
+                        "last_online": c.last_online.isoformat() if c.last_online else None
+                    })
+                await broadcast({"type": "cameras", "data": cam_data})
                 
                 if now.hour == 2 and now.minute == 0:
                     cleanup_old_data(session)

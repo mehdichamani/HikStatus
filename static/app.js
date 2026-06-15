@@ -1,6 +1,7 @@
 const API = '/api';
 let logOff=0, logFilter='', logSearchVal='', loading=false, allLoaded=false;
 let currentCamId, currentImp, settingsCache=[];
+let ws = null, wsRetryDelay = 1000;
 
 async function apiFetch(url, options={}) {
     try {
@@ -441,8 +442,81 @@ async function genReport() {
 // --- INIT ---
 document.addEventListener('DOMContentLoaded', () => {
     nav('summ');
-    setInterval(fetchDash, 5000);
+    connectWS();
 });
+
+function connectWS() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${location.host}/ws`);
+    
+    ws.onopen = () => {
+        wsRetryDelay = 1000;
+    };
+    
+    ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'cameras') {
+            updateDashFromWS(msg.data);
+        }
+    };
+    
+    ws.onclose = () => {
+        setTimeout(connectWS, wsRetryDelay);
+        wsRetryDelay = Math.min(wsRetryDelay * 2, 30000);
+    };
+    
+    ws.onerror = () => ws.close();
+}
+
+function updateDashFromWS(cams) {
+    const on = cams.filter(c=>c.status==='Online').length;
+    const off = cams.filter(c=>c.status!=='Online');
+
+    document.getElementById('s-tot').textContent = cams.length;
+    document.getElementById('s-on').textContent = on;
+    document.getElementById('s-off').textContent = off.length;
+
+    const totEl = document.getElementById('tot');
+    const onEl = document.getElementById('on');
+    const offEl = document.getElementById('off');
+    if(totEl) totEl.textContent = cams.length;
+    if(onEl) onEl.textContent = on;
+    if(offEl) offEl.textContent = off.length;
+
+    if(off.length > 0) {
+        document.getElementById('offline-section').classList.remove('hidden');
+        document.getElementById('all-ok').classList.add('hidden');
+        document.getElementById('offline-count').textContent = off.length;
+        document.getElementById('offline-grid').innerHTML = off.map(c => createCard(c)).join('');
+    } else {
+        document.getElementById('offline-section').classList.add('hidden');
+        document.getElementById('all-ok').classList.remove('hidden');
+    }
+
+    const groups={};
+    cams.forEach(c=>{ if(!groups[c.nvr_ip])groups[c.nvr_ip]=[]; groups[c.nvr_ip].push(c) });
+
+    const con = document.getElementById('nvr-container');
+    if(!con) return;
+    con.innerHTML = '';
+
+    Object.keys(groups).sort((a,b)=>parseInt(getNvrNum(a))-parseInt(getNvrNum(b))).forEach(ip=>{
+        const list = groups[ip];
+        const sorted = list.sort((a,b)=>parseInt(a.channel_id)-parseInt(b.channel_id));
+        const cards = sorted.map(c => createCard(c)).join('');
+        con.innerHTML += `
+            <div class="nvr-block open">
+                <div class="nvr-header" onclick="toggleNvr(this)">
+                    <div class="nvr-header-left">
+                        <span class="nvr-badge">NVR ${getNvrNum(ip)}</span>
+                        <span class="nvr-ip">${ip}</span>
+                    </div>
+                    <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="nvr-grid">${cards}</div>
+            </div>`;
+    });
+}
 
 async function logout() {
     try {

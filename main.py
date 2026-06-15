@@ -7,15 +7,38 @@ from contextlib import asynccontextmanager
 import secrets
 from dotenv import load_dotenv
 load_dotenv()
-from fastapi import FastAPI, Depends, HTTPException, status, Request, Response
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from sqlmodel import Session, select, col
 from database import init_db, get_session, Camera, Log, NVR, Settings, DowntimeEvent, engine, sqlite_file_name
-from monitor import start_monitor_loop
+from monitor import start_monitor_loop, set_broadcast_callback
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+    
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+    
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+    
+    async def broadcast(self, message: dict):
+        dead = []
+        for conn in self.active_connections:
+            try:
+                await conn.send_json(message)
+            except:
+                dead.append(conn)
+        for d in dead:
+            self.active_connections.remove(d)
+
+ws_manager = ConnectionManager()
 
 class CsvContent(BaseModel):
     content: str
@@ -84,6 +107,7 @@ async def lifespan(app: FastAPI):
     global monitor_task
     init_db()
     seed_defaults()
+    set_broadcast_callback(ws_manager.broadcast)
     monitor_task = asyncio.create_task(start_monitor_loop())
     yield
     if monitor_task:
@@ -128,6 +152,19 @@ def check_rate_limit(ip):
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "version": "1.0.0"}
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    token = websocket.cookies.get("session_token")
+    if not token or token not in _sessions:
+        await websocket.close(code=4001)
+        return
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
 
 def require_auth(request: Request):
     token = request.cookies.get("session_token")
