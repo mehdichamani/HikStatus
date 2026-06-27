@@ -1,10 +1,13 @@
+# syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
 WORKDIR /app
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
+# Added the cache mount for pip to reuse local downloads across builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
 
 RUN useradd -m -s /bin/bash appuser
 

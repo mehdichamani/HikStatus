@@ -1,3 +1,4 @@
+from __future__ import annotations
 from sqlmodel import SQLModel, Field, create_engine, Session
 from datetime import datetime
 from typing import Optional

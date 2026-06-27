@@ -17,6 +17,7 @@ async function apiFetch(url, options={}) {
         return res;
     } catch(e) {
         console.error('API Error:', e);
+        setConnectionStatus(false);
         throw e;
     }
 }
@@ -445,12 +446,37 @@ document.addEventListener('DOMContentLoaded', () => {
     connectWS();
 });
 
+function setConnectionStatus(connected) {
+    const el = document.getElementById('header-status');
+    const warningEl = document.getElementById('connection-warning');
+    if (warningEl) {
+        if (connected) {
+            warningEl.classList.add('hidden');
+        } else {
+            warningEl.classList.remove('hidden');
+        }
+    }
+    if (!el) return;
+    const dot = el.querySelector('.pulse-dot');
+    const label = el.querySelector('span:last-child');
+    if (connected) {
+        el.classList.remove('disconnected');
+        if (dot) dot.classList.remove('disconnected');
+        if (label) label.textContent = 'فعال';
+    } else {
+        el.classList.add('disconnected');
+        if (dot) dot.classList.add('disconnected');
+        if (label) label.textContent = 'قطع اتصال';
+    }
+}
+
 function connectWS() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${location.host}/ws`);
     
     ws.onopen = () => {
         wsRetryDelay = 1000;
+        setConnectionStatus(true);
     };
     
     ws.onmessage = (e) => {
@@ -461,6 +487,7 @@ function connectWS() {
     };
     
     ws.onclose = () => {
+        setConnectionStatus(false);
         setTimeout(connectWS, wsRetryDelay);
         wsRetryDelay = Math.min(wsRetryDelay * 2, 30000);
     };
