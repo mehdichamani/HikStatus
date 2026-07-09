@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 import secrets
 from dotenv import load_dotenv
 load_dotenv()
-from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -71,6 +71,10 @@ def seed_defaults():
             "TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES": ("15", "Low Imp. Delay"),
             "TELEGRAM_ALERT_FREQUENCY_MINUTES": ("30", "Frequency"),
             "TELEGRAM_MUTE_AFTER_N_ALERTS": ("3", "Mute After N"),
+            "MAP_TYPE": ("floor", "Map Type"),
+            "MAP_IMAGE": ("", "Custom Floor Plan Image URL"),
+            "MAP_START_LAT": ("37.796067", "Default Map Start Latitude"),
+            "MAP_START_LNG": ("45.062508", "Default Map Start Longitude"),
         }
 
         # تلاش برای خواندن فایل تنظیمات اولیه
@@ -291,9 +295,86 @@ def update_cam(id: int, p: dict, session: Session = Depends(get_session)):
         if importance not in (1, 2, 3):
             raise HTTPException(status_code=400, detail="Importance must be 1, 2, or 3")
         c.importance = importance
+    if "latitude" in p:
+        c.latitude = float(p["latitude"]) if p["latitude"] is not None else None
+    if "longitude" in p:
+        c.longitude = float(p["longitude"]) if p["longitude"] is not None else None
+    if "x_pos" in p:
+        c.x_pos = float(p["x_pos"]) if p["x_pos"] is not None else None
+    if "y_pos" in p:
+        c.y_pos = float(p["y_pos"]) if p["y_pos"] is not None else None
     session.add(c)
     session.commit()
     return c
+
+@app.post("/api/map/upload", dependencies=[Depends(require_auth)])
+async def upload_map(file: UploadFile = File(...)):
+    os.makedirs("static", exist_ok=True)
+    ext = file.filename.split(".")[-1].lower()
+    if ext not in ["png", "jpg", "jpeg", "svg"]:
+        raise HTTPException(status_code=400, detail="فرمت فایل باید JPG، PNG یا SVG باشد")
+    
+    filename = f"floor_plan.{ext}"
+    filepath = os.path.join("static", filename)
+    
+    for old_ext in ["png", "jpg", "jpeg", "svg"]:
+        old_path = os.path.join("static", f"floor_plan.{old_ext}")
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except:
+                pass
+                
+    with open(filepath, "wb") as f:
+        f.write(await file.read())
+        
+    with Session(engine) as session:
+        s = session.get(Settings, "MAP_IMAGE")
+        if s:
+            s.value = f"/static/{filename}"
+            session.add(s)
+            session.commit()
+            invalidate_config_cache()
+            
+    return {"status": "ok", "url": f"/static/{filename}"}
+
+@app.get("/api/stats/heatmap", dependencies=[Depends(require_auth)])
+def get_heatmap_stats(session: Session = Depends(get_session)):
+    now = datetime.now()
+    thirty_days_ago = now - timedelta(days=30)
+    
+    events = session.exec(select(DowntimeEvent).where(
+        (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time >= thirty_days_ago)
+    )).all()
+    
+    grid = [[0 for _ in range(24)] for _ in range(7)]
+    
+    for event in events:
+        start = max(event.start_time, thirty_days_ago)
+        end = event.end_time or now
+        end = min(end, now)
+        
+        if end <= start:
+            continue
+            
+        current = start
+        while current < end:
+            next_hour = (current + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+            next_hour = min(next_hour, end)
+            
+            overlap_minutes = (next_hour - current).total_seconds() / 60
+            
+            day = current.weekday()
+            hour = current.hour
+            grid[day][hour] += overlap_minutes
+            
+            current = next_hour
+            
+    output = []
+    for d in range(7):
+        for h in range(24):
+            output.append({"day": d, "hour": h, "value": int(grid[d][h])})
+    return output
 
 @app.get("/api/settings", response_model=list[Settings], dependencies=[Depends(require_auth)])
 def get_settings(session: Session = Depends(get_session)): return session.exec(select(Settings)).all()

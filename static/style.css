@@ -1582,3 +1582,321 @@ body {
     50% { transform: scale(1.1); opacity: 0.8; }
 }
 
+/* ===== MAP VIEW & LEAFLET ===== */
+#map-canvas {
+    height: 100%;
+    width: 100%;
+    z-index: 10;
+}
+
+.w-100 {
+    width: 100%;
+}
+
+/* Custom Marker Styling */
+.cam-marker {
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cam-marker-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    position: relative;
+    transition: transform 0.2s;
+}
+
+.cam-marker-dot::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    animation: marker-pulse 2s infinite;
+}
+
+.cam-marker.online .cam-marker-dot {
+    background: var(--success);
+}
+.cam-marker.online .cam-marker-dot::after {
+    background: rgba(34, 197, 94, 0.3);
+}
+
+.cam-marker.offline .cam-marker-dot {
+    background: var(--danger);
+}
+.cam-marker.offline .cam-marker-dot::after {
+    background: rgba(239, 68, 68, 0.4);
+    animation: marker-pulse-fast 1s infinite;
+}
+
+.cam-marker.unknown .cam-marker-dot {
+    background: var(--text-muted);
+}
+.cam-marker.unknown .cam-marker-dot::after {
+    background: rgba(100, 116, 139, 0.3);
+}
+
+@keyframes marker-pulse {
+    0% { transform: scale(0.5); opacity: 1; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes marker-pulse-fast {
+    0% { transform: scale(0.5); opacity: 1; }
+    100% { transform: scale(2); opacity: 0; }
+}
+
+.cam-marker:hover .cam-marker-dot {
+    transform: scale(1.2);
+}
+
+/* Leaflet dark theme corrections */
+.leaflet-container {
+    background: #0a0a0f !important;
+}
+.leaflet-popup-content-wrapper {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: var(--shadow) !important;
+    font-family: inherit !important;
+}
+.leaflet-popup-tip {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+}
+.leaflet-popup-content {
+    margin: 12px 16px !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+}
+.leaflet-popup-content strong {
+    color: var(--text) !important;
+}
+.leaflet-popup-content p {
+    margin: 4px 0 0 !important;
+    color: var(--text-secondary) !important;
+}
+.leaflet-popup-close-button {
+    color: var(--text-muted) !important;
+    padding: 6px !important;
+}
+
+/* ===== HEATMAP STYLING ===== */
+.heatmap-wrapper {
+    display: flex;
+    gap: 12px;
+    direction: rtl;
+    padding: 8px 0;
+}
+
+.heatmap-y-labels {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 24px 0 6px 0;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    width: 60px;
+    text-align: right;
+    line-height: 1;
+}
+
+.heatmap-grid-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 680px;
+}
+
+.heatmap-x-labels {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    direction: ltr;
+}
+
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    grid-template-rows: repeat(7, 1fr);
+    gap: 4px;
+    direction: ltr;
+}
+
+.heatmap-cell {
+    aspect-ratio: 1;
+    background: var(--surface-3);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.1s;
+    border: 1px solid transparent;
+    position: relative;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.15);
+    border-color: var(--text-secondary);
+    z-index: 5;
+}
+
+/* Heatmap color levels */
+.heatmap-cell.level-0 { background-color: #161622; }
+.heatmap-cell.level-1 { background-color: rgba(239, 68, 68, 0.15); }
+.heatmap-cell.level-2 { background-color: rgba(239, 68, 68, 0.4); }
+.heatmap-cell.level-3 { background-color: rgba(239, 68, 68, 0.7); }
+.heatmap-cell.level-4 { background-color: rgba(239, 68, 68, 1); }
+
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.legend-box {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+}
+.legend-box.level-0 { background-color: #161622; }
+.legend-box.level-1 { background-color: rgba(239, 68, 68, 0.15); }
+.legend-box.level-2 { background-color: rgba(239, 68, 68, 0.4); }
+.legend-box.level-3 { background-color: rgba(239, 68, 68, 0.7); }
+.legend-box.level-4 { background-color: rgba(239, 68, 68, 1); }
+
+/* Tooltip style for heatmap */
+.heatmap-tooltip {
+    position: absolute;
+    bottom: 130%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #020205;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    box-shadow: var(--shadow);
+    z-index: 100;
+}
+
+.heatmap-cell:hover .heatmap-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ===== CAMERA LIST IN MAP SIDEBAR ===== */
+.map-cam-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    transition: var(--transition);
+}
+.map-cam-item:last-child {
+    border-bottom: none;
+}
+.map-cam-item:hover {
+    background: var(--surface-3);
+    color: var(--text);
+}
+.map-cam-name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.map-cam-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.map-cam-dot.online { background-color: var(--success); box-shadow: 0 0 4px var(--success); }
+.map-cam-dot.offline { background-color: var(--danger); box-shadow: 0 0 4px var(--danger); }
+.map-cam-dot.unknown { background-color: var(--text-muted); }
+
+.map-cam-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+.map-cam-badge {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: monospace;
+    direction: ltr;
+}
+
+.btn-add-map:hover {
+    background: var(--primary) !important;
+    color: white !important;
+    transform: scale(1.1);
+}
+
+/* ===== MAP CENTER CROSSHAIR ===== */
+.map-center-crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 30px;
+    height: 30px;
+    transform: translate(-50%, -50%);
+    pointer-events: none; /* Make sure mouse clicks pass through to the map canvas */
+    z-index: 1000;
+}
+.map-center-crosshair::before, .map-center-crosshair::after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+}
+/* Horizontal bar */
+.map-center-crosshair::before {
+    top: 14px;
+    left: 0;
+    width: 30px;
+    height: 2px;
+}
+/* Vertical bar */
+.map-center-crosshair::after {
+    top: 0;
+    left: 14px;
+    width: 2px;
+    height: 30px;
+}
+.map-center-crosshair-dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    background: var(--primary);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+}
+

@@ -12,14 +12,7 @@ services:
     volumes:
       - ./data:/app/data
 
-# network_mode: host (Linux only, not compatible with Docker Desktop on Windows/macOS)
-# If you need host networking on Linux, replace ports + volumes with:
-#   network_mode: host
-#   volumes:
-#     - ./data:/app/data
-#     - ./camera_names.csv:/app/camera_names.csv
-
-#networks:
-#  default:
-#    name: npm
-#    external: true
+networks:
+  default:
+    name: npm
+    external: true

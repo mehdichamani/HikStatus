@@ -151,7 +151,7 @@ async def process_batch_alerts(session, cams_to_check):
     return tele_alerts, mail_alerts, tele_recoveries, mail_recoveries
 
 async def start_monitor_loop():
-    print("👀 Monitor loop started...")
+    print("Monitor loop started...")
     last_summary_hour = -1
     
     with Session(engine) as session:
@@ -257,7 +257,9 @@ async def start_monitor_loop():
                         "id": c.id, "name": c.name, "ip": c.ip,
                         "nvr_ip": c.nvr_ip, "channel_id": c.channel_id,
                         "status": c.status, "importance": c.importance,
-                        "last_online": c.last_online.isoformat() if c.last_online else None
+                        "last_online": c.last_online.isoformat() if c.last_online else None,
+                        "latitude": c.latitude, "longitude": c.longitude,
+                        "x_pos": c.x_pos, "y_pos": c.y_pos
                     })
                 await broadcast({"type": "cameras", "data": cam_data})
                 

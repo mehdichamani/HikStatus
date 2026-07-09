@@ -33,6 +33,14 @@ function nav(id) {
 
     if(id==='summ') fetchDash();
     if(id==='dash') fetchDash();
+    if(id==='map') initOrRefreshMap();
+    if(id==='reports') {
+        if (!document.getElementById('startDt').value) {
+            setPreset(24);
+        }
+        genReport();
+        fetchAndRenderHeatmap();
+    }
     if(id==='logs' && logOff===0) fetchLogs();
     if(id==='settings') loadSettings();
 }
@@ -543,6 +551,7 @@ function updateDashFromWS(cams) {
                 <div class="nvr-grid">${cards}</div>
             </div>`;
     });
+    if (map) updateMapMarkersFromWS(cams);
 }
 
 async function logout() {
@@ -550,4 +559,545 @@ async function logout() {
         await apiFetch(`${API}/auth/logout`, { method: 'POST' });
     } catch(e) {}
     window.location.href = '/login';
+}
+
+// ===== MAP & HEATMAP LOGIC =====
+let map = null;
+let mapMarkers = [];
+let mapEditMode = false;
+let mapType = 'floor';
+let mapImage = '';
+let mapCamerasList = [];
+let mapStartLat = 37.796067;
+let mapStartLng = 45.062508;
+
+async function initOrRefreshMap() {
+    if (settingsCache.length === 0) {
+        try {
+            const sRes = await fetch(`${API}/settings`);
+            settingsCache = await sRes.json();
+        } catch(e) {
+            console.error('Failed to load settings:', e);
+        }
+    }
+    
+    const typeSet = settingsCache.find(s => s.key === 'MAP_TYPE');
+    const imageSet = settingsCache.find(s => s.key === 'MAP_IMAGE');
+    const latSet = settingsCache.find(s => s.key === 'MAP_START_LAT');
+    const lngSet = settingsCache.find(s => s.key === 'MAP_START_LNG');
+    
+    mapType = typeSet ? typeSet.value : 'floor';
+    mapImage = imageSet ? imageSet.value : '';
+    mapStartLat = latSet ? parseFloat(latSet.value) : 37.796067;
+    mapStartLng = lngSet ? parseFloat(lngSet.value) : 45.062508;
+    
+    document.getElementById('btn-map-floor').classList.toggle('active', mapType === 'floor');
+    document.getElementById('btn-map-geo').classList.toggle('active', mapType === 'geo');
+    document.getElementById('upload-plan-section').style.display = mapType === 'floor' ? 'block' : 'none';
+    
+    try {
+        const res = await apiFetch(`${API}/cameras`);
+        mapCamerasList = await res.json();
+    } catch(e) {
+        console.error('Failed to load cameras:', e);
+    }
+    
+    setupLeafletMap();
+    renderMapCameraList();
+}
+
+function setupLeafletMap() {
+    let restoredCenter = null;
+    let restoredZoom = null;
+    
+    const centerKeyLat = `map_center_lat_${mapType}`;
+    const centerKeyLng = `map_center_lng_${mapType}`;
+    const zoomKey = `map_zoom_${mapType}`;
+    
+    // 1. Save state before removing old map
+    if (map) {
+        const currentCenter = map.getCenter();
+        restoredCenter = [currentCenter.lat, currentCenter.lng];
+        restoredZoom = map.getZoom();
+        
+        localStorage.setItem(centerKeyLat, currentCenter.lat);
+        localStorage.setItem(centerKeyLng, currentCenter.lng);
+        localStorage.setItem(zoomKey, restoredZoom);
+        
+        map.remove();
+        map = null;
+    } else {
+        // 2. Load from localStorage
+        const localLat = localStorage.getItem(centerKeyLat);
+        const localLng = localStorage.getItem(centerKeyLng);
+        const localZoom = localStorage.getItem(zoomKey);
+        
+        if (localLat !== null && localLng !== null) {
+            restoredCenter = [parseFloat(localLat), parseFloat(localLng)];
+        }
+        if (localZoom !== null) {
+            restoredZoom = parseInt(localZoom);
+        }
+    }
+    
+    mapMarkers = [];
+    const container = document.getElementById('map-canvas');
+    if (!container) return;
+    
+    if (mapType === 'floor') {
+        map = L.map('map-canvas', {
+            crs: L.CRS.Simple,
+            minZoom: -2,
+            maxZoom: 2,
+            attributionControl: false
+        });
+        
+        const img = new Image();
+        img.onload = function() {
+            const w = this.width;
+            const h = this.height;
+            window.mapImgWidth = w;
+            window.mapImgHeight = h;
+            const bounds = [[0, 0], [h, w]];
+            L.imageOverlay(mapImage || '/static/logo.png', bounds).addTo(map);
+            
+            if (restoredCenter !== null && restoredZoom !== null) {
+                map.setView(restoredCenter, restoredZoom);
+            } else {
+                map.fitBounds(bounds);
+            }
+            
+            drawCameraMarkers(bounds, w, h);
+        };
+        img.onerror = function() {
+            const bounds = [[0, 0], [600, 800]];
+            window.mapImgWidth = 800;
+            window.mapImgHeight = 600;
+            L.imageOverlay('/static/logo.png', bounds).addTo(map);
+            
+            if (restoredCenter !== null && restoredZoom !== null) {
+                map.setView(restoredCenter, restoredZoom);
+            } else {
+                map.fitBounds(bounds);
+            }
+            
+            drawCameraMarkers(bounds, 800, 600);
+        };
+        img.src = mapImage || '/static/logo.png';
+        
+    } else {
+        let center = [mapStartLat, mapStartLng];
+        let zoom = 16;
+        
+        if (restoredCenter !== null && restoredZoom !== null) {
+            center = restoredCenter;
+            zoom = restoredZoom;
+        } else {
+            const validCams = mapCamerasList.filter(c => c.latitude !== null && c.longitude !== null);
+            if (validCams.length > 0) {
+                const latSum = validCams.reduce((sum, c) => sum + c.latitude, 0);
+                const lngSum = validCams.reduce((sum, c) => sum + c.longitude, 0);
+                center = [latSum / validCams.length, lngSum / validCams.length];
+            }
+        }
+        
+        map = L.map('map-canvas', {
+            center: center,
+            zoom: zoom,
+            attributionControl: false
+        });
+        
+        L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            maxZoom: 20
+        }).addTo(map);
+        
+        drawCameraMarkers();
+    }
+    
+    // 3. Listen to map movements to update localStorage
+    map.on('moveend', () => {
+        if (map) {
+            const c = map.getCenter();
+            localStorage.setItem(centerKeyLat, c.lat);
+            localStorage.setItem(centerKeyLng, c.lng);
+        }
+    });
+    
+    map.on('zoomend', () => {
+        if (map) {
+            localStorage.setItem(zoomKey, map.getZoom());
+        }
+    });
+}
+
+function createMarkerForMap(c, latlng) {
+    const statusClass = c.status === 'Online' ? 'online' : (c.status === 'Offline' ? 'offline' : 'unknown');
+    const markerHtml = `
+        <div class="cam-marker ${statusClass}" id="marker-cam-${c.id}">
+            <div class="cam-marker-dot"></div>
+        </div>`;
+        
+    const icon = L.divIcon({
+        html: markerHtml,
+        className: 'custom-div-icon',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+    });
+    
+    const marker = L.marker(latlng, {
+        icon: icon,
+        draggable: mapEditMode
+    }).addTo(map);
+    marker.camera_id = c.id;
+    
+    const statusText = c.status === 'Online' ? 'متصل' : 'قطع';
+    const popupContent = `
+        <div style="direction: rtl; text-align: right">
+            <strong style="font-size: 14px; display:block; margin-bottom: 4px;">${c.name}</strong>
+            <p style="margin: 2px 0"><b>NVR:</b> ${c.nvr_ip}</p>
+            <p style="margin: 2px 0"><b>کانال:</b> ${c.channel_id}</p>
+            <p style="margin: 2px 0"><b>IP:</b> ${c.ip}</p>
+            <p style="margin: 4px 0 0"><b>وضعیت:</b> <span style="color: ${c.status === 'Online' ? 'var(--success)' : 'var(--danger)'}; font-weight: bold">${statusText}</span></p>
+        </div>
+    `;
+    marker.bindPopup(popupContent);
+    
+    marker.on('dragend', async function(e) {
+        const position = marker.getLatLng();
+        let payload = {};
+        
+        if (mapType === 'floor') {
+            const w = window.mapImgWidth || 800;
+            const h = window.mapImgHeight || 600;
+            const xPct = (position.lng / w) * 100;
+            const yPct = 100 - ((position.lat / h) * 100);
+            payload = {
+                x_pos: Math.max(0, Math.min(100, xPct)),
+                y_pos: Math.max(0, Math.min(100, yPct))
+            };
+            c.x_pos = payload.x_pos;
+            c.y_pos = payload.y_pos;
+        } else {
+            payload = {
+                latitude: position.lat,
+                longitude: position.lng
+            };
+            c.latitude = payload.latitude;
+            c.longitude = payload.longitude;
+        }
+        
+        await apiFetch(`${API}/cameras/${c.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        showToast(`موقعیت دوربین "${c.name}" ذخیره شد`);
+    });
+    
+    mapMarkers.push(marker);
+    return marker;
+}
+
+function drawCameraMarkers(bounds = null, w = 1, h = 1) {
+    mapMarkers.forEach(m => map.removeLayer(m));
+    mapMarkers = [];
+    
+    mapCamerasList.forEach(c => {
+        let latlng = null;
+        
+        if (mapType === 'floor') {
+            if (c.x_pos === null || c.y_pos === null) return;
+            const x = (c.x_pos * w) / 100;
+            const y = ((100 - c.y_pos) * h) / 100;
+            latlng = [y, x];
+        } else {
+            if (c.latitude === null || c.longitude === null) return;
+            latlng = [c.latitude, c.longitude];
+        }
+        
+        createMarkerForMap(c, latlng);
+    });
+}
+
+function updateMapMarkersFromWS(cams) {
+    if (!map || mapEditMode) return;
+    mapCamerasList = cams;
+    
+    cams.forEach(c => {
+        const markerEl = document.getElementById(`marker-cam-${c.id}`);
+        if (markerEl) {
+            const statusClass = c.status === 'Online' ? 'online' : (c.status === 'Offline' ? 'offline' : 'unknown');
+            markerEl.className = `cam-marker ${statusClass}`;
+        }
+    });
+    renderMapCameraList();
+}
+
+async function setMapType(type) {
+    if (type === mapType) return;
+    mapType = type;
+    
+    await apiFetch(`${API}/settings/MAP_TYPE`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'MAP_TYPE', value: type })
+    });
+    
+    const s = settingsCache.find(sett => sett.key === 'MAP_TYPE');
+    if (s) s.value = type;
+    
+    initOrRefreshMap();
+}
+
+function toggleMapEditMode() {
+    mapEditMode = !mapEditMode;
+    const btn = document.getElementById('btn-edit-positions');
+    const guide = document.getElementById('map-edit-guide');
+    
+    if (mapEditMode) {
+        btn.classList.add('active');
+        btn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:8px"><path d="M20 6L9 17l-5-5"/></svg>
+            تایید موقعیت‌ها
+        `;
+        if (guide) guide.style.display = 'block';
+    } else {
+        btn.classList.remove('active');
+        btn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:8px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            ویرایش مکان دوربین‌ها
+        `;
+        if (guide) guide.style.display = 'none';
+    }
+    
+    setupLeafletMap();
+}
+
+async function uploadMapImage(input) {
+    if (!input.files || !input.files[0]) return;
+    
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+    
+    showToast('در حال آپلود...');
+    try {
+        const res = await fetch(`${API}/map/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({detail: res.statusText}));
+            throw new Error(err.detail || 'Upload failed');
+        }
+        
+        const data = await res.json();
+        showToast('تصویر پلان با موفقیت آپلود شد');
+        
+        const s = settingsCache.find(sett => sett.key === 'MAP_IMAGE');
+        if (s) s.value = data.url;
+        
+        mapImage = data.url;
+        initOrRefreshMap();
+    } catch(e) {
+        showToast('خطا در آپلود پلان: ' + e.message, 'error');
+    }
+}
+
+async function fetchAndRenderHeatmap() {
+    const hoursLabels = document.getElementById('heatmap-hours-labels');
+    const gridCells = document.getElementById('heatmap-grid-cells');
+    if (!hoursLabels || !gridCells) return;
+    
+    hoursLabels.innerHTML = '';
+    for (let h = 0; h < 24; h++) {
+        const hStr = h.toString().padStart(2, '0');
+        hoursLabels.innerHTML += `<div>${hStr}</div>`;
+    }
+    
+    try {
+        const res = await apiFetch(`${API}/stats/heatmap`);
+        const data = await res.json();
+        
+        const lookup = {};
+        data.forEach(item => {
+            lookup[`${item.day}-${item.hour}`] = item.value;
+        });
+        
+        const dayOrder = [5, 6, 0, 1, 2, 3, 4];
+        const dayNames = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+        
+        gridCells.innerHTML = '';
+        
+        dayOrder.forEach((pyDay, index) => {
+            const dayName = dayNames[index];
+            for (let h = 0; h < 24; h++) {
+                const value = lookup[`${pyDay}-${h}`] || 0;
+                
+                let level = 0;
+                if (value > 0 && value <= 15) level = 1;
+                else if (value > 15 && value <= 60) level = 2;
+                else if (value > 60 && value <= 360) level = 3;
+                else if (value > 360) level = 4;
+                
+                const timeRange = `${h.toString().padStart(2, '0')}:00 تا ${(h+1).toString().padStart(2, '0')}:00`;
+                let tooltipText = `${dayName}، ساعت ${timeRange}<br>قطعی: بدون قطعی`;
+                if (value > 0) {
+                    if (value >= 60) {
+                        const hrs = (value / 60).toFixed(1);
+                        tooltipText = `${dayName}، ساعت ${timeRange}<br>قطعی: ${hrs} ساعت`;
+                    } else {
+                        tooltipText = `${dayName}، ساعت ${timeRange}<br>قطعی: ${value} دقیقه`;
+                    }
+                }
+                
+                gridCells.innerHTML += `
+                    <div class="heatmap-cell level-${level}">
+                        <div class="heatmap-tooltip">${tooltipText}</div>
+                    </div>`;
+            }
+        });
+        
+    } catch(e) {
+        console.error('Heatmap render error:', e);
+    }
+}
+
+function renderMapCameraList() {
+    const container = document.getElementById('map-camera-list');
+    if (!container) return;
+    
+    const searchVal = (document.getElementById('mapCameraSearch')?.value || '').toLowerCase();
+    
+    // Sort alphabetically by name
+    const sorted = [...mapCamerasList].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+    
+    // Filter by search query
+    const filtered = sorted.filter(c => 
+        c.name.toLowerCase().includes(searchVal) || 
+        c.ip.includes(searchVal) || 
+        c.channel_id.toString().includes(searchVal)
+    );
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 11px;">دوربینی یافت نشد</div>';
+        return;
+    }
+    
+    container.innerHTML = filtered.map(c => {
+        const hasLoc = mapType === 'floor' ? (c.x_pos !== null && c.y_pos !== null) : (c.latitude !== null && c.longitude !== null);
+        const dotClass = c.status === 'Online' ? 'online' : (c.status === 'Offline' ? 'offline' : 'unknown');
+        
+        if (hasLoc) {
+            return `
+                <div class="map-cam-item" onclick="focusCameraOnMap(${c.id})">
+                    <div class="map-cam-name-wrap">
+                        <span class="map-cam-dot ${dotClass}"></span>
+                        <span class="map-cam-name" title="${c.name}">${c.name}</span>
+                    </div>
+                    <span class="map-cam-badge">CH ${c.channel_id}</span>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="map-cam-item unpositioned" style="cursor: default;">
+                    <div class="map-cam-name-wrap" style="opacity: 0.6;">
+                        <span class="map-cam-dot unknown"></span>
+                        <span class="map-cam-name" title="${c.name}">${c.name}</span>
+                    </div>
+                    <button class="btn-add-map" onclick="addCameraToCenter(${c.id}); event.stopPropagation();" title="افزودن به مرکز نقشه" style="
+                        background: var(--primary-glow);
+                        border: 1px solid var(--primary);
+                        color: var(--primary-hover);
+                        border-radius: 4px;
+                        width: 22px;
+                        height: 22px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: bold;
+                        padding: 0;
+                        transition: var(--transition);
+                    ">+</button>
+                </div>
+            `;
+        }
+    }).join('');
+}
+
+function filterMapCamerasList() {
+    renderMapCameraList();
+}
+
+function focusCameraOnMap(id) {
+    if (!map) return;
+    const marker = mapMarkers.find(m => m.camera_id === id);
+    if (marker) {
+        const latlng = marker.getLatLng();
+        map.flyTo(latlng, map.getZoom());
+        marker.openPopup();
+    } else {
+        showToast('این دوربین در نقشه یافت نشد', 'error');
+    }
+}
+
+async function addCameraToCenter(id) {
+    if (!map) return;
+    const c = mapCamerasList.find(cam => cam.id === id);
+    if (!c) return;
+    
+    let payload = {};
+    let latlng = null;
+    const center = map.getCenter();
+    
+    if (mapType === 'floor') {
+        const w = window.mapImgWidth || 800;
+        const h = window.mapImgHeight || 600;
+        
+        const xPct = (center.lng / w) * 100;
+        const yPct = 100 - ((center.lat / h) * 100);
+        
+        payload = {
+            x_pos: Math.max(0, Math.min(100, xPct)),
+            y_pos: Math.max(0, Math.min(100, yPct))
+        };
+        c.x_pos = payload.x_pos;
+        c.y_pos = payload.y_pos;
+        latlng = [center.lat, center.lng];
+    } else {
+        payload = {
+            latitude: center.lat,
+            longitude: center.lng
+        };
+        c.latitude = payload.latitude;
+        c.longitude = payload.longitude;
+        latlng = [center.lat, center.lng];
+    }
+    
+    try {
+        await apiFetch(`${API}/cameras/${c.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        showToast(`دوربین "${c.name}" به مرکز نقشه اضافه شد`);
+        
+        // Dynamically add marker without resetting the map
+        const marker = createMarkerForMap(c, latlng);
+        
+        // Re-render the sidebar list to update buttons without modifying map position
+        renderMapCameraList();
+        
+        // Open the marker's popup immediately
+        marker.openPopup();
+    } catch(e) {
+        showToast('خطا در ذخیره موقعیت: ' + e.message, 'error');
+    }
 }

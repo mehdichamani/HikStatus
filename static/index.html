@@ -11,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👁️</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
@@ -59,6 +60,10 @@
         <button class="nav-item" data-view="dash" onclick="nav('dash')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             <span>داشبورد</span>
+        </button>
+        <button class="nav-item" data-view="map" onclick="nav('map')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="18" x2="9" y2="3"/><line x1="15" y1="21" x2="15" y2="6"/></svg>
+            <span>نقشه</span>
         </button>
         <button class="nav-item" data-view="logs" onclick="nav('logs')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -203,6 +208,85 @@
                     <div id="rep-list" class="report-list">
                         <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
                     </div>
+                    <div class="panel-header" style="margin-top: 24px;">نقشه حرارتی قطعی‌ها (۳۰ روز گذشته)</div>
+                    <div class="card" style="margin-top: 12px; padding: 16px; overflow-x: auto;">
+                        <div class="heatmap-wrapper">
+                            <div class="heatmap-y-labels">
+                                <div>شنبه</div>
+                                <div>یکشنبه</div>
+                                <div>دوشنبه</div>
+                                <div>سه‌شنبه</div>
+                                <div>چهارشنبه</div>
+                                <div>پنج‌شنبه</div>
+                                <div>جمعه</div>
+                            </div>
+                            <div class="heatmap-grid-container">
+                                <div class="heatmap-x-labels" id="heatmap-hours-labels"></div>
+                                <div class="heatmap-grid" id="heatmap-grid-cells"></div>
+                            </div>
+                        </div>
+                        <div class="heatmap-legend" style="margin-top: 12px;">
+                            <span>بدون قطعی</span>
+                            <span class="legend-box level-0"></span>
+                            <span class="legend-box level-1"></span>
+                            <span class="legend-box level-2"></span>
+                            <span class="legend-box level-3"></span>
+                            <span class="legend-box level-4"></span>
+                            <span>بیشترین قطعی</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- MAP VIEW -->
+        <section id="map" class="view">
+            <div class="panel-row">
+                <aside class="panel-side">
+                    <div class="side-section">
+                        <label class="form-label">نوع نقشه</label>
+                        <div class="preset-btns">
+                            <button id="btn-map-floor" class="chip active" onclick="setMapType('floor')">پلان ساختمان</button>
+                            <button id="btn-map-geo" class="chip" onclick="setMapType('geo')">ماهواره‌ای گوگل</button>
+                        </div>
+                    </div>
+                    
+                    <div class="side-section" id="upload-plan-section">
+                        <label class="form-label">آپلود پلان ساختمان</label>
+                        <input type="file" id="mapUploadInput" style="display:none" accept="image/*" onchange="uploadMapImage(this)">
+                        <button class="btn btn-ghost w-100" style="display:flex; align-items:center; justify-content:center" onclick="document.getElementById('mapUploadInput').click()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:8px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            آپلود تصویر پلان
+                        </button>
+                    </div>
+                    
+                    <div class="side-section">
+                        <label class="form-label">تنظیمات موقعیت</label>
+                        <button id="btn-edit-positions" class="btn btn-ghost w-100" style="display:flex; align-items:center; justify-content:center" onclick="toggleMapEditMode()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:8px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            ویرایش مکان دوربین‌ها
+                        </button>
+                        <p class="guide-text" id="map-edit-guide" style="display:none; font-size:11px; color:var(--text-muted); margin-top:8px; line-height:1.6">
+                            حالت ویرایش فعال است. دوربین‌ها را روی نقشه بکشید و در مکان مناسب رها کنید تا موقعیت ذخیره شود. پس از اتمام کار دوباره دکمه را بزنید.
+                        </p>
+                    </div>
+                    
+                    <div class="side-section" style="flex: 1; display: flex; flex-direction: column; min-height: 250px; overflow: hidden; margin-bottom: 0;">
+                        <label class="form-label">لیست دوربین‌ها</label>
+                        <div class="search-box" style="padding: 6px 10px; margin-bottom: 8px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input id="mapCameraSearch" placeholder="جستجوی دوربین..." onkeyup="filterMapCamerasList()" style="font-size: 12px; width: 100%; background: transparent; border: none; color: var(--text); outline: none;">
+                        </div>
+                        <div id="map-camera-list" style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); max-height: 350px;">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </aside>
+                <div class="panel-main" style="position:relative; min-height: 500px; display: flex; flex-direction: column;">
+                    <div id="map-canvas" style="flex: 1; min-height: 500px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; background: #0a0a0f;"></div>
+                    <div class="map-center-crosshair">
+                        <div class="map-center-crosshair-dot"></div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -334,6 +418,10 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             <span>داشبورد</span>
         </button>
+        <button class="mobile-nav-item" data-view="map" onclick="nav('map')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="18" x2="9" y2="3"/><line x1="15" y1="21" x2="15" y2="6"/></svg>
+            <span>نقشه</span>
+        </button>
         <button class="mobile-nav-item" data-view="logs" onclick="nav('logs')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <span>گزارش</span>
@@ -348,6 +436,7 @@
         </button>
     </nav>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="/static/app.js?v=2" defer></script>
 </body>
 </html>
