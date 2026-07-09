@@ -176,7 +176,8 @@ async def start_monitor_loop():
                 for nvr_obj, res in zip(nvrs, results):
                     status, payload = res
                     if status == "FAIL":
-                        error_message = f"NVR {nvr_obj.ip} Failed: {payload}"
+                        nvr_label = f"{nvr_obj.name} ({nvr_obj.ip})" if nvr_obj.name else f"NVR {nvr_obj.ip}"
+                        error_message = f"{nvr_label} Failed: {payload}"
                         log_event(session, "Camera", "Error", error_message)
                         
                         # Send failure alerts

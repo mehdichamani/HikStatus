@@ -5,6 +5,7 @@ from typing import Optional
 
 class NVR(SQLModel, table=True):
     ip: str = Field(primary_key=True)
+    name: Optional[str] = None
     user: str
     password: Optional[str] = None
     enabled: bool = True
@@ -95,6 +96,12 @@ def init_db():
             if col_name not in existing_columns:
                 cursor.execute(f"ALTER TABLE camera ADD COLUMN {col_name} {col_type}")
                 print(f"Added column {col_name} to camera table.")
+        
+        cursor.execute("PRAGMA table_info(nvr)")
+        existing_nvr_columns = [row[1] for row in cursor.fetchall()]
+        if "name" not in existing_nvr_columns:
+            cursor.execute("ALTER TABLE nvr ADD COLUMN name TEXT")
+            print("Added column name to nvr table.")
         
         conn.commit()
         conn.close()

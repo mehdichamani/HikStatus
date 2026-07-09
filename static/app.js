@@ -1,6 +1,6 @@
 const API = '/api';
 let logOff=0, logFilter='', logSearchVal='', loading=false, allLoaded=false;
-let currentCamId, currentImp, settingsCache=[];
+let currentCamId, currentImp, settingsCache=[], nvrCache = [];
 let ws = null, wsRetryDelay = 1000;
 
 async function apiFetch(url, options={}) {
@@ -52,7 +52,18 @@ function closeModal() {
 // --- DASHBOARD & SUMMARY ---
 function getNvrNum(ip) { return ip.split('.').pop(); }
 
+function getNvrDisplayName(ip) {
+    const nvrObj = nvrCache.find(n => n.ip === ip);
+    return nvrObj && nvrObj.name ? nvrObj.name : `NVR ${getNvrNum(ip)}`;
+}
+
 async function fetchDash() {
+    try {
+        const nRes = await apiFetch(`${API}/nvrs`);
+        nvrCache = await nRes.json();
+    } catch(e) {
+        console.error('Error loading NVRs:', e);
+    }
     const res = await apiFetch(`${API}/cameras`);
     const cams = await res.json();
     const on = cams.filter(c=>c.status==='Online').length;
@@ -93,7 +104,7 @@ async function fetchDash() {
             <div class="nvr-block open">
                 <div class="nvr-header" onclick="toggleNvr(this)">
                     <div class="nvr-header-left">
-                        <span class="nvr-badge">NVR ${getNvrNum(ip)}</span>
+                        <span class="nvr-badge">${getNvrDisplayName(ip)}</span>
                         <span class="nvr-ip">${ip}</span>
                     </div>
                     <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -240,9 +251,11 @@ async function loadSettings() {
 
     const nRes = await apiFetch(`${API}/nvrs`);
     const nvrs = await nRes.json();
+    nvrCache = nvrs;
     document.getElementById('nvr-list').innerHTML = nvrs.map(n => `
         <div class="list-item">
             <div class="list-item-info">
+                ${n.name ? `<strong style="margin-left: 8px; color: var(--text-primary);">${n.name}</strong>` : ''}
                 <span class="list-item-ip">${n.ip}</span>
                 <span class="list-item-user">(${n.user})</span>
             </div>
@@ -298,6 +311,7 @@ async function testConn(type) {
 }
 
 async function addNVR() {
+    const name = document.getElementById('nvrName').value.trim();
     const ip = document.getElementById('nvrIp').value.trim();
     const u = document.getElementById('nvrUser').value.trim();
     const p = document.getElementById('nvrPass').value;
@@ -306,8 +320,9 @@ async function addNVR() {
     await apiFetch(`${API}/nvrs`, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ip, user:u, password:p||null, enabled:true})
+        body:JSON.stringify({name:name||null, ip, user:u, password:p||null, enabled:true})
     });
+    document.getElementById('nvrName').value = '';
     document.getElementById('nvrIp').value = '';
     document.getElementById('nvrUser').value = '';
     document.getElementById('nvrPass').value = '';
@@ -543,7 +558,7 @@ function updateDashFromWS(cams) {
             <div class="nvr-block open">
                 <div class="nvr-header" onclick="toggleNvr(this)">
                     <div class="nvr-header-left">
-                        <span class="nvr-badge">NVR ${getNvrNum(ip)}</span>
+                        <span class="nvr-badge">${getNvrDisplayName(ip)}</span>
                         <span class="nvr-ip">${ip}</span>
                     </div>
                     <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>

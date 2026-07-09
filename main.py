@@ -100,6 +100,7 @@ def seed_defaults():
             if not session.get(NVR, nvr_data["ip"]):
                 session.add(NVR(
                     ip=nvr_data["ip"],
+                    name=nvr_data.get("name"),
                     user=nvr_data["user"],
                     password=nvr_data.get("password", ""),
                     enabled=nvr_data.get("enabled", True)

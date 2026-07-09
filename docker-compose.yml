@@ -14,5 +14,5 @@ services:
 
 networks:
   default:
-    name: npm
+    name: vpn
     external: true

@@ -31,6 +31,14 @@ cp .env.example .env  # Edit with your credentials
 docker compose up -d
 ```
 
+> [!TIP]
+> **Permission Issues (`sqlite3.OperationalError: unable to open database file`)**
+> 
+> If Docker creates the `./data` directory automatically, it may be owned by `root`, preventing the container's non-root user (`appuser` with UID 1000) from writing to the SQLite database. To fix this, adjust the ownership on your host machine:
+> ```bash
+> sudo chown -R 1000:1000 ./data
+> ```
+
 ### Native OS (Windows/Linux/macOS)
 
 ```bash
