@@ -48,8 +48,74 @@ class LoginRequest(BaseModel):
 
 monitor_task = None
 
+def seed_database(session: Session, init_from_json: bool):
+    defaults = {
+        "MAIL_ENABLED": ("false", "Enable Email"),
+        "MAIL_SERVER": ("smtp.gmail.com", "Server"),
+        "MAIL_PORT": ("587", "Port"),
+        "MAIL_USER": ("email@gmail.com", "User"),
+        "MAIL_PASS": ("password", "Pass"),
+        "MAIL_RECIPIENTS": ("admin@example.com", "Recipients"),
+        "MAIL_FIRST_ALERT_DELAY_MINUTES": ("1", "Normal Delay"),
+        "MAIL_LOW_IMPORTANCE_DELAY_MINUTES": ("30", "Low Imp. Delay"),
+        "MAIL_ALERT_FREQUENCY_MINUTES": ("60", "Frequency"),
+        "MAIL_MUTE_AFTER_N_ALERTS": ("3", "Mute After N"),
+        "TELEGRAM_ENABLED": ("false", "Enable Telegram"),
+        "TELEGRAM_BOT_TOKEN": ("", "Bot Token"),
+        "TELEGRAM_CHAT_IDS": ("", "Chat IDs"),
+        "TELEGRAM_PROXY": ("", "Proxy URL"),
+        "TELEGRAM_FIRST_ALERT_DELAY_MINUTES": ("1", "Normal Delay"),
+        "TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES": ("15", "Low Imp. Delay"),
+        "TELEGRAM_ALERT_FREQUENCY_MINUTES": ("30", "Frequency"),
+        "TELEGRAM_MUTE_AFTER_N_ALERTS": ("3", "Mute After N"),
+        "MAP_TYPE": ("floor", "Map Type"),
+        "MAP_IMAGE": ("", "Custom Floor Plan Image URL"),
+        "MAP_START_LAT": ("37.796067", "Default Map Start Latitude"),
+        "MAP_START_LNG": ("45.062508", "Default Map Start Longitude"),
+    }
+
+    # Delete all records from all tables
+    session.query(DowntimeEvent).delete()
+    session.query(Camera).delete()
+    session.query(NVR).delete()
+    session.query(Log).delete()
+    session.query(Settings).delete()
+    session.commit()
+
+    init_data = {}
+    if init_from_json and os.path.exists("init_config.json"):
+        try:
+            with open("init_config.json", "r", encoding="utf-8") as f:
+                init_data = json.load(f)
+        except Exception as e:
+            print(f"Error loading init_config.json: {e}")
+
+    # Seed Settings
+    json_settings = init_data.get("settings", {})
+    for key, (default_val, desc) in defaults.items():
+        val = json_settings.get(key, default_val) if init_from_json else default_val
+        session.add(Settings(key=key, value=str(val), description=desc))
+
+    # Seed NVRs if init_from_json
+    if init_from_json:
+        json_nvrs = init_data.get("nvrs", [])
+        for nvr_data in json_nvrs:
+            session.add(NVR(
+                ip=nvr_data["ip"],
+                name=nvr_data.get("name"),
+                user=nvr_data["user"],
+                password=nvr_data.get("password", ""),
+                enabled=nvr_data.get("enabled", True)
+            ))
+    session.commit()
+
 def seed_defaults():
     with Session(engine) as session:
+        # Check if settings table is already seeded
+        existing_settings_count = len(session.exec(select(Settings)).all())
+        if existing_settings_count > 0:
+            return
+
         defaults = {
             "MAIL_ENABLED": ("false", "Enable Email"),
             "MAIL_SERVER": ("smtp.gmail.com", "Server"),
@@ -75,7 +141,6 @@ def seed_defaults():
             "MAP_START_LNG": ("45.062508", "Default Map Start Longitude"),
         }
 
-        # تلاش برای خواندن فایل تنظیمات اولیه
         init_data = {}
         if os.path.exists("init_config.json"):
             try:
@@ -84,15 +149,12 @@ def seed_defaults():
             except Exception as e:
                 print(f"Error loading init_config.json: {e}")
 
-        # ۱. وارد کردن تنظیمات (ترکیب فایل JSON با پیش‌فرض‌ها)
         json_settings = init_data.get("settings", {})
         for key, (default_val, desc) in defaults.items():
-            # اگر در دیتابیس نبود، آن را ایجاد کن
             if not session.get(Settings, key):
                 val = json_settings.get(key, default_val)
                 session.add(Settings(key=key, value=str(val), description=desc))
 
-        # ۲. وارد کردن NVR های اولیه
         json_nvrs = init_data.get("nvrs", [])
         for nvr_data in json_nvrs:
             if not session.get(NVR, nvr_data["ip"]):
@@ -214,7 +276,6 @@ def login_page():
 def read_root(): 
     return FileResponse('static/index.html')
 
-@app.post("/api/monitor/restart", dependencies=[Depends(require_auth)])
 async def restart_monitor():
     global monitor_task
     if monitor_task:
@@ -224,26 +285,24 @@ async def restart_monitor():
         except asyncio.CancelledError:
             pass
     monitor_task = asyncio.create_task(start_monitor_loop())
+
+@app.post("/api/monitor/restart", dependencies=[Depends(require_auth)])
+async def api_restart_monitor():
+    await restart_monitor()
     return {"status": "restarted"}
 
-@app.post("/api/data/purge", dependencies=[Depends(require_auth)])
-def purge_data(session: Session = Depends(get_session)):
-    # Reset Camera Status
-    cameras = session.exec(select(Camera)).all()
-    for cam in cameras:
-        cam.status = "Unknown"
-        cam.last_online = None
-        cam.mail_alert_count = 0
-        cam.mail_last_alert = None
-        cam.telegram_alert_count = 0
-        cam.telegram_last_alert = None
-        session.add(cam)
-    
-    # Delete Logs and Downtime Events
-    session.query(Log).delete()
-    session.query(DowntimeEvent).delete()
+@app.post("/api/data/purge/empty", dependencies=[Depends(require_auth)])
+async def purge_empty(session: Session = Depends(get_session)):
+    seed_database(session, init_from_json=False)
+    invalidate_config_cache()
+    await restart_monitor()
+    return {"status": "ok"}
 
-    session.commit()
+@app.post("/api/data/purge/init", dependencies=[Depends(require_auth)])
+async def purge_init(session: Session = Depends(get_session)):
+    seed_database(session, init_from_json=True)
+    invalidate_config_cache()
+    await restart_monitor()
     return {"status": "ok"}
 
 
@@ -277,6 +336,12 @@ def delete_nvr(ip: str, session: Session = Depends(get_session)):
     nvr = session.get(NVR, ip)
     if not nvr:
         raise HTTPException(status_code=404, detail="NVR not found")
+    cams = session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
+    for cam in cams:
+        downtimes = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id)).all()
+        for dt in downtimes:
+            session.delete(dt)
+        session.delete(cam)
     session.delete(nvr)
     session.commit()
     return {"ok": True}

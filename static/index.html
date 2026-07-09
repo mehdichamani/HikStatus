@@ -449,38 +449,48 @@
                             </div>
                         </div>
 
+                        <!-- Save & Restart Card -->
+                        <div class="card" style="margin-bottom: 16px;">
+                            <div class="card-header">
+                                <h3>اعمال تغییرات و ریستارت مانیتور</h3>
+                            </div>
+                            <div style="padding: 20px;">
+                                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
+                                    برای اعمال نهایی تمامی تنظیمات ذخیره‌شده و راه‌اندازی مجدد ماژول پایش دوربین‌ها، روی دکمه زیر کلیک کنید. این عمل تنظیمات را در شبکه اعمال کرده و مانیتورینگ را از نو راه‌اندازی می‌کند.
+                                </p>
+                                <button class="btn btn-primary" onclick="apply()" style="display: inline-flex; align-items: center; gap: 8px;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                                    </svg>
+                                    <span>اعمال تغییرات و ریستارت</span>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Danger Zone Card -->
                         <div class="card card-danger">
                             <div class="card-header">
                                 <h3>منطقه خطر</h3>
                             </div>
-                            <div class="danger-row">
-                                <div>
-                                    <p class="danger-text">پاکسازی تمامی لاگ‌ها و ریست وضعیت دوربین‌ها</p>
-                                    <p class="danger-warning">این عملیات غیرقابل بازگشت است</p>
+                            <div style="display: flex; flex-direction: column;">
+                                <div class="danger-row" style="border-bottom: 1px solid var(--border);">
+                                    <div style="text-align: right; margin-bottom: 8px;">
+                                        <p class="danger-text" style="font-weight: 600; color: var(--danger); margin-bottom: 4px;">ریست کامل و ایجاد پایگاه داده خالی</p>
+                                        <p class="danger-warning" style="font-size: 12px; color: var(--text-secondary);">تمامی دوربین‌ها، NVRها، لاگ‌ها و تنظیمات حذف شده و پایگاه داده خام ایجاد می‌شود.</p>
+                                    </div>
+                                    <button class="btn btn-danger" onclick="purgeEmpty()" style="white-space: nowrap; margin-top: 8px;">پاکسازی و پایگاه داده خالی</button>
                                 </div>
-                                <button class="btn btn-danger" onclick="purgeData()">ریست کامل</button>
+                                <div class="danger-row">
+                                    <div style="text-align: right; margin-bottom: 8px;">
+                                        <p class="danger-text" style="font-weight: 600; color: var(--danger); margin-bottom: 4px;">ریست کامل و بارگذاری از init_config.json</p>
+                                        <p class="danger-warning" style="font-size: 12px; color: var(--text-secondary);">دیتابیس پاکسازی شده و با اطلاعات فایل init_config.json مقداردهی اولیه می‌شود.</p>
+                                    </div>
+                                    <button class="btn btn-danger" onclick="purgeInit()" style="white-space: nowrap; margin-top: 8px;">پاکسازی و تنظیمات اولیه</button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- FABs -->
-            <div class="fab-group">
-                <button class="fab fab-secondary" onclick="saveAll()" title="ذخیره">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                        <polyline points="17 21 17 13 7 13 7 21" />
-                        <polyline points="7 3 7 8 15 8" />
-                    </svg>
-                </button>
-                <button class="fab fab-primary" onclick="apply()" title="ذخیره و ریستارت">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="23 4 23 10 17 10" />
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                    </svg>
-                </button>
             </div>
         </section>
 

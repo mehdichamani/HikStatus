@@ -271,18 +271,10 @@ async function loadSettings() {
     const nRes = await apiFetch(`${API}/nvrs`);
     const nvrs = await nRes.json();
     nvrCache = nvrs;
-    document.getElementById('nvr-list').innerHTML = nvrs.map(n => `
-        <div class="list-item">
-            <div class="list-item-info">
-                ${n.name ? `<strong style="margin-left: 8px; color: var(--text-primary);">${n.name}</strong>` : ''}
-                <span class="list-item-ip">${n.ip}</span>
-                <span class="list-item-user">(${n.user})</span>
-            </div>
-            <button class="btn-icon" onclick="delNVR('${n.ip}')" style="width:28px; height:28px">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
-        </div>
-    `).join('');
+    pendingNVRDeletes = new Set();
+    document.getElementById('nvr-list').innerHTML = nvrs.map(n =>
+        renderNVRRow(n)
+    ).join('');
 
     const activeTab = document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || 'sec-nvr';
     switchSettingsTab(activeTab);
@@ -386,18 +378,85 @@ async function addNVR() {
     loadSettings();
 }
 
-async function delNVR(ip) {
-    if (!confirm('حذف شود؟')) return;
-    await apiFetch(`${API}/nvrs/${ip}`, { method: 'DELETE' });
-    loadSettings();
+let pendingNVRDeletes = new Set();
+
+function renderNVRRow(n, deleted = false) {
+    const escaped = n.ip.replace(/[^\w]/g, '_');
+    if (deleted) {
+        return `<div class="list-item list-item-deleted" id="nvr-row-${escaped}" data-ip="${n.ip}">
+            <div class="list-item-info" style="text-decoration: line-through; opacity: 0.55;">
+                ${n.name ? `<strong style="margin-left: 8px;">${n.name}</strong>` : ''}
+                <span class="list-item-ip">${n.ip}</span>
+                <span class="list-item-user">(${n.user})</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+                <button class="btn" style="padding: 4px 10px; font-size: 12px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);" onclick="undoNVRDelete('${n.ip}')">
+                    بازگشت
+                </button>
+                <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="applyNVRDelete('${n.ip}')">
+                    حذف
+                </button>
+            </div>
+        </div>`;
+    }
+    return `<div class="list-item" id="nvr-row-${escaped}" data-ip="${n.ip}">
+        <div class="list-item-info">
+            ${n.name ? `<strong style="margin-left: 8px; color: var(--text-primary);">${n.name}</strong>` : ''}
+            <span class="list-item-ip">${n.ip}</span>
+            <span class="list-item-user">(${n.user})</span>
+        </div>
+        <button class="btn-icon" onclick="delNVR('${n.ip}')" style="width:28px; height:28px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+    </div>`;
 }
 
-async function purgeData() {
-    if (!confirm('تمامی لاگ‌ها و وضعیت دوربین‌ها ریست می‌شود. ادامه می‌دهید؟')) return;
+function delNVR(ip) {
+    pendingNVRDeletes.add(ip);
+    const nvr = nvrCache.find(n => n.ip === ip);
+    if (!nvr) return;
+    const escaped = ip.replace(/[^\w]/g, '_');
+    const row = document.getElementById(`nvr-row-${escaped}`);
+    if (row) row.outerHTML = renderNVRRow(nvr, true);
+}
+
+function undoNVRDelete(ip) {
+    pendingNVRDeletes.delete(ip);
+    const nvr = nvrCache.find(n => n.ip === ip);
+    if (!nvr) return;
+    const escaped = ip.replace(/[^\w]/g, '_');
+    const row = document.getElementById(`nvr-row-${escaped}`);
+    if (row) row.outerHTML = renderNVRRow(nvr, false);
+}
+
+async function applyNVRDelete(ip) {
     try {
-        await apiFetch(`${API}/data/purge`, { method: 'POST' });
-        showToast('ریست انجام شد');
-        location.reload();
+        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, { method: 'DELETE' });
+        pendingNVRDeletes.delete(ip);
+        showToast('NVR با موفقیت حذف شد');
+        loadSettings();
+    } catch (e) {
+        showToast('خطا در حذف NVR: ' + e.message, 'error');
+    }
+}
+
+async function purgeEmpty() {
+    if (!confirm('توجه: تمامی اطلاعات دیتابیس (دوربین‌ها، NVRها، لاگ‌ها و تنظیمات) پاک خواهند شد و پایگاه داده خالی ایجاد می‌شود. ادامه می‌دهید؟')) return;
+    try {
+        await apiFetch(`${API}/data/purge/empty`, { method: 'POST' });
+        showToast('پاکسازی و ایجاد دیتابیس خالی با موفقیت انجام شد');
+        setTimeout(() => location.reload(), 1000);
+    } catch (e) {
+        showToast('خطا: ' + e.message, 'error');
+    }
+}
+
+async function purgeInit() {
+    if (!confirm('توجه: تمامی اطلاعات فعلی دیتابیس پاک شده و با مقادیر پیش‌فرض فایل init_config.json جایگزین خواهد شد. ادامه می‌دهید؟')) return;
+    try {
+        await apiFetch(`${API}/data/purge/init`, { method: 'POST' });
+        showToast('پاکسازی و بارگذاری تنظیمات اولیه انجام شد');
+        setTimeout(() => location.reload(), 1000);
     } catch (e) {
         showToast('خطا: ' + e.message, 'error');
     }

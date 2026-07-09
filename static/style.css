@@ -905,6 +905,12 @@ body {
     font-size: 12px;
 }
 
+.list-item-deleted {
+    background: var(--danger-bg);
+    border-left: 3px solid var(--danger);
+    transition: background 0.25s ease;
+}
+
 /* ===== TOGGLE SWITCH ===== */
 .toggle-row {
     display: flex;
