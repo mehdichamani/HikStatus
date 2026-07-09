@@ -2,16 +2,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.venv/
 
 # --- HikStatus Data (SENSITIVE) ---
 # Ignores the database containing passwords, settings, and logs
 data/
 *.db
-monitor.db
-
-# --- User Configuration ---
-# Ignores your specific camera list
-camera_names.csv
 
 # --- Secrets ---
 .env

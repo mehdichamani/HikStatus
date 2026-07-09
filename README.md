@@ -2,22 +2,26 @@
 
 [![Persian](https://img.shields.io/badge/lang-فارسی-red)](README.fa.md)
 
-HikVision NVR/Camera monitoring dashboard with real-time alerts via Email and Telegram.
+Real-time HikVision NVR/Camera monitoring dashboard with alert notifications via Email and Telegram.
 
 ## Features
 
-- Real-time camera status monitoring (Online/Offline)
-- NVR auto-discovery and camera detection
-- Alert system with Email and Telegram notifications
+- Real-time camera status monitoring (Online / Offline)
+- Automatic camera name sync from NVR via Hikvision ISAPI
+- Alert system with Email (SMTP) and Telegram (Bot API) notifications
+- Configurable alert delays, frequency, and muting thresholds
+- Downtime tracking with detailed per-camera statistics
+- Camera importance levels (Low / Normal / Critical)
+- Interactive map view with camera placement (floor plan or geo-map)
+- Database backup download and restore upload from the web UI
 - Persian (Farsi) RTL web interface
-- Downtime tracking and hourly reports
-- Camera importance levels (Low/Normal/Critical)
-- Alert muting after configurable threshold
 - Responsive design for desktop and mobile
+
+---
 
 ## Quick Start
 
-### Docker (Recommended)
+### Option 1: Docker (Recommended)
 
 ```bash
 # Clone the repository
@@ -25,58 +29,79 @@ git clone https://github.com/yourusername/HikStatus.git
 cd HikStatus
 
 # Configure environment
-cp .env.example .env  # Edit with your credentials
+cp .env.example .env
+# Edit .env and set ADMIN_USER and ADMIN_PASS
 
-# Run with Docker Compose
+# (Optional) Pre-configure NVRs and settings
+cp init_config.example.json init_config.json
+# Edit init_config.json with your NVR IPs and credentials
+
+# Build and start
 docker compose up -d
 ```
 
 > [!TIP]
 > **Permission Issues (`sqlite3.OperationalError: unable to open database file`)**
-> 
-> If Docker creates the `./data` directory automatically, it may be owned by `root`, preventing the container's non-root user (`appuser` with UID 1000) from writing to the SQLite database. To fix this, adjust the ownership on your host machine:
+>
+> If Docker creates the `./data` directory automatically, it may be owned by `root`, preventing the container's non-root user (`appuser`, UID 1000) from writing to the database. Fix with:
 > ```bash
 > sudo chown -R 1000:1000 ./data
 > ```
 
-### Native OS (Windows/Linux/macOS)
+---
+
+### Option 2: Native Python (Linux / macOS)
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/HikStatus.git
 cd HikStatus
 
-# Windows
-install.bat
-start.bat
+# Configure environment
+cp .env.example .env
+# Edit .env and set ADMIN_USER and ADMIN_PASS
 
-# Linux/macOS
-chmod +x run.sh
-./run.sh
+# (Optional) Pre-configure NVRs and settings
+cp init_config.example.json init_config.json
+
+# Start (creates .venv and installs dependencies automatically)
+chmod +x start.sh
+./start.sh
 ```
+
+To run on a custom port:
+```bash
+./start.sh 8080
+```
+
+---
 
 ### Access
 
-Open your browser: http://localhost:28888
+Open your browser: **http://localhost:28888**
 
-Default credentials:
+Default credentials (set in `.env`):
 - Username: `admin`
-- Password: `admin`
+- Password: `admin` ← **change this before exposing to a network**
 
-**Important:** Change the default password after first login!
+---
 
 ## Configuration
 
-### Environment Variables (.env)
+### Environment Variables (`.env`)
 
 ```env
 ADMIN_USER=admin
 ADMIN_PASS=your-secure-password
 ```
 
-### Initial Configuration (init_config.json)
+These are the login credentials for the web UI. Copy from `.env.example` and edit.
 
-Copy `init_config.example.json` to `init_config.json` and customize:
+---
+
+### Initial Configuration (`init_config.json`)
+
+Copy `init_config.example.json` to `init_config.json` to pre-seed the database on first startup (or after a "Purge and Load Init" operation).
 
 ```json
 {
@@ -93,7 +118,8 @@ Copy `init_config.example.json` to `init_config.json` and customize:
   },
   "nvrs": [
     {
-      "ip": "192.168.1.100",
+      "ip": "192.168.1.100:8000",
+      "name": "Main Building",
       "user": "admin",
       "password": "your-nvr-password",
       "enabled": true
@@ -103,48 +129,86 @@ Copy `init_config.example.json` to `init_config.json` and customize:
 ```
 
 > [!NOTE]
-> **Telegram Proxy Configuration (Docker)**
-> 
-> If you are running the application in a Docker container and want to connect to a proxy running on your host system (e.g., at `127.0.0.1:10808`), use `http://host.docker.internal:10808` as the proxy address instead of `127.0.0.1`.
+> **Telegram Proxy (Docker)**
+>
+> If your proxy runs on the host machine (e.g. `127.0.0.1:10808`), use `http://host.docker.internal:10808` as the proxy address in Telegram settings.
 
-### Camera Names (camera_names.csv)
+---
 
-Optional CSV file to assign custom names to cameras:
+## Camera Names (ISAPI Auto-Sync)
 
-```csv
-ip_address,camera_name
-192.168.1.100,Front Door
-192.168.1.101,Backyard
-```
+Camera names are automatically fetched from each NVR via the **Hikvision ISAPI** endpoint (`GET /ISAPI/ContentMgmt/InputProxy/channels`) on every application startup. If names are changed on the NVR side, you can trigger a manual re-sync from the web UI:
+
+**Settings → کنترل سیستم → همگام‌سازی نام دوربین‌ها**
+
+Fallback naming when ISAPI is unavailable: `<NVR Name> ch <channel_number>`.
+
+---
+
+## Settings UI
+
+The web settings panel is organized into tabs:
+
+| Tab | Contents |
+|-----|----------|
+| **NVRها** | Add / delete NVRs with staged-delete (undo before confirming) |
+| **تنظیمات ایمیل** | SMTP configuration, delay, frequency, mute settings |
+| **تنظیمات تلگرام** | Bot token, chat IDs, proxy, delay and mute settings |
+| **کنترل سیستم** | Camera name sync, backup/restore, apply & restart, danger zone |
+
+### Danger Zone
+
+| Action | Effect |
+|--------|--------|
+| Purge and Empty DB | Wipes all data; seeds default settings only |
+| Purge and Load Init | Wipes all data; re-seeds from `init_config.json` |
+
+---
+
+## Database Backup & Restore
+
+From **Settings → کنترل سیستم → پشتیبان‌گیری و بازیابی**:
+
+- **Download Backup**: Downloads the live `monitor.db` file as `hikstatus_backup_YYYYMMDD_HHMMSS.db`
+- **Restore from File**: Upload a `.db` backup file; the server validates the SQLite magic header, atomically replaces the database, and restarts the monitor automatically
+
+---
 
 ## Architecture
 
-- **Backend:** Python FastAPI + SQLite (SQLModel)
-- **Frontend:** Vanilla HTML/CSS/JS with RTL support
-- **Database:** SQLite with WAL mode for concurrent access
-- **Alerts:** Email (SMTP) and Telegram (Bot API)
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.12, FastAPI, Uvicorn |
+| Database | SQLite with WAL mode (via SQLModel / SQLAlchemy) |
+| Frontend | Vanilla HTML + CSS + JavaScript, RTL |
+| Alerts | SMTP Email, Telegram Bot API |
+| Container | Docker + Docker Compose |
+
+---
 
 ## Project Structure
 
 ```
 HikStatus/
-├── main.py              # FastAPI application
-├── monitor.py           # Camera monitoring loop
-├── alerts.py            # Email & Telegram alerts
-├── database.py          # SQLModel database definitions
-├── static/              # Frontend files
-│   ├── index.html
-│   ├── login.html
-│   ├── app.js
-│   └── style.css
-├── Dockerfile           # Docker image
-├── docker-compose.yml   # Docker Compose config
-├── requirements.txt     # Python dependencies
-├── install.bat          # Windows installer
-├── start.bat            # Windows launcher
-├── run.sh               # Linux/macOS launcher
-└── .env                 # Environment variables (gitignored)
+├── main.py                   # FastAPI app, routes, auth, backup/restore
+├── monitor.py                # Background camera polling loop + ISAPI sync
+├── alerts.py                 # Email & Telegram alert logic
+├── database.py               # SQLModel models and database engine
+├── static/
+│   ├── index.html            # Main dashboard SPA
+│   ├── login.html            # Login page
+│   ├── app.js                # Frontend logic
+│   └── style.css             # Styles
+├── Dockerfile                # Docker image definition
+├── docker-compose.yml        # Docker Compose configuration
+├── requirements.txt          # Python dependencies
+├── start.sh                  # Native Python launcher (Linux/macOS)
+├── init_config.example.json  # Template for initial database seed
+├── .env.example              # Template for environment variables
+└── .env                      # Secrets (gitignored)
 ```
+
+---
 
 ## API Endpoints
 
@@ -155,14 +219,24 @@ HikStatus/
 | POST | `/api/auth/logout` | Logout |
 | GET | `/api/nvrs` | List NVRs |
 | POST | `/api/nvrs` | Add NVR |
-| DELETE | `/api/nvrs/{ip}` | Delete NVR |
-| GET | `/api/cameras` | List cameras |
-| PUT | `/api/cameras/{id}` | Update camera |
-| GET | `/api/settings` | List settings |
-| PUT | `/api/settings/{key}` | Update setting |
+| DELETE | `/api/nvrs/{ip}` | Delete NVR (cascades cameras + downtimes) |
+| GET | `/api/cameras` | List all cameras |
+| PUT | `/api/cameras/{id}` | Update camera (name, importance, position, mute) |
+| GET | `/api/settings` | List all settings |
+| PUT | `/api/settings/{key}` | Update a setting |
 | GET | `/api/logs` | Search logs |
-| GET | `/api/stats/{cam_id}` | Camera downtime stats |
-| GET | `/api/reports/generate` | Generate report |
+| GET | `/api/stats/{cam_id}` | Camera downtime statistics |
+| GET | `/api/reports/generate` | Generate downtime report |
+| POST | `/api/monitor/restart` | Restart the monitoring loop |
+| POST | `/api/config/sync-names` | Manually re-sync camera names from NVRs via ISAPI |
+| GET | `/api/data/backup` | Download the database as a `.db` file |
+| POST | `/api/data/restore` | Restore database from uploaded `.db` file |
+| POST | `/api/data/purge/empty` | Wipe database and seed defaults |
+| POST | `/api/data/purge/init` | Wipe database and seed from `init_config.json` |
+| POST | `/api/test/email` | Send a test email |
+| POST | `/api/test/telegram` | Send a test Telegram message |
+
+---
 
 ## License
 
