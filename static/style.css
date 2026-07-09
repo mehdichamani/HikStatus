@@ -1965,4 +1965,84 @@ body {
     transform: translateY(0) scale(0.95);
 }
 
+/* ===== MAP PLACEHOLDER ===== */
+.no-map-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 500px;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 24px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.no-map-placeholder svg {
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    opacity: 0.6;
+}
+
+.no-map-placeholder h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.no-map-placeholder p {
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 320px;
+    line-height: 1.5;
+}
+
+/* ===== SETTINGS REDESIGN & FORM POLISH ===== */
+#settings .card {
+    max-width: 860px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+}
+
+.settings-toggle-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--surface-3);
+    border-bottom: 1px solid var(--border);
+}
+
+.settings-toggle-header .toggle-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.settings-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    padding: 20px;
+}
+
+.form-field-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.span-2 {
+    grid-column: span 2;
+}
+
+@media (max-width: 600px) {
+    .span-2 {
+        grid-column: span 1;
+    }
+}
 

@@ -102,6 +102,11 @@ Copy `init_config.example.json` to `init_config.json` and customize:
 }
 ```
 
+> [!NOTE]
+> **Telegram Proxy Configuration (Docker)**
+> 
+> If you are running the application in a Docker container and want to connect to a proxy running on your host system (e.g., at `127.0.0.1:10808`), use `http://host.docker.internal:10808` as the proxy address instead of `127.0.0.1`.
+
 ### Camera Names (camera_names.csv)
 
 Optional CSV file to assign custom names to cameras:
