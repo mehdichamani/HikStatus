@@ -462,6 +462,39 @@ async function purgeInit() {
     }
 }
 
+async function restoreDatabase(input) {
+    const file = input.files[0];
+    if (!file) return;
+    // Reset input so selecting same file again triggers onchange
+    input.value = '';
+    if (!file.name.endsWith('.db')) {
+        showToast('فایل باید با پسوند .db باشد', 'error');
+        return;
+    }
+    if (!confirm(`آیا مطمئنید؟ پایگاه داده فعلی با فایل "${file.name}" جایگزین خواهد شد و مانیتور راه‌اندازی مجدد می‌شود.`)) return;
+    const statusEl = document.getElementById('restore-status');
+    if (statusEl) statusEl.textContent = 'در حال آپلود...';
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${API}/data/restore`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: 'خطای نامشخص' }));
+            throw new Error(err.detail || 'خطا در بازیابی');
+        }
+        if (statusEl) statusEl.textContent = '';
+        showToast('بازیابی با موفقیت انجام شد. در حال بارگذاری مجدد...');
+        setTimeout(() => location.reload(), 1500);
+    } catch (e) {
+        if (statusEl) statusEl.textContent = '';
+        showToast('خطا: ' + e.message, 'error');
+    }
+}
+
 function showToast(msg, type = 'success') {
     const toast = document.createElement('div');
     toast.style.cssText = `

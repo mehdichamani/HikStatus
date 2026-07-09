@@ -449,6 +449,35 @@
                             </div>
                         </div>
 
+                        <!-- Backup & Restore Card -->
+                        <div class="card" style="margin-bottom: 16px;">
+                            <div class="card-header">
+                                <h3>پشتیبان‌گیری و بازیابی پایگاه داده</h3>
+                            </div>
+                            <div style="padding: 20px;">
+                                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px; line-height: 1.7;">
+                                    می‌توانید از پایگاه داده فعلی یک فایل پشتیبان دریافت کنید یا یک فایل پشتیبان قبلی را بازیابی کنید.
+                                    پس از بازیابی، مانیتور به‌صورت خودکار راه‌اندازی مجدد می‌شود.
+                                </p>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                    <a id="btn-backup" href="/api/data/backup" download class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                        </svg>
+                                        <span>دریافت پشتیبان</span>
+                                    </a>
+                                    <button class="btn" onclick="document.getElementById('restore-file-input').click()" style="display: inline-flex; align-items: center; gap: 8px; background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border);">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                        <span>بازیابی از فایل</span>
+                                    </button>
+                                    <input type="file" id="restore-file-input" accept=".db" style="display:none" onchange="restoreDatabase(this)">
+                                    <span id="restore-status" style="font-size: 12px; color: var(--text-secondary);"></span>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Save & Restart Card -->
                         <div class="card" style="margin-bottom: 16px;">
                             <div class="card-header">

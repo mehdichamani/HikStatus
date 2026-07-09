@@ -306,6 +306,43 @@ async def purge_init(session: Session = Depends(get_session)):
     return {"status": "ok"}
 
 
+@app.get("/api/data/backup", dependencies=[Depends(require_auth)])
+def backup_database():
+    if not os.path.exists(sqlite_file_name):
+        raise HTTPException(status_code=404, detail="Database file not found")
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"hikstatus_backup_{timestamp}.db"
+    return FileResponse(
+        path=sqlite_file_name,
+        media_type="application/octet-stream",
+        filename=filename,
+    )
+
+
+@app.post("/api/data/restore", dependencies=[Depends(require_auth)])
+async def restore_database(file: UploadFile = File(...)):
+    if not file.filename or not file.filename.endswith(".db"):
+        raise HTTPException(status_code=400, detail="فایل باید با پسوند .db باشد")
+    contents = await file.read()
+    # Basic SQLite magic-number validation
+    if not contents.startswith(b"SQLite format 3\x00"):
+        raise HTTPException(status_code=400, detail="فایل معتبر SQLite نیست")
+    tmp_path = sqlite_file_name + ".restore_tmp"
+    try:
+        with open(tmp_path, "wb") as f:
+            f.write(contents)
+        # Atomically replace the database
+        os.replace(tmp_path, sqlite_file_name)
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise HTTPException(status_code=500, detail=f"خطا در بازیابی: {e}")
+    invalidate_config_cache()
+    await restart_monitor()
+    return {"status": "ok"}
+
+
 # --- TEST ENDPOINTS ---
 @app.post("/api/test/email", dependencies=[Depends(require_auth)])
 def test_mail():
