@@ -317,6 +317,9 @@
                             </button>
                         </div>
                         <div id="nvr-list" class="list-container"></div>
+                        <div class="settings-action-row">
+                            <button class="btn btn-primary" onclick="apply()">ذخیره و اعمال تنظیمات</button>
+                        </div>
                     </div>
 
                     <!-- Camera Names CSV -->
@@ -324,7 +327,12 @@
                         <div class="card-header">
                             <h3>نام دوربین‌ها</h3>
                         </div>
-                        <textarea id="csvEditor" class="form-textarea" spellcheck="false"></textarea>
+                        <div style="padding: 16px;">
+                            <textarea id="csvEditor" class="form-textarea" spellcheck="false" style="margin-bottom: 16px;"></textarea>
+                            <div class="settings-action-row">
+                                <button class="btn btn-primary" onclick="apply()">ذخیره و اعمال تنظیمات</button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Dynamic Settings -->
@@ -333,7 +341,7 @@
 
 
                     <!-- Danger Zone -->
-                    <div class="card card-danger">
+                    <div class="card card-danger" id="sec-system">
                         <div class="card-header">
                             <h3>منطقه خطر</h3>
                         </div>

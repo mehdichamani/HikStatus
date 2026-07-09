@@ -2046,3 +2046,19 @@ body {
     }
 }
 
+.settings-nav button.active {
+    background: var(--primary-glow);
+    color: var(--primary);
+    font-weight: 600;
+    border-right: 3px solid var(--primary);
+}
+
+.settings-action-row {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-3);
+    margin-top: 8px;
+}
+

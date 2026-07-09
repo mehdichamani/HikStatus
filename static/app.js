@@ -199,7 +199,13 @@ async function loadSettings() {
     document.getElementById('csvEditor').value = await cRes.text();
 
     const nav = document.getElementById('config-nav');
-    nav.innerHTML = `<button onclick="scrollToId('sec-nvr')">NVRها</button>`;
+    nav.innerHTML = `
+        <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
+        <button data-tab="sec-csv" onclick="switchSettingsTab('sec-csv')">نام دوربین‌ها</button>
+        <button data-tab="grp-Email" onclick="switchSettingsTab('grp-Email')">تنظیمات ایمیل</button>
+        <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
+        <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
+    `;
 
     const con = document.getElementById('config-forms');
     con.innerHTML = '';
@@ -216,7 +222,6 @@ async function loadSettings() {
 
     for (const [grp, keys] of Object.entries(groups)) {
         const engKey = groupKeys[grp];
-        nav.innerHTML += `<button onclick="scrollToId('grp-${engKey}')">${grp}</button>`;
 
         let html = `<div class="card" id="grp-${engKey}">
             <div class="card-header">
@@ -259,7 +264,11 @@ async function loadSettings() {
             </div>`;
         });
 
-        html += `</div></div>`;
+        html += `</div>
+            <div class="settings-action-row">
+                <button class="btn btn-primary" onclick="apply()">ذخیره و اعمال تنظیمات</button>
+            </div>
+        </div>`;
         con.innerHTML += html;
     }
 
@@ -278,11 +287,23 @@ async function loadSettings() {
             </button>
         </div>
     `).join('');
+
+    const activeTab = document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || 'sec-nvr';
+    switchSettingsTab(activeTab);
 }
 
-function scrollToId(id) {
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function switchSettingsTab(tabId) {
+    document.querySelectorAll('.settings-nav button').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+    });
+
+    const tabs = ['sec-nvr', 'sec-csv', 'grp-Email', 'grp-Telegram', 'sec-system'];
+    tabs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = id === tabId ? 'block' : 'none';
+        }
+    });
 }
 
 async function saveAll() {
