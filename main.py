@@ -303,6 +303,12 @@ def update_cam(id: int, p: dict, session: Session = Depends(get_session)):
         c.x_pos = float(p["x_pos"]) if p["x_pos"] is not None else None
     if "y_pos" in p:
         c.y_pos = float(p["y_pos"]) if p["y_pos"] is not None else None
+    if "fov_angle" in p:
+        c.fov_angle = float(p["fov_angle"]) if p["fov_angle"] is not None else None
+    if "fov_radius" in p:
+        c.fov_radius = float(p["fov_radius"]) if p["fov_radius"] is not None else None
+    if "fov_spread" in p:
+        c.fov_spread = float(p["fov_spread"]) if p["fov_spread"] is not None else None
     session.add(c)
     session.commit()
     return c

@@ -29,6 +29,9 @@ class Camera(SQLModel, table=True):
     longitude: Optional[float] = None
     x_pos: Optional[float] = None
     y_pos: Optional[float] = None
+    fov_angle: Optional[float] = None
+    fov_radius: Optional[float] = None
+    fov_spread: Optional[float] = None
 
 class DowntimeEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -82,7 +85,10 @@ def init_db():
             "latitude": "REAL",
             "longitude": "REAL",
             "x_pos": "REAL",
-            "y_pos": "REAL"
+            "y_pos": "REAL",
+            "fov_angle": "REAL",
+            "fov_radius": "REAL",
+            "fov_spread": "REAL"
         }
         
         for col_name, col_type in new_cols.items():

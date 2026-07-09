@@ -730,6 +730,289 @@ function setupLeafletMap() {
     });
 }
 
+function getFovPolygonPoints(centerLatLng, radius, angle, spread) {
+    const centerY = centerLatLng.lat !== undefined ? centerLatLng.lat : centerLatLng[0];
+    const centerX = centerLatLng.lng !== undefined ? centerLatLng.lng : centerLatLng[1];
+    
+    const startAngle = angle - (spread / 2);
+    const endAngle = angle + (spread / 2);
+    
+    const points = [[centerY, centerX]];
+    const numPoints = 24;
+    for (let i = 0; i <= numPoints; i++) {
+        const currAngleDeg = startAngle + (endAngle - startAngle) * (i / numPoints);
+        const angleRad = ((90 - currAngleDeg) * Math.PI) / 180;
+        const x = centerX + radius * Math.cos(angleRad);
+        const y = centerY + radius * Math.sin(angleRad);
+        points.push([y, x]);
+    }
+    points.push([centerY, centerX]);
+    return points;
+}
+
+function getFovPolygonPointsGeo(centerLatLng, radiusMeters, angle, spread) {
+    const centerLat = centerLatLng.lat !== undefined ? centerLatLng.lat : centerLatLng[0];
+    const centerLng = centerLatLng.lng !== undefined ? centerLatLng.lng : centerLatLng[1];
+    
+    const startAngle = angle - (spread / 2);
+    const endAngle = angle + (spread / 2);
+    
+    const points = [[centerLat, centerLng]];
+    const earthRadius = 6378137; // in meters
+    const numPoints = 24;
+    
+    for (let i = 0; i <= numPoints; i++) {
+        const currAngleDeg = startAngle + (endAngle - startAngle) * (i / numPoints);
+        const bearingRad = (currAngleDeg * Math.PI) / 180;
+        
+        const dDivR = radiusMeters / earthRadius;
+        const latRad = (centerLat * Math.PI) / 180;
+        const lngRad = (centerLng * Math.PI) / 180;
+        
+        const destLatRad = Math.asin(
+            Math.sin(latRad) * Math.cos(dDivR) +
+            Math.cos(latRad) * Math.sin(dDivR) * Math.cos(bearingRad)
+        );
+        const destLngRad = lngRad + Math.atan2(
+            Math.sin(bearingRad) * Math.sin(dDivR) * Math.cos(latRad),
+            Math.cos(dDivR) - Math.sin(latRad) * Math.sin(destLatRad)
+        );
+        
+        points.push([
+            (destLatRad * 180) / Math.PI,
+            (destLngRad * 180) / Math.PI
+        ]);
+    }
+    points.push([centerLat, centerLng]);
+    return points;
+}
+
+function calculateFovPoints(c, latlng) {
+    const angle = c.fov_angle || 0;
+    const radius = c.fov_radius || 50;
+    const spread = c.fov_spread || 60;
+    
+    if (mapType === 'floor') {
+        return getFovPolygonPoints(latlng, radius, angle, spread);
+    } else {
+        return getFovPolygonPointsGeo(latlng, radius, angle, spread);
+    }
+}
+
+function getMarkerPopupContent(c) {
+    const statusText = c.status === 'Online' ? 'متصل' : 'قطع';
+    const isFovEnabled = c.fov_angle != null && c.fov_radius != null;
+    
+    return `
+        <div class="marker-popup-content" style="direction: rtl; text-align: right; min-width: 220px; font-family: Vazirmatn, sans-serif;">
+            <strong style="font-size: 14px; display:block; margin-bottom: 4px; color: var(--text);">${c.name}</strong>
+            <p style="margin: 2px 0; font-size: 11px; color: var(--text-secondary);"><b>NVR:</b> ${c.nvr_ip}</p>
+            <p style="margin: 2px 0; font-size: 11px; color: var(--text-secondary);"><b>کانال:</b> ${c.channel_id}</p>
+            <p style="margin: 2px 0; font-size: 11px; color: var(--text-secondary);"><b>IP:</b> ${c.ip}</p>
+            <p style="margin: 4px 0 0; font-size: 11px; color: var(--text-secondary);"><b>وضعیت:</b> <span style="color: ${c.status === 'Online' ? 'var(--success)' : 'var(--danger)'}; font-weight: bold">${statusText}</span></p>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 8px 0;">
+            
+            <!-- FOV Toggle -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 12px; font-weight: 500; color: var(--text);">محدوده دید (FOV)</span>
+                <label class="toggle" style="transform: scale(0.8); margin: 0; padding: 0; display: inline-block;">
+                    <input type="checkbox" id="popup-fov-enable-${c.id}" ${isFovEnabled ? 'checked' : ''} onchange="toggleMarkerFov(${c.id}, this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <!-- FOV Sliders -->
+            <div id="popup-fov-sliders-${c.id}" style="display: ${isFovEnabled ? 'block' : 'none'}; margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px;">
+                <div style="margin-bottom: 8px;">
+                    <div style="display:flex; justify-content:space-between; font-size: 11px; color: var(--text-secondary);">
+                        <span>جهت زاویه</span>
+                        <span id="lbl-angle-${c.id}" style="color: var(--primary-hover); font-weight: bold;">${c.fov_angle || 0}°</span>
+                    </div>
+                    <input type="range" min="0" max="360" value="${c.fov_angle || 0}" style="width: 100%; accent-color: var(--primary);" oninput="updateMarkerFovVal(${c.id}, 'angle', this.value)">
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <div style="display:flex; justify-content:space-between; font-size: 11px; color: var(--text-secondary);">
+                        <span>برد (شعاع)</span>
+                        <span id="lbl-radius-${c.id}" style="color: var(--primary-hover); font-weight: bold;">${c.fov_radius || 50}</span>
+                    </div>
+                    <input type="range" min="5" max="500" value="${c.fov_radius || 50}" style="width: 100%; accent-color: var(--primary);" oninput="updateMarkerFovVal(${c.id}, 'radius', this.value)">
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <div style="display:flex; justify-content:space-between; font-size: 11px; color: var(--text-secondary);">
+                        <span>زاویه بازشو</span>
+                        <span id="lbl-spread-${c.id}" style="color: var(--primary-hover); font-weight: bold;">${c.fov_spread || 60}°</span>
+                    </div>
+                    <input type="range" min="10" max="180" value="${c.fov_spread || 60}" style="width: 100%; accent-color: var(--primary);" oninput="updateMarkerFovVal(${c.id}, 'spread', this.value)">
+                </div>
+            </div>
+            
+            <!-- Remove from Map Button -->
+            <button onclick="removeCameraFromMap(${c.id})" style="
+                width: 100%;
+                margin-top: 8px;
+                background: rgba(239, 68, 68, 0.1);
+                border: 1px solid var(--danger);
+                color: #ff8080;
+                border-radius: 6px;
+                padding: 6px;
+                font-size: 11px;
+                font-family: Vazirmatn, sans-serif;
+                cursor: pointer;
+                transition: background 0.2s;
+            " onmouseover="this.style.background='rgba(239, 68, 68, 0.2)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.1)'">
+                حذف از نقشه
+            </button>
+        </div>
+    `;
+}
+
+let fovSaveTimers = {};
+function saveFovDebounced(id, angle, radius, spread) {
+    if (fovSaveTimers[id]) {
+        clearTimeout(fovSaveTimers[id]);
+    }
+    fovSaveTimers[id] = setTimeout(async () => {
+        try {
+            await fetch(`${API}/cameras/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fov_angle: angle,
+                    fov_radius: radius,
+                    fov_spread: spread
+                })
+            });
+        } catch (e) {
+            console.error('Failed to auto-save FOV settings:', e);
+        }
+    }, 500);
+}
+
+async function toggleMarkerFov(id, enabled) {
+    const c = mapCamerasList.find(cam => cam.id === id);
+    if (!c) return;
+    
+    const slidersBlock = document.getElementById(`popup-fov-sliders-${id}`);
+    const marker = mapMarkers.find(m => m.camera_id === id);
+    
+    if (enabled) {
+        c.fov_angle = 0;
+        c.fov_radius = mapType === 'floor' ? 80 : 50;
+        c.fov_spread = 60;
+        
+        if (slidersBlock) slidersBlock.style.display = 'block';
+        
+        if (marker) {
+            if (marker.fovPolygon) {
+                map.removeLayer(marker.fovPolygon);
+            }
+            const pts = calculateFovPoints(c, marker.getLatLng());
+            marker.fovPolygon = L.polygon(pts, {
+                color: '#f43f5e',
+                fillColor: '#f43f5e',
+                fillOpacity: 0.3,
+                weight: 1
+            }).addTo(map);
+        }
+    } else {
+        c.fov_angle = null;
+        c.fov_radius = null;
+        c.fov_spread = null;
+        
+        if (slidersBlock) slidersBlock.style.display = 'none';
+        
+        if (marker && marker.fovPolygon) {
+            map.removeLayer(marker.fovPolygon);
+            marker.fovPolygon = null;
+        }
+    }
+    
+    await apiFetch(`${API}/cameras/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            fov_angle: c.fov_angle,
+            fov_radius: c.fov_radius,
+            fov_spread: c.fov_spread
+        })
+    });
+}
+
+function updateMarkerFovVal(id, field, value) {
+    const c = mapCamerasList.find(cam => cam.id === id);
+    if (!c) return;
+    
+    const val = parseFloat(value);
+    
+    if (field === 'angle') {
+        c.fov_angle = val;
+        const lbl = document.getElementById(`lbl-angle-${id}`);
+        if (lbl) lbl.textContent = `${val}°`;
+    } else if (field === 'radius') {
+        c.fov_radius = val;
+        const lbl = document.getElementById(`lbl-radius-${id}`);
+        if (lbl) lbl.textContent = val;
+    } else if (field === 'spread') {
+        c.fov_spread = val;
+        const lbl = document.getElementById(`lbl-spread-${id}`);
+        if (lbl) lbl.textContent = `${val}°`;
+    }
+    
+    const marker = mapMarkers.find(m => m.camera_id === id);
+    if (marker && marker.fovPolygon) {
+        const pts = calculateFovPoints(c, marker.getLatLng());
+        marker.fovPolygon.setLatLngs(pts);
+    }
+    
+    saveFovDebounced(id, c.fov_angle, c.fov_radius, c.fov_spread);
+}
+
+async function removeCameraFromMap(id) {
+    if (!confirm('آیا از حذف این دوربین از نقشه مطمئن هستید؟')) return;
+    
+    const c = mapCamerasList.find(cam => cam.id === id);
+    if (!c) return;
+    
+    c.x_pos = null;
+    c.y_pos = null;
+    c.latitude = null;
+    c.longitude = null;
+    c.fov_angle = null;
+    c.fov_radius = null;
+    c.fov_spread = null;
+    
+    const markerIndex = mapMarkers.findIndex(m => m.camera_id === id);
+    if (markerIndex !== -1) {
+        const marker = mapMarkers[markerIndex];
+        if (marker.fovPolygon) {
+            map.removeLayer(marker.fovPolygon);
+        }
+        map.removeLayer(marker);
+        mapMarkers.splice(markerIndex, 1);
+    }
+    
+    try {
+        await apiFetch(`${API}/cameras/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                x_pos: null,
+                y_pos: null,
+                latitude: null,
+                longitude: null,
+                fov_angle: null,
+                fov_radius: null,
+                fov_spread: null
+            })
+        });
+        showToast('دوربین از نقشه حذف شد');
+        renderMapCameraList();
+    } catch (e) {
+        showToast('خطا در حذف دوربین: ' + e.message, 'error');
+    }
+}
+
 function createMarkerForMap(c, latlng) {
     const statusClass = c.status === 'Online' ? 'online' : (c.status === 'Offline' ? 'offline' : 'unknown');
     const markerHtml = `
@@ -744,23 +1027,33 @@ function createMarkerForMap(c, latlng) {
         iconAnchor: [12, 12]
     });
     
+    let fovPolygon = null;
+    if (c.fov_angle != null && c.fov_radius != null) {
+        const pts = calculateFovPoints(c, latlng);
+        fovPolygon = L.polygon(pts, {
+            color: '#f43f5e',
+            fillColor: '#f43f5e',
+            fillOpacity: 0.3,
+            weight: 1
+        }).addTo(map);
+    }
+    
     const marker = L.marker(latlng, {
         icon: icon,
         draggable: mapEditMode
     }).addTo(map);
     marker.camera_id = c.id;
+    marker.fovPolygon = fovPolygon;
     
-    const statusText = c.status === 'Online' ? 'متصل' : 'قطع';
-    const popupContent = `
-        <div style="direction: rtl; text-align: right">
-            <strong style="font-size: 14px; display:block; margin-bottom: 4px;">${c.name}</strong>
-            <p style="margin: 2px 0"><b>NVR:</b> ${c.nvr_ip}</p>
-            <p style="margin: 2px 0"><b>کانال:</b> ${c.channel_id}</p>
-            <p style="margin: 2px 0"><b>IP:</b> ${c.ip}</p>
-            <p style="margin: 4px 0 0"><b>وضعیت:</b> <span style="color: ${c.status === 'Online' ? 'var(--success)' : 'var(--danger)'}; font-weight: bold">${statusText}</span></p>
-        </div>
-    `;
-    marker.bindPopup(popupContent);
+    marker.bindPopup(getMarkerPopupContent(c));
+    
+    marker.on('drag', function(e) {
+        if (marker.fovPolygon) {
+            const position = marker.getLatLng();
+            const pts = calculateFovPoints(c, position);
+            marker.fovPolygon.setLatLngs(pts);
+        }
+    });
     
     marker.on('dragend', async function(e) {
         const position = marker.getLatLng();
@@ -799,7 +1092,12 @@ function createMarkerForMap(c, latlng) {
 }
 
 function drawCameraMarkers(bounds = null, w = 1, h = 1) {
-    mapMarkers.forEach(m => map.removeLayer(m));
+    mapMarkers.forEach(m => {
+        if (m.fovPolygon) {
+            map.removeLayer(m.fovPolygon);
+        }
+        map.removeLayer(m);
+    });
     mapMarkers = [];
     
     mapCamerasList.forEach(c => {
@@ -1005,27 +1303,49 @@ function renderMapCameraList() {
             `;
         } else {
             return `
-                <div class="map-cam-item unpositioned" style="cursor: default;">
-                    <div class="map-cam-name-wrap" style="opacity: 0.6;">
+                <div class="map-cam-item unpositioned" style="cursor: default; display: flex; justify-content: space-between; align-items: center; padding: 8px 10px;">
+                    <div class="map-cam-name-wrap" style="opacity: 0.6; display: flex; align-items: center; gap: 8px; overflow: hidden; flex: 1;">
                         <span class="map-cam-dot unknown"></span>
-                        <span class="map-cam-name" title="${c.name}">${c.name}</span>
+                        <span class="map-cam-name" title="${c.name}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${c.name}</span>
                     </div>
-                    <button class="btn-add-map" onclick="addCameraToCenter(${c.id}); event.stopPropagation();" title="افزودن به مرکز نقشه" style="
-                        background: var(--primary-glow);
-                        border: 1px solid var(--primary);
-                        color: var(--primary-hover);
-                        border-radius: 4px;
-                        width: 22px;
-                        height: 22px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        cursor: pointer;
-                        font-size: 14px;
-                        font-weight: bold;
-                        padding: 0;
-                        transition: var(--transition);
-                    ">+</button>
+                    <div class="map-cam-actions" style="display: flex; gap: 6px; flex-shrink: 0;">
+                        <!-- Add as Simple Dot -->
+                        <button onclick="addCameraToCenter(${c.id}, false); event.stopPropagation();" title="افزودن به عنوان نقطه ساده" style="
+                            background: rgba(99, 102, 241, 0.15);
+                            border: 1px solid var(--primary);
+                            color: var(--primary-hover);
+                            border-radius: 4px;
+                            width: 24px;
+                            height: 24px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            cursor: pointer;
+                            transition: var(--transition);
+                        ">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="6"/>
+                            </svg>
+                        </button>
+                        <!-- Add with Field of View -->
+                        <button onclick="addCameraToCenter(${c.id}, true); event.stopPropagation();" title="افزودن با زاویه دید (FOV)" style="
+                            background: rgba(244, 63, 94, 0.15);
+                            border: 1px solid #f43f5e;
+                            color: #fb7185;
+                            border-radius: 4px;
+                            width: 24px;
+                            height: 24px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            cursor: pointer;
+                            transition: var(--transition);
+                        ">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <path d="M12 21 L3 5 A11 11 0 0 1 21 5 Z" fill="rgba(244, 63, 94, 0.3)"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             `;
         }
@@ -1048,7 +1368,7 @@ function focusCameraOnMap(id) {
     }
 }
 
-async function addCameraToCenter(id) {
+async function addCameraToCenter(id, hasFov) {
     if (!map) return;
     const c = mapCamerasList.find(cam => cam.id === id);
     if (!c) return;
@@ -1079,6 +1399,24 @@ async function addCameraToCenter(id) {
         c.latitude = payload.latitude;
         c.longitude = payload.longitude;
         latlng = [center.lat, center.lng];
+    }
+    
+    if (hasFov) {
+        payload.fov_angle = 0;
+        payload.fov_radius = mapType === 'floor' ? 80 : 50;
+        payload.fov_spread = 60;
+        
+        c.fov_angle = payload.fov_angle;
+        c.fov_radius = payload.fov_radius;
+        c.fov_spread = payload.fov_spread;
+    } else {
+        payload.fov_angle = null;
+        payload.fov_radius = null;
+        payload.fov_spread = null;
+        
+        c.fov_angle = null;
+        c.fov_radius = null;
+        c.fov_spread = null;
     }
     
     try {
