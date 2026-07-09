@@ -1459,6 +1459,7 @@ body {
 
     .panel-main {
         min-height: 300px;
+        width: 100%;
     }
 
     .nvr-form {
