@@ -1,7 +1,6 @@
 import asyncio
 import requests
 import xml.etree.ElementTree as ET
-import csv
 import os
 from datetime import datetime, timedelta
 from requests.auth import HTTPDigestAuth
@@ -23,19 +22,58 @@ def get_setting(session, key, default):
     s = session.get(Settings, key)
     return s.value if s else default
 
-def load_csv_names():
-    mapping = {}
-    if os.path.exists("camera_names.csv"):
-        try:
-            with open("camera_names.csv", "r", encoding="utf-8-sig") as f:
-                reader = csv.reader(f)
-                next(reader, None)
-                for row in reader:
-                    if len(row) >= 2 and row[0].strip():
-                        mapping[row[0].strip()] = row[1].strip()
-        except (csv.Error, UnicodeDecodeError, IOError) as e:
-            print(f"Warning: Failed to load camera_names.csv: {e}")
-    return mapping
+def sync_camera_names_from_nvr(ip, user, password, session):
+    parts = ip.split(':')
+    host = parts[0]
+    port = parts[1] if len(parts) > 1 else '80'
+    url = f"http://{host}:{port}/ISAPI/ContentMgmt/InputProxy/channels"
+    
+    nvr_obj = session.exec(select(NVR).where(NVR.ip == ip)).first()
+    nvr_name = nvr_obj.name if (nvr_obj and nvr_obj.name) else ip
+    
+    try:
+        req_sess = requests.Session()
+        req_sess.trust_env = False
+        resp = req_sess.get(url, auth=HTTPDigestAuth(user, password), timeout=8, proxies={})
+        if resp.status_code == 200:
+            root = ET.fromstring(resp.content)
+            namespace = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
+            for channel in root.findall('ns:InputProxyChannel', namespace):
+                chan_id = channel.find('ns:id', namespace).text
+                name_elem = channel.find('ns:name', namespace)
+                chan_name = name_elem.text if name_elem is not None else None
+                
+                # Fetch port to get the IP address
+                port_elem = channel.find('ns:sourceInputPortDescriptor', namespace)
+                cam_ip = port_elem.find('ns:ipAddress', namespace).text if port_elem is not None else "0.0.0.0"
+                
+                # Fallback to "nvr_name CH channel_id" if name is empty
+                final_name = chan_name if chan_name else f"{nvr_name} CH {chan_id}"
+                
+                # Update database
+                db_cam = session.exec(select(Camera).where(Camera.nvr_ip == ip, Camera.channel_id == chan_id)).first()
+                if db_cam:
+                    db_cam.name = final_name
+                    # Also update IP if changed
+                    if cam_ip and cam_ip != "0.0.0.0":
+                        db_cam.ip = cam_ip
+                    session.add(db_cam)
+                else:
+                    # If it's not in db, we create it
+                    new_cam = Camera(
+                        name=final_name,
+                        ip=cam_ip,
+                        nvr_ip=ip,
+                        channel_id=chan_id,
+                        status="Unknown"
+                    )
+                    session.add(new_cam)
+            session.commit()
+            return True, f"Successfully synced camera names for {nvr_name}"
+        else:
+            return False, f"Failed to sync {nvr_name}: HTTP {resp.status_code}"
+    except Exception as e:
+        return False, f"Failed to sync {nvr_name}: {str(e)}"
 
 def log_event(session, l_type, state, details):
     try:
@@ -156,10 +194,18 @@ async def start_monitor_loop():
     
     with Session(engine) as session:
         log_event(session, "Service", "Started", "Monitor loop initialized")
+        
+        # Run startup camera name sync
+        try:
+            nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+            for n in nvrs:
+                print(f"Syncing camera names for NVR {n.ip} on startup...")
+                await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password, session)
+        except Exception as startup_sync_err:
+            print(f"Warning: Startup camera sync failed: {startup_sync_err}")
 
     while True:
         try:
-            name_map = load_csv_names()
             with Session(engine) as session:
                 nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
 
@@ -190,8 +236,8 @@ async def start_monitor_loop():
                         db_cam = session.exec(stmt).first()
                         new_status = "Online" if d['online'] else "Offline"
                         
-                        csv_name = name_map.get(d['ip'])
-                        final_name = csv_name if csv_name else f"Ch {d['channel_id']}"
+                        nvr_label = nvr_obj.name if nvr_obj.name else nvr_obj.ip
+                        final_name = f"{nvr_label} CH {d['channel_id']}"
 
                         if not db_cam:
                             db_cam = Camera(name=final_name, ip=d['ip'], nvr_ip=nvr_obj.ip, channel_id=d['channel_id'], status=new_status, last_online=datetime.now() if d['online'] else None)
@@ -201,7 +247,6 @@ async def start_monitor_loop():
                             if new_status == "Offline":
                                 session.add(DowntimeEvent(camera_id=db_cam.id, start_time=datetime.now()))
                         else:
-                            if csv_name and db_cam.name != csv_name: db_cam.name = csv_name
                             if db_cam.ip != d['ip']: db_cam.ip = d['ip']
                             
                             if db_cam.status != new_status:

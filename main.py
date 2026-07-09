@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from sqlmodel import Session, select, col
 from database import init_db, get_session, Camera, Log, NVR, Settings, DowntimeEvent, engine, sqlite_file_name
-from monitor import start_monitor_loop, set_broadcast_callback
+from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime
 
 class ConnectionManager:
@@ -41,8 +41,6 @@ class ConnectionManager:
 
 ws_manager = ConnectionManager()
 
-class CsvContent(BaseModel):
-    content: str
 
 class LoginRequest(BaseModel):
     username: str
@@ -397,16 +395,18 @@ def update_setting(key: str, p: Settings, session: Session = Depends(get_session
     invalidate_config_cache()
     return s
 
-@app.get("/api/config/csv", response_class=PlainTextResponse, dependencies=[Depends(require_auth)])
-def get_csv():
-    if os.path.exists("camera_names.csv"):
-        with open("camera_names.csv", "r", encoding="utf-8-sig") as f: return f.read()
-    return ""
-
-@app.post("/api/config/csv", dependencies=[Depends(require_auth)])
-def save_csv(payload: CsvContent):
-    with open("camera_names.csv", "w", encoding="utf-8-sig") as f: f.write(payload.content)
-    return {"ok": True}
+@app.post("/api/config/sync-names", dependencies=[Depends(require_auth)])
+async def sync_names(session: Session = Depends(get_session)):
+    nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+    if not nvrs:
+        raise HTTPException(status_code=400, detail="No enabled NVRs found to sync")
+    
+    results = []
+    for n in nvrs:
+        success, msg = await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password, session)
+        results.append({"nvr": n.ip, "success": success, "message": msg})
+        
+    return {"results": results}
 
 @app.get("/api/logs", dependencies=[Depends(require_auth)])
 def search_logs(q: str = None, limit: int = 50, offset: int = 0, session: Session = Depends(get_session)):

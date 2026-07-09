@@ -195,13 +195,9 @@ async function loadSettings() {
     const sRes = await apiFetch(`${API}/settings`);
     settingsCache = await sRes.json();
 
-    const cRes = await apiFetch(`${API}/config/csv`);
-    document.getElementById('csvEditor').value = await cRes.text();
-
     const nav = document.getElementById('config-nav');
     nav.innerHTML = `
         <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
-        <button data-tab="sec-csv" onclick="switchSettingsTab('sec-csv')">نام دوربین‌ها</button>
         <button data-tab="grp-Email" onclick="switchSettingsTab('grp-Email')">تنظیمات ایمیل</button>
         <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
         <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
@@ -297,7 +293,7 @@ function switchSettingsTab(tabId) {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
 
-    const tabs = ['sec-nvr', 'sec-csv', 'grp-Email', 'grp-Telegram', 'sec-system'];
+    const tabs = ['sec-nvr', 'grp-Email', 'grp-Telegram', 'sec-system'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -321,11 +317,6 @@ async function saveAll() {
             }
         }
     }
-    await apiFetch(`${API}/config/csv`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: document.getElementById('csvEditor').value })
-    });
     showToast('ذخیره شد');
 }
 
@@ -334,6 +325,37 @@ async function apply() {
     await apiFetch(`${API}/monitor/restart`, { method: 'POST' });
     showToast('ریستارت شد');
     setTimeout(() => location.reload(), 500);
+}
+
+async function syncCameraNames() {
+    const btn = document.getElementById('btn-sync-names');
+    if (btn) btn.disabled = true;
+    showToast('در حال همگام‌سازی نام دوربین‌ها...');
+    try {
+        const res = await apiFetch(`/api/config/sync-names`, { method: 'POST' });
+        const data = await res.json();
+        
+        let successCount = 0;
+        let failCount = 0;
+        if (data.results) {
+            data.results.forEach(r => {
+                if (r.success) successCount++;
+                else failCount++;
+            });
+        }
+        
+        if (failCount === 0) {
+            showToast('همگام‌سازی نام‌ها با موفقیت انجام شد');
+        } else {
+            showToast(`همگام‌سازی پایان یافت (${successCount} موفق، ${failCount} ناموفق)`, 'warning');
+        }
+        
+        setTimeout(() => location.reload(), 1500);
+    } catch (e) {
+        showToast('خطا در همگام‌سازی: ' + e.message, 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 async function testConn(type) {
