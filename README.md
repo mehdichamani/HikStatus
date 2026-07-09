@@ -76,6 +76,42 @@ To run on a custom port:
 
 ---
 
+### Option 3: Native Python (Windows)
+
+```bat
+REM Clone the repository
+git clone https://github.com/yourusername/HikStatus.git
+cd HikStatus
+
+REM Configure environment
+copy .env.example .env
+REM Edit .env and set ADMIN_USER and ADMIN_PASS
+
+REM (Optional) Pre-configure NVRs and settings
+copy init_config.example.json init_config.json
+
+REM First-time setup (creates .venv, installs dependencies)
+install.bat
+
+REM Start the application
+start.bat
+```
+
+To run on a custom port:
+```bat
+start.bat 8080
+```
+
+To uninstall (removes `.venv` only, keeps your data and config):
+```bat
+uninstall.bat
+```
+
+> [!NOTE]
+> Python 3.10+ is required. Download from https://www.python.org/downloads/ and check **"Add Python to PATH"** during installation.
+
+---
+
 ### Access
 
 Open your browser: **http://localhost:28888**
@@ -203,6 +239,9 @@ HikStatus/
 ├── docker-compose.yml        # Docker Compose configuration
 ├── requirements.txt          # Python dependencies
 ├── start.sh                  # Native Python launcher (Linux/macOS)
+├── install.bat               # Windows first-time setup
+├── start.bat                 # Windows launcher
+├── uninstall.bat             # Windows venv removal
 ├── init_config.example.json  # Template for initial database seed
 ├── .env.example              # Template for environment variables
 └── .env                      # Secrets (gitignored)

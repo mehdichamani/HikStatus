@@ -76,6 +76,42 @@ chmod +x start.sh
 
 ---
 
+### روش سوم: Python بومی (ویندوز)
+
+```bat
+REM کلون کردن مخزن
+git clone https://github.com/yourusername/HikStatus.git
+cd HikStatus
+
+REM پیکربندی محیط
+copy .env.example .env
+REM فایل .env را ویرایش کرده و ADMIN_USER و ADMIN_PASS را تنظیم کنید
+
+REM (اختیاری) پیش‌پیکربندی NVRها
+copy init_config.example.json init_config.json
+
+REM نصب اولیه (ایجاد .venv و نصب وابستگی‌ها)
+install.bat
+
+REM اجرای برنامه
+start.bat
+```
+
+برای اجرا روی پورت دلخواه:
+```bat
+start.bat 8080
+```
+
+برای حذف نصب (فقط `.venv` حذف می‌شود، داده‌ها و تنظیمات حفظ می‌شوند):
+```bat
+uninstall.bat
+```
+
+> [!NOTE]
+> نیاز به Python 3.10 یا بالاتر دارید. از https://www.python.org/downloads/ دانلود کنید و هنگام نصب گزینه **"Add Python to PATH"** را فعال کنید.
+
+---
+
 ### دسترسی
 
 مرورگر خود را باز کنید: **http://localhost:28888**
@@ -203,6 +239,9 @@ HikStatus/
 ├── docker-compose.yml        # پیکربندی Docker Compose
 ├── requirements.txt          # وابستگی‌های Python
 ├── start.sh                  # راه‌انداز Python بومی (لینوکس/مک)
+├── install.bat               # نصب اولیه ویندوز
+├── start.bat                 # راه‌انداز ویندوز
+├── uninstall.bat             # حذف نصب ویندوز
 ├── init_config.example.json  # قالب برای مقداردهی اولیه پایگاه داده
 ├── .env.example              # قالب برای متغیرهای محیطی
 └── .env                      # اسرار (gitignored)
