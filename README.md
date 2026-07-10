@@ -181,6 +181,27 @@ Fallback naming when ISAPI is unavailable: `<NVR Name> ch <channel_number>`.
 
 ---
 
+## HikVision Authentication Setup
+
+If:
+
+- NVR cannot be added
+- Cameras stay offline
+- You receive `401 Unauthorized`
+
+you probably need to enable:
+
+- ISAPI
+- Digest Authentication
+
+and create a dedicated non-admin user for HikStatus.
+
+See:
+
+- [HikVision Authentication Setup Guide](HIKVISION_AUTH_SETUP.md)
+
+---
+
 ## Settings UI
 
 The web settings panel is organized into tabs:
