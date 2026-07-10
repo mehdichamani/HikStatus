@@ -188,6 +188,71 @@ async def process_batch_alerts(session, cams_to_check):
 
     return tele_alerts, mail_alerts, tele_recoveries, mail_recoveries
 
+async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
+    now = datetime.now()
+
+    mail_delay = int(get_setting(session, "MAIL_FIRST_ALERT_DELAY_MINUTES", 1))
+    mail_freq = int(get_setting(session, "MAIL_ALERT_FREQUENCY_MINUTES", 60))
+    mail_mute = int(get_setting(session, "MAIL_MUTE_AFTER_N_ALERTS", 3))
+
+    tele_delay = int(get_setting(session, "TELEGRAM_FIRST_ALERT_DELAY_MINUTES", 1))
+    tele_freq = int(get_setting(session, "TELEGRAM_ALERT_FREQUENCY_MINUTES", 30))
+    tele_mute = int(get_setting(session, "TELEGRAM_MUTE_AFTER_N_ALERTS", 3))
+
+    nvr_name = nvr_obj.name or nvr_obj.ip
+
+    if not is_failed:
+        if nvr_obj.status == "Offline":
+            log_event(session, "NVR", "Online", f"{nvr_name} reconnected")
+
+        nvr_obj.status = "Online"
+        nvr_obj.last_online = now
+
+        if nvr_obj.telegram_alert_count > 0:
+            await asyncio.to_thread(send_telegram_batch, "NVR برگشت", [f"✅ {nvr_name} مجددا متصل شد"], "success")
+        if nvr_obj.mail_alert_count > 0:
+            await asyncio.to_thread(send_email_batch, "NVR برگشت", [f"{nvr_name} مجددا متصل شد"], "success")
+
+        nvr_obj.telegram_alert_count = 0
+        nvr_obj.mail_alert_count = 0
+        session.add(nvr_obj)
+        return
+
+    if nvr_obj.status != "Offline":
+        nvr_obj.status = "Offline"
+        nvr_obj.last_online = nvr_obj.last_online or now
+        log_event(session, "NVR", "Offline", error_message)
+
+    downtime_mins = int((now - (nvr_obj.last_online or now)).total_seconds() / 60)
+
+    send_tele = False
+    if nvr_obj.telegram_alert_count < tele_mute:
+        if nvr_obj.telegram_alert_count == 0:
+            send_tele = downtime_mins >= tele_delay
+        else:
+            last = nvr_obj.telegram_last_alert or now
+            send_tele = (now - last).total_seconds() / 60 >= tele_freq
+
+    if send_tele:
+        await asyncio.to_thread(send_telegram_batch, "خطای اتصال NVR", [error_message], "error")
+        nvr_obj.telegram_alert_count += 1
+        nvr_obj.telegram_last_alert = now
+
+    send_mail = False
+    if nvr_obj.mail_alert_count < mail_mute:
+        if nvr_obj.mail_alert_count == 0:
+            send_mail = downtime_mins >= mail_delay
+        else:
+            last = nvr_obj.mail_last_alert or now
+            send_mail = (now - last).total_seconds() / 60 >= mail_freq
+
+    if send_mail:
+        await asyncio.to_thread(send_email_batch, "خطای اتصال NVR", [error_message], "error")
+        nvr_obj.mail_alert_count += 1
+        nvr_obj.mail_last_alert = now
+
+    session.add(nvr_obj)
+
 async def start_monitor_loop():
     print("Monitor loop started...")
     last_summary_hour = -1
@@ -224,12 +289,10 @@ async def start_monitor_loop():
                     if status == "FAIL":
                         nvr_label = f"{nvr_obj.name} ({nvr_obj.ip})" if nvr_obj.name else f"NVR {nvr_obj.ip}"
                         error_message = f"{nvr_label} Failed: {payload}"
-                        log_event(session, "Camera", "Error", error_message)
-                        
-                        # Send failure alerts
-                        await asyncio.to_thread(send_telegram_batch, "خطای اتصال NVR", [error_message], "error")
-                        await asyncio.to_thread(send_email_batch, "خطای اتصال NVR", [error_message], "error")
+                        await process_nvr_alerts(session, nvr_obj, True, error_message)
                         continue
+                    else:
+                        await process_nvr_alerts(session, nvr_obj, False)
                         
                     for d in payload:
                         stmt = select(Camera).where(Camera.nvr_ip == nvr_obj.ip, Camera.channel_id == d['channel_id'])

@@ -514,7 +514,7 @@ async def sync_names(session: Session = Depends(get_session)):
 def search_logs(q: str = None, limit: int = 50, offset: int = 0, session: Session = Depends(get_session)):
     query = select(Log).order_by(Log.timestamp.desc()).offset(offset).limit(limit)
     if q: 
-        if q in ['Camera','Telegram','Mail','Service']: query = query.where(col(Log.log_type) == q)
+        if q in ['Camera','NVR','Telegram','Mail','Service']: query = query.where(col(Log.log_type) == q)
         else: query = query.where(col(Log.details).contains(q) | col(Log.log_type).contains(q))
     logs = session.exec(query).all()
     

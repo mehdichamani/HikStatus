@@ -9,6 +9,12 @@ class NVR(SQLModel, table=True):
     user: str
     password: Optional[str] = None
     enabled: bool = True
+    status: str = "Unknown"
+    last_online: Optional[datetime] = None
+    mail_alert_count: int = 0
+    mail_last_alert: Optional[datetime] = None
+    telegram_alert_count: int = 0
+    telegram_last_alert: Optional[datetime] = None
 
 class Camera(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -102,6 +108,20 @@ def init_db():
         if "name" not in existing_nvr_columns:
             cursor.execute("ALTER TABLE nvr ADD COLUMN name TEXT")
             print("Added column name to nvr table.")
+
+        nvr_new_cols = {
+            "status": "TEXT DEFAULT 'Unknown'",
+            "last_online": "TIMESTAMP",
+            "mail_alert_count": "INTEGER DEFAULT 0",
+            "mail_last_alert": "TIMESTAMP",
+            "telegram_alert_count": "INTEGER DEFAULT 0",
+            "telegram_last_alert": "TIMESTAMP"
+        }
+
+        for col_name, col_type in nvr_new_cols.items():
+            if col_name not in existing_nvr_columns:
+                cursor.execute(f"ALTER TABLE nvr ADD COLUMN {col_name} {col_type}")
+                print(f"Added column {col_name} to nvr table.")
         
         conn.commit()
         conn.close()
