@@ -271,13 +271,20 @@
                         <label class="form-label">زمان پایان</label>
                         <input type="datetime-local" id="endDt" class="form-input" style="color-scheme:dark">
                     </div>
-                    <button class="btn btn-primary" onclick="genReport()">ساخت گزارش</button>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="genReport()">ساخت گزارش</button>
+                        <button id="btn-toggle-heatmap" class="btn btn-ghost" onclick="toggleReportSection()">نقشه حرارتی</button>
+                    </div>
                 </aside>
                 <div class="panel-main">
+                    <div id="report-list-section">
                     <div class="panel-header">گزارش قطعی‌ها</div>
                     <div id="rep-list" class="report-list">
                         <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
                     </div>
+                    </div>
+
+                    <div id="report-heatmap-section" class="hidden">
                     <div class="panel-header" style="margin-top: 24px;">نقشه حرارتی قطعی‌ها (۳۰ روز گذشته)</div>
                     <div class="card" style="margin-top: 12px; padding: 16px; overflow-x: auto;">
                         <div class="heatmap-wrapper">
@@ -304,6 +311,7 @@
                             <span class="legend-box level-4"></span>
                             <span>بیشترین قطعی</span>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>

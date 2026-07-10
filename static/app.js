@@ -583,6 +583,8 @@ function setPreset(h) {
 }
 
 async function genReport() {
+    toggleReportSection(false);
+
     const s = new Date(document.getElementById('startDt').value).getTime() / 1000;
     const e = new Date(document.getElementById('endDt').value).getTime() / 1000;
     if (!s || !e) return showToast('محدوده زمانی را انتخاب کنید', 'error');
@@ -610,6 +612,20 @@ async function genReport() {
             </div>
         </div>`;
     }).join('');
+}
+
+function toggleReportSection(forceHeatmap = null) {
+    const listSection = document.getElementById('report-list-section');
+    const heatmapSection = document.getElementById('report-heatmap-section');
+    const toggleBtn = document.getElementById('btn-toggle-heatmap');
+
+    const currentlyHidden = heatmapSection.classList.contains('hidden');
+    const showHeatmap = forceHeatmap === null ? currentlyHidden : forceHeatmap;
+
+    listSection.classList.toggle('hidden', showHeatmap);
+    heatmapSection.classList.toggle('hidden', !showHeatmap);
+
+    toggleBtn.textContent = showHeatmap ? 'گزارش قطعی' : 'نقشه حرارتی';
 }
 
 // --- INIT ---
