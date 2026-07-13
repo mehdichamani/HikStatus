@@ -40,6 +40,13 @@ class Camera(SQLModel, table=True):
     fov_radius: Optional[float] = None
     fov_spread: Optional[float] = None
 
+    model: Optional[str] = None
+    is_recording: Optional[bool] = None
+    oldest_record: Optional[datetime] = None
+    total_record_size_gb: Optional[float] = None
+    total_record_duration_hours: Optional[float] = None
+    stats_last_updated: Optional[datetime] = None
+
 class DowntimeEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     camera_id: int = Field(foreign_key="camera.id")
@@ -95,7 +102,13 @@ def init_db():
             "y_pos": "REAL",
             "fov_angle": "REAL",
             "fov_radius": "REAL",
-            "fov_spread": "REAL"
+            "fov_spread": "REAL",
+            "model": "TEXT",
+            "is_recording": "BOOLEAN",
+            "oldest_record": "TIMESTAMP",
+            "total_record_size_gb": "REAL",
+            "total_record_duration_hours": "REAL",
+            "stats_last_updated": "TIMESTAMP"
         }
         
         for col_name, col_type in new_cols.items():

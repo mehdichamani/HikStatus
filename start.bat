@@ -19,11 +19,9 @@ if not exist "data\" mkdir data
 
 :: ── Start server ─────────────────────────────────────────────────────────────
 echo.
-echo  ╔══════════════════════════════════════════════╗
-echo  ║  HikStatus is starting...                    ║
-echo  ║  Open: http://localhost:%PORT%                   ║
-echo  ║  Press Ctrl+C to stop.                       ║
-echo  ╚══════════════════════════════════════════════╝
+echo    HikStatus is starting...
+echo    Open: http://localhost:%PORT%
+echo    Press Ctrl+C to stop.
 echo.
 
 .venv\Scripts\uvicorn main:app --host 0.0.0.0 --port %PORT%

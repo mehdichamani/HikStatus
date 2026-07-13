@@ -414,6 +414,45 @@ def update_cam(id: int, p: dict, session: Session = Depends(get_session)):
     session.commit()
     return c
 
+@app.get("/api/cameras/{id}/snapshot", dependencies=[Depends(require_auth)])
+async def get_camera_snapshot(id: int, session: Session = Depends(get_session)):
+    import requests
+    from requests.auth import HTTPDigestAuth
+    
+    camera = session.get(Camera, id)
+    if not camera:
+        raise HTTPException(status_code=404, detail="Camera not found")
+        
+    nvr = session.exec(select(NVR).where(NVR.ip == camera.nvr_ip)).first()
+    if not nvr:
+        raise HTTPException(status_code=404, detail="NVR not found")
+        
+    try:
+        chan_int = int(camera.channel_id)
+        track_id = str(chan_int * 100 + 1) if chan_int < 100 else camera.channel_id
+    except ValueError:
+        track_id = camera.channel_id
+        
+    url = f"http://{nvr.ip}/ISAPI/Streaming/channels/{track_id}/picture"
+    
+    try:
+        def fetch_pic():
+            req_sess = requests.Session()
+            req_sess.trust_env = False
+            resp = req_sess.get(url, auth=HTTPDigestAuth(nvr.user, nvr.password), timeout=5, proxies={})
+            if resp.status_code == 200:
+                return resp.content, resp.headers.get("Content-Type", "image/jpeg")
+            return None, resp.status_code
+            
+        content, mime_or_status = await asyncio.to_thread(fetch_pic)
+        
+        if content:
+            return Response(content=content, media_type=mime_or_status)
+        else:
+            raise HTTPException(status_code=400, detail=f"NVR returned HTTP {mime_or_status}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch snapshot: {str(e)}")
+
 @app.post("/api/map/upload", dependencies=[Depends(require_auth)])
 async def upload_map(file: UploadFile = File(...)):
     os.makedirs("static", exist_ok=True)

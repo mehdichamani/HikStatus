@@ -22,16 +22,19 @@ def get_setting(session, key, default):
     s = session.get(Settings, key)
     return s.value if s else default
 
-def sync_camera_names_from_nvr(ip, user, password, session):
+def sync_camera_names_from_nvr(ip, user, password, session=None):
     parts = ip.split(':')
     host = parts[0]
     port = parts[1] if len(parts) > 1 else '80'
     url = f"http://{host}:{port}/ISAPI/ContentMgmt/InputProxy/channels"
     
-    nvr_obj = session.exec(select(NVR).where(NVR.ip == ip)).first()
-    nvr_name = nvr_obj.name if (nvr_obj and nvr_obj.name) else ip
+    is_local_session = session is None
+    db_session = session if session is not None else Session(engine)
     
     try:
+        nvr_obj = db_session.exec(select(NVR).where(NVR.ip == ip)).first()
+        nvr_name = nvr_obj.name if (nvr_obj and nvr_obj.name) else ip
+        
         req_sess = requests.Session()
         req_sess.trust_env = False
         resp = req_sess.get(url, auth=HTTPDigestAuth(user, password), timeout=8, proxies={})
@@ -43,21 +46,31 @@ def sync_camera_names_from_nvr(ip, user, password, session):
                 name_elem = channel.find('ns:name', namespace)
                 chan_name = name_elem.text if name_elem is not None else None
                 
-                # Fetch port to get the IP address
+                # Fetch port to get the IP address and specs
                 port_elem = channel.find('ns:sourceInputPortDescriptor', namespace)
-                cam_ip = port_elem.find('ns:ipAddress', namespace).text if port_elem is not None else "0.0.0.0"
+                cam_ip = "0.0.0.0"
+                model = None
+                if port_elem is not None:
+                    ip_node = port_elem.find('ns:ipAddress', namespace)
+                    if ip_node is not None:
+                        cam_ip = ip_node.text
+                    model_node = port_elem.find('ns:model', namespace)
+                    if model_node is not None:
+                        model = model_node.text
                 
                 # Fallback to "nvr_name CH channel_id" if name is empty
                 final_name = chan_name if chan_name else f"{nvr_name} CH {chan_id}"
                 
                 # Update database
-                db_cam = session.exec(select(Camera).where(Camera.nvr_ip == ip, Camera.channel_id == chan_id)).first()
+                db_cam = db_session.exec(select(Camera).where(Camera.nvr_ip == ip, Camera.channel_id == chan_id)).first()
                 if db_cam:
                     db_cam.name = final_name
                     # Also update IP if changed
                     if cam_ip and cam_ip != "0.0.0.0":
                         db_cam.ip = cam_ip
-                    session.add(db_cam)
+                    if model:
+                        db_cam.model = model
+                    db_session.add(db_cam)
                 else:
                     # If it's not in db, we create it
                     new_cam = Camera(
@@ -65,15 +78,19 @@ def sync_camera_names_from_nvr(ip, user, password, session):
                         ip=cam_ip,
                         nvr_ip=ip,
                         channel_id=chan_id,
-                        status="Unknown"
+                        status="Unknown",
+                        model=model
                     )
-                    session.add(new_cam)
-            session.commit()
+                    db_session.add(new_cam)
+            db_session.commit()
             return True, f"Successfully synced camera names for {nvr_name}"
         else:
             return False, f"Failed to sync {nvr_name}: HTTP {resp.status_code}"
     except Exception as e:
         return False, f"Failed to sync {nvr_name}: {str(e)}"
+    finally:
+        if is_local_session:
+            db_session.close()
 
 def log_event(session, l_type, state, details):
     try:
@@ -204,14 +221,34 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
     if not is_failed:
         if nvr_obj.status == "Offline":
             log_event(session, "NVR", "Online", f"{nvr_name} reconnected")
+            await broadcast({
+                "type": "alert",
+                "title": "اتصال مجدد NVR",
+                "body": f"اتصال NVR {nvr_name} مجدداً برقرار شد",
+                "alert_type": "success"
+            })
 
         nvr_obj.status = "Online"
         nvr_obj.last_online = now
 
         if nvr_obj.telegram_alert_count > 0:
-            await asyncio.to_thread(send_telegram_batch, "NVR برگشت", [f"✅ {nvr_name} مجددا متصل شد"], "success")
+            res = await asyncio.to_thread(send_telegram_batch, "NVR برگشت", [f"✅ {nvr_name} مجددا متصل شد"], "success")
+            if res is not True:
+                await broadcast({
+                    "type": "alert",
+                    "title": "خطای ارسال تلگرام (NVR)",
+                    "body": f"خطا در ارسال پیام تلگرام برای NVR {nvr_name}: {res}",
+                    "alert_type": "warning"
+                })
         if nvr_obj.mail_alert_count > 0:
-            await asyncio.to_thread(send_email_batch, "NVR برگشت", [f"{nvr_name} مجددا متصل شد"], "success")
+            res = await asyncio.to_thread(send_email_batch, "NVR برگشت", [f"{nvr_name} مجددا متصل شد"], "success")
+            if res is not True:
+                await broadcast({
+                    "type": "alert",
+                    "title": "خطای ارسال ایمیل (NVR)",
+                    "body": f"خطا در ارسال ایمیل برای NVR {nvr_name}: {res}",
+                    "alert_type": "warning"
+                })
 
         nvr_obj.telegram_alert_count = 0
         nvr_obj.mail_alert_count = 0
@@ -222,6 +259,12 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
         nvr_obj.status = "Offline"
         nvr_obj.last_online = nvr_obj.last_online or now
         log_event(session, "NVR", "Offline", error_message)
+        await broadcast({
+            "type": "alert",
+            "title": "خطای اتصال NVR",
+            "body": f"اتصال NVR {nvr_name} قطع شد: {error_message}",
+            "alert_type": "error"
+        })
 
     downtime_mins = int((now - (nvr_obj.last_online or now)).total_seconds() / 60)
 
@@ -234,7 +277,14 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
             send_tele = (now - last).total_seconds() / 60 >= tele_freq
 
     if send_tele:
-        await asyncio.to_thread(send_telegram_batch, "خطای اتصال NVR", [error_message], "error")
+        res = await asyncio.to_thread(send_telegram_batch, "خطای اتصال NVR", [error_message], "error")
+        if res is not True:
+            await broadcast({
+                "type": "alert",
+                "title": "خطای ارسال تلگرام (NVR)",
+                "body": f"خطا در ارسال پیام تلگرام برای NVR {nvr_name}: {res}",
+                "alert_type": "warning"
+            })
         nvr_obj.telegram_alert_count += 1
         nvr_obj.telegram_last_alert = now
 
@@ -247,25 +297,166 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
             send_mail = (now - last).total_seconds() / 60 >= mail_freq
 
     if send_mail:
-        await asyncio.to_thread(send_email_batch, "خطای اتصال NVR", [error_message], "error")
+        res = await asyncio.to_thread(send_email_batch, "خطای اتصال NVR", [error_message], "error")
+        if res is not True:
+            await broadcast({
+                "type": "alert",
+                "title": "خطای ارسال ایمیل (NVR)",
+                "body": f"خطا در ارسال ایمیل برای NVR {nvr_name}: {res}",
+                "alert_type": "warning"
+            })
         nvr_obj.mail_alert_count += 1
         nvr_obj.mail_last_alert = now
 
     session.add(nvr_obj)
 
+def sync_recording_stats_from_nvr(ip, user, password, session=None):
+    import uuid
+    import urllib.parse
+    
+    is_local_session = session is None
+    db_session = session if session is not None else Session(engine)
+    
+    try:
+        # Query all cameras in DB for this NVR
+        cams = db_session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
+        if not cams:
+            return
+            
+        url = f"http://{ip}/ISAPI/ContentMgmt/search"
+        headers = {"Content-Type": "application/xml"}
+        now_local = datetime.now()
+        now_utc = datetime.utcnow()
+        now_str = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        
+        for cam in cams:
+            try:
+                chan_int = int(cam.channel_id)
+                track_id = str(chan_int * 100 + 1) if chan_int < 100 else cam.channel_id
+            except ValueError:
+                track_id = cam.channel_id
+                
+            search_uuid = str(uuid.uuid4()).upper()
+            
+            # We search from 2010 to now
+            payload = f"""<CMSearchDescription version="1.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+    <searchID>{search_uuid}</searchID>
+    <trackIDList>
+        <trackID>{track_id}</trackID>
+    </trackIDList>
+    <timeSpanList>
+        <timeSpan>
+            <startTime>2010-01-01T00:00:00Z</startTime>
+            <endTime>{now_str}</endTime>
+        </timeSpan>
+    </timeSpanList>
+    <maxResults>40</maxResults>
+    <searchResultPostion>0</searchResultPostion>
+</CMSearchDescription>"""
+
+            try:
+                req_sess = requests.Session()
+                req_sess.trust_env = False
+                resp = req_sess.post(url, auth=HTTPDigestAuth(user, password), data=payload, headers=headers, timeout=10, proxies={})
+                
+                if resp.status_code == 200:
+                    root = ET.fromstring(resp.content)
+                    namespace = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
+                    
+                    num_matches_node = root.find('ns:numOfMatches', namespace)
+                    num_matches = int(num_matches_node.text) if num_matches_node is not None else 0
+                    
+                    oldest_record = None
+                    total_size_bytes = 0
+                    total_duration_seconds = 0
+                    is_recording = False
+                    
+                    match_items = root.findall('.//ns:searchMatchItem', namespace)
+                    if match_items:
+                        first_item = match_items[0]
+                        start_time_str = first_item.find('.//ns:startTime', namespace).text
+                        if start_time_str:
+                            dt_clean = start_time_str.replace("Z", "")
+                            oldest_record = datetime.fromisoformat(dt_clean)
+                        
+                        page_size_sum = 0
+                        page_items_count = 0
+                        for item in match_items:
+                            playback_node = item.find('.//ns:playbackURI', namespace)
+                            if playback_node is not None and playback_node.text:
+                                uri = playback_node.text
+                                parsed_url = urllib.parse.urlparse(uri)
+                                query_params = urllib.parse.parse_qs(parsed_url.query)
+                                if 'size' in query_params:
+                                    page_size_sum += int(query_params['size'][0])
+                                    page_items_count += 1
+                                    
+                        if page_items_count > 0:
+                            avg_segment_size = page_size_sum / page_items_count
+                            total_size_bytes = int(avg_segment_size * num_matches)
+                            
+                        # Duration is the total span from oldest record to now
+                        total_duration_seconds = (now_utc - oldest_record).total_seconds()
+                        
+                        # Check active recording by searching last 15 mins
+                        recent_start = (now_utc - timedelta(minutes=15)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        recent_payload = f"""<CMSearchDescription version="1.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+    <searchID>{str(uuid.uuid4()).upper()}</searchID>
+    <trackIDList>
+        <trackID>{track_id}</trackID>
+    </trackIDList>
+    <timeSpanList>
+        <timeSpan>
+            <startTime>{recent_start}</startTime>
+            <endTime>{now_str}</endTime>
+        </timeSpan>
+    </timeSpanList>
+    <maxResults>1</maxResults>
+</CMSearchDescription>"""
+                    resp_recent = req_sess.post(url, auth=HTTPDigestAuth(user, password), data=recent_payload, headers=headers, timeout=5, proxies={})
+                    if resp_recent.status_code == 200:
+                        root_recent = ET.fromstring(resp_recent.content)
+                        recent_matches = root_recent.find('ns:numOfMatches', namespace)
+                        recent_count = int(recent_matches.text) if recent_matches is not None else 0
+                        is_recording = recent_count > 0
+                
+                cam.is_recording = is_recording
+                cam.oldest_record = oldest_record
+                cam.total_record_size_gb = round(total_size_bytes / (1024 * 1024 * 1024), 2)
+                cam.total_record_duration_hours = round(total_duration_seconds / 3600, 1)
+                cam.stats_last_updated = now_local
+                db_session.add(cam)
+                
+            except Exception as e:
+                print(f"Warning: Failed to update recording stats for cam {cam.name}: {e}")
+            
+        db_session.commit()
+    except Exception as outer_err:
+        print(f"Warning: Recording stats update error: {outer_err}")
+    finally:
+        if is_local_session:
+            db_session.close()
+
+def run_stats_sync_in_thread(ip, user, password):
+    sync_recording_stats_from_nvr(ip, user, password)
+
 async def start_monitor_loop():
     print("Monitor loop started...")
     last_summary_hour = -1
+    last_stats_update_time = None
     
     with Session(engine) as session:
         log_event(session, "Service", "Started", "Monitor loop initialized")
         
-        # Run startup camera name sync
+        # Run startup camera name sync and stats sync
         try:
             nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
             for n in nvrs:
                 print(f"Syncing camera names for NVR {n.ip} on startup...")
-                await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password, session)
+                await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password)
+                print(f"Syncing recording stats for NVR {n.ip} on startup...")
+                await asyncio.to_thread(sync_recording_stats_from_nvr, n.ip, n.user, n.password)
+            last_stats_update_time = datetime.now()
         except Exception as startup_sync_err:
             print(f"Warning: Startup camera sync failed: {startup_sync_err}")
 
@@ -314,6 +505,13 @@ async def start_monitor_loop():
                             
                             if db_cam.status != new_status:
                                 log_event(session, "Camera", new_status, f"{db_cam.name} ({db_cam.ip})")
+                                # Broadcast status change for browser notifications
+                                await broadcast({
+                                    "type": "alert",
+                                    "title": f"تغییر وضعیت: {db_cam.name}",
+                                    "body": f"دوربین {db_cam.name} ({db_cam.ip}) { 'متصل' if new_status == 'Online' else 'قطع' } شد",
+                                    "alert_type": "success" if new_status == "Online" else "error"
+                                })
                                 db_cam.status = new_status
                                 if new_status == "Offline":
                                     session.add(DowntimeEvent(camera_id=db_cam.id, start_time=datetime.now()))
@@ -332,13 +530,44 @@ async def start_monitor_loop():
                 
                 if t_alerts:
                     res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها قطع شدند", t_alerts, "warning")
-                    log_event(session, "Telegram", "Sent" if res is True else "Failed", f"Sent {len(t_alerts)} alerts")
+                    is_ok = res is True
+                    log_event(session, "Telegram", "Sent" if is_ok else "Failed", f"Sent {len(t_alerts)} alerts")
+                    if not is_ok:
+                        await broadcast({
+                            "type": "alert",
+                            "title": "خطای ارسال تلگرام",
+                            "body": f"خطا در ارسال پیام تلگرام برای دوربین‌های قطع شده: {res}",
+                            "alert_type": "warning"
+                        })
                 if t_recov:
-                    await asyncio.to_thread(send_telegram_batch, "دوربین‌ها برگشتند", t_recov, "success")
+                    res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها برگشتند", t_recov, "success")
+                    if res is not True:
+                        await broadcast({
+                            "type": "alert",
+                            "title": "خطای ارسال تلگرام",
+                            "body": f"خطا در ارسال پیام تلگرام برای دوربین‌های متصل شده: {res}",
+                            "alert_type": "warning"
+                        })
                 if m_alerts:
-                    await asyncio.to_thread(send_email_batch, "دوربین‌ها قطع شدند", m_alerts, "warning")
+                    res = await asyncio.to_thread(send_email_batch, "دوربین‌ها قطع شدند", m_alerts, "warning")
+                    is_ok = res is True
+                    log_event(session, "Mail", "Sent" if is_ok else "Failed", f"Sent {len(m_alerts)} alerts")
+                    if not is_ok:
+                        await broadcast({
+                            "type": "alert",
+                            "title": "خطای ارسال ایمیل",
+                            "body": f"خطا در ارسال ایمیل برای دوربین‌های قطع شده: {res}",
+                            "alert_type": "warning"
+                        })
                 if m_recov:
-                    await asyncio.to_thread(send_email_batch, "دوربین‌ها برگشتند", m_recov, "success")
+                    res = await asyncio.to_thread(send_email_batch, "دوربین‌ها برگشتند", m_recov, "success")
+                    if res is not True:
+                        await broadcast({
+                            "type": "alert",
+                            "title": "خطای ارسال ایمیل",
+                            "body": f"خطا در ارسال ایمیل برای دوربین‌های متصل شده: {res}",
+                            "alert_type": "warning"
+                        })
 
                 now = datetime.now()
                 if now.minute == 0 and now.hour != last_summary_hour:
@@ -368,9 +597,23 @@ async def start_monitor_loop():
                         "status": c.status, "importance": c.importance,
                         "last_online": c.last_online.isoformat() if c.last_online else None,
                         "latitude": c.latitude, "longitude": c.longitude,
-                        "x_pos": c.x_pos, "y_pos": c.y_pos
+                        "x_pos": c.x_pos, "y_pos": c.y_pos,
+                        "model": c.model,
+                        "is_recording": c.is_recording,
+                        "oldest_record": c.oldest_record.isoformat() if c.oldest_record else None,
+                        "total_record_size_gb": c.total_record_size_gb,
+                        "total_record_duration_hours": c.total_record_duration_hours,
+                        "stats_last_updated": c.stats_last_updated.isoformat() if c.stats_last_updated else None
                     })
                 await broadcast({"type": "cameras", "data": cam_data})
+                
+                # Trigger periodic camera stats update in the background (every 2 hours)
+                now_dt = datetime.now()
+                if last_stats_update_time is None or (now_dt - last_stats_update_time).total_seconds() > 7200:
+                    print("Triggering background camera recording stats sync...")
+                    for n in nvrs:
+                        asyncio.create_task(asyncio.to_thread(run_stats_sync_in_thread, n.ip, n.user, n.password))
+                    last_stats_update_time = now_dt
                 
                 if now.hour == 2 and now.minute == 0:
                     cleanup_old_data(session)

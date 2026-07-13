@@ -47,6 +47,10 @@ function nav(id) {
 
 function closeModal() {
     document.getElementById('camModal').classList.remove('open');
+    const img = document.getElementById('m-snap-img');
+    if (img) img.src = '';
+    const container = document.getElementById('m-snap-container');
+    if (container) container.style.display = 'none';
 }
 
 // --- DASHBOARD & SUMMARY ---
@@ -144,16 +148,90 @@ async function showCam(data) {
     currentCamId = c.id;
     currentImp = c.importance;
 
+    // Reset snapshot UI
+    document.getElementById('m-snap-container').style.display = 'none';
+    document.getElementById('m-snap-img').src = '';
+
     document.getElementById('m-name').textContent = c.name;
     document.getElementById('m-nvr').textContent = c.nvr_ip;
     document.getElementById('m-det').textContent = `${c.ip} (CH ${c.channel_id})`;
     document.getElementById('m-imp').textContent = ['کم', 'عادی', 'مهم'][c.importance - 1];
+    
+    // Populate specs & recording stats
+    document.getElementById('m-model').textContent = c.model || 'نامشخص';
+    
+    const recEl = document.getElementById('m-rec');
+    if (c.is_recording === true) {
+        recEl.textContent = 'در حال ضبط';
+        recEl.style.color = '#28a745';
+    } else if (c.is_recording === false) {
+        recEl.textContent = 'عدم ضبط';
+        recEl.style.color = '#dc3545';
+    } else {
+        recEl.textContent = 'نامشخص';
+        recEl.style.color = '';
+    }
+    
+    if (c.oldest_record) {
+        const dt = new Date(c.oldest_record);
+        document.getElementById('m-oldest').textContent = dt.toLocaleString('fa-IR');
+    } else {
+        document.getElementById('m-oldest').textContent = 'نامشخص';
+    }
+    
+    document.getElementById('m-size').textContent = c.total_record_size_gb !== null ? `${c.total_record_size_gb} GB` : 'نامشخص';
+    
+    if (c.total_record_duration_hours !== null) {
+        const hrs = c.total_record_duration_hours;
+        if (hrs >= 24) {
+            document.getElementById('m-duration').textContent = `${(hrs / 24).toFixed(1)} روز (${hrs} ساعت)`;
+        } else {
+            document.getElementById('m-duration').textContent = `${hrs} ساعت`;
+        }
+    } else {
+        document.getElementById('m-duration').textContent = 'نامشخص';
+    }
+    
     document.getElementById('camModal').classList.add('open');
 
     const res = await apiFetch(`${API}/stats/${c.id}`);
     const s = await res.json();
     document.getElementById('m-d1').textContent = s.down_1h + ' دقیقه';
     document.getElementById('m-d24').textContent = s.down_24h + ' دقیقه';
+}
+
+async function takeSnapshot() {
+    const container = document.getElementById('m-snap-container');
+    const img = document.getElementById('m-snap-img');
+    const loader = document.getElementById('m-snap-loader');
+    const btn = document.getElementById('m-snap-btn');
+    
+    container.style.display = 'block';
+    loader.style.display = 'flex';
+    img.style.display = 'none';
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch(`${API}/cameras/${currentCamId}/snapshot`);
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        if (!res.ok) {
+            throw new Error('دریافت تصویر با خطا مواجه شد');
+        }
+        
+        const blob = await res.blob();
+        const objectURL = URL.createObjectURL(blob);
+        img.src = objectURL;
+        img.style.display = 'block';
+        loader.style.display = 'none';
+    } catch (e) {
+        alert(e.message);
+        container.style.display = 'none';
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 async function cycleImpModal() {
@@ -200,6 +278,7 @@ async function loadSettings() {
         <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
         <button data-tab="grp-Email" onclick="switchSettingsTab('grp-Email')">تنظیمات ایمیل</button>
         <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
+        <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
         <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
     `;
 
@@ -285,13 +364,17 @@ function switchSettingsTab(tabId) {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
 
-    const tabs = ['sec-nvr', 'grp-Email', 'grp-Telegram', 'sec-system'];
+    const tabs = ['sec-nvr', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.style.display = id === tabId ? 'block' : 'none';
         }
     });
+
+    if (tabId === 'grp-Browser') {
+        updateBrowserAlertsUI();
+    }
 }
 
 async function saveAll() {
@@ -632,6 +715,7 @@ function toggleReportSection(forceHeatmap = null) {
 document.addEventListener('DOMContentLoaded', () => {
     nav('summ');
     connectWS();
+    initBrowserAlerts();
 });
 
 function setConnectionStatus(connected) {
@@ -671,6 +755,8 @@ function connectWS() {
         const msg = JSON.parse(e.data);
         if (msg.type === 'cameras') {
             updateDashFromWS(msg.data);
+        } else if (msg.type === 'alert') {
+            handleIncomingAlert(msg);
         }
     };
 
@@ -739,6 +825,233 @@ async function logout() {
         await apiFetch(`${API}/auth/logout`, { method: 'POST' });
     } catch (e) { }
     window.location.href = '/login';
+}
+
+// ===== BROWSER ALERTS & SOUND SYNTHESIS =====
+function initBrowserAlerts() {
+    if (localStorage.getItem('BROWSER_ALERT_ENABLED') === null) localStorage.setItem('BROWSER_ALERT_ENABLED', 'false');
+    if (localStorage.getItem('BROWSER_ALERT_MUTED') === null) localStorage.setItem('BROWSER_ALERT_MUTED', 'false');
+    
+    const categories = ['critical', 'recovery', 'warning'];
+    categories.forEach(cat => {
+        if (localStorage.getItem(`BROWSER_NOTIFY_${cat.toUpperCase()}_ENABLED`) === null) {
+            localStorage.setItem(`BROWSER_NOTIFY_${cat.toUpperCase()}_ENABLED`, 'true');
+        }
+        if (localStorage.getItem(`BROWSER_SOUND_${cat.toUpperCase()}_ENABLED`) === null) {
+            localStorage.setItem(`BROWSER_SOUND_${cat.toUpperCase()}_ENABLED`, 'true');
+        }
+    });
+
+    updateBrowserAlertsUI();
+}
+
+function updateBrowserAlertsUI() {
+    const elEnabled = document.getElementById('BROWSER_ALERT_ENABLED');
+    const elMuted = document.getElementById('BROWSER_ALERT_MUTED');
+    if (!elEnabled || !elMuted) return;
+
+    elEnabled.checked = localStorage.getItem('BROWSER_ALERT_ENABLED') === 'true';
+    elMuted.checked = localStorage.getItem('BROWSER_ALERT_MUTED') === 'true';
+
+    const categories = ['critical', 'recovery', 'warning'];
+    categories.forEach(cat => {
+        const elNotify = document.getElementById(`BROWSER_NOTIFY_${cat.toUpperCase()}_ENABLED`);
+        const elSound = document.getElementById(`BROWSER_SOUND_${cat.toUpperCase()}_ENABLED`);
+        if (elNotify) elNotify.checked = localStorage.getItem(`BROWSER_NOTIFY_${cat.toUpperCase()}_ENABLED`) !== 'false';
+        if (elSound) elSound.checked = localStorage.getItem(`BROWSER_SOUND_${cat.toUpperCase()}_ENABLED`) !== 'false';
+    });
+
+    const permissionEl = document.getElementById('browser-permission-status');
+    if (permissionEl) {
+        if (!("Notification" in window)) {
+            permissionEl.textContent = "مرورگر شما از اعلان‌ها پشتیبانی نمی‌کند ❌";
+            permissionEl.style.color = "var(--danger)";
+            elEnabled.disabled = true;
+            return;
+        }
+
+        if (Notification.permission === "granted") {
+            permissionEl.textContent = "مجوز صادر شده است ✅";
+            permissionEl.style.color = "var(--success)";
+        } else if (Notification.permission === "denied") {
+            permissionEl.textContent = "مجوز توسط شما مسدود شده است ❌";
+            permissionEl.style.color = "var(--danger)";
+        } else {
+            permissionEl.textContent = "در انتظار درخواست مجوز... ⚠️";
+            permissionEl.style.color = "var(--warning)";
+        }
+    }
+}
+
+async function toggleBrowserAlerts(checkbox) {
+    if (checkbox.checked) {
+        if (!("Notification" in window)) {
+            showToast("این مرورگر از اعلان‌ها پشتیبانی نمی‌کند", "error");
+            checkbox.checked = false;
+            return;
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+            localStorage.setItem('BROWSER_ALERT_ENABLED', 'true');
+            showToast("اعلان‌های دسکتاپ فعال شدند");
+        } else {
+            localStorage.setItem('BROWSER_ALERT_ENABLED', 'false');
+            checkbox.checked = false;
+            showToast("مجوز اعلان صادر نشد", "error");
+        }
+    } else {
+        localStorage.setItem('BROWSER_ALERT_ENABLED', 'false');
+        showToast("اعلان‌های دسکتاپ غیرفعال شدند");
+    }
+    updateBrowserAlertsUI();
+}
+
+function toggleGlobalMute(checkbox) {
+    localStorage.setItem('BROWSER_ALERT_MUTED', checkbox.checked ? 'true' : 'false');
+    showToast(checkbox.checked ? "صداها بی‌صدا شدند" : "صداها فعال شدند");
+}
+
+function toggleCategoryNotify(category, checkbox) {
+    localStorage.setItem(`BROWSER_NOTIFY_${category.toUpperCase()}_ENABLED`, checkbox.checked ? 'true' : 'false');
+}
+
+function toggleCategorySound(category, checkbox) {
+    localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, checkbox.checked ? 'true' : 'false');
+}
+
+function playSynthesizedSound(category) {
+    const isMuted = localStorage.getItem('BROWSER_ALERT_MUTED') === 'true';
+    if (isMuted) return;
+
+    const soundEnabled = localStorage.getItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`) !== 'false';
+    if (!soundEnabled) return;
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    
+    try {
+        const ctx = new AudioContext();
+
+        if (category === 'critical') {
+            // Critical: Alarm sound (High sawtooth beep followed by lower beep)
+            const playBeep = (freq, startTime, duration) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(0.12, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration - 0.02);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            };
+            playBeep(880, ctx.currentTime, 0.15);
+            playBeep(587.33, ctx.currentTime + 0.18, 0.25);
+        } else if (category === 'recovery') {
+            // Recovery: Pleasant rising chime (C5 -> E5 -> G5 -> C6)
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((freq, index) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.08);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime + index * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + index * 0.08 + 0.25);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime + index * 0.08);
+                osc.stop(ctx.currentTime + index * 0.08 + 0.25);
+            });
+        } else if (category === 'warning') {
+            // Warning: Soft warning chime (single triangle wave decay ding)
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(600, ctx.currentTime);
+            gain.gain.setValueAtTime(0.18, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.35);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.35);
+        }
+    } catch (e) {
+        console.error("Audio Context playback failed", e);
+    }
+}
+
+function testSound(category) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return showToast("مرورگر شما از صدا پشتیبانی نمی‌کند", "error");
+    
+    const originalMute = localStorage.getItem('BROWSER_ALERT_MUTED');
+    const originalSoundVal = localStorage.getItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`);
+    
+    localStorage.setItem('BROWSER_ALERT_MUTED', 'false');
+    localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, 'true');
+    
+    playSynthesizedSound(category);
+    
+    localStorage.setItem('BROWSER_ALERT_MUTED', originalMute);
+    localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, originalSoundVal);
+}
+
+function testBrowserNotification() {
+    if (!("Notification" in window)) {
+        return showToast("این مرورگر از اعلان‌ها پشتیبانی نمی‌کند", "error");
+    }
+
+    if (Notification.permission !== "granted") {
+        Notification.requestPermission().then(permission => {
+            updateBrowserAlertsUI();
+            if (permission === "granted") {
+                sendTestNotification();
+            } else {
+                showToast("مجوز اعلان صادر نشد. لطفاً مجوز را دستی فعال کنید.", "error");
+            }
+        });
+    } else {
+        sendTestNotification();
+    }
+}
+
+function sendTestNotification() {
+    const notification = new Notification("تست اعلان HikStatus", {
+        body: "سیستم اعلان مرورگر به درستی کار می‌کند!",
+        icon: '/static/logo.webp',
+        dir: 'rtl'
+    });
+    
+    playSynthesizedSound('recovery');
+    showToast("اعلان آزمایشی ارسال شد");
+}
+
+function handleIncomingAlert(msg) {
+    const isEnabled = localStorage.getItem('BROWSER_ALERT_ENABLED') === 'true';
+    if (!isEnabled) return;
+
+    let category = 'warning';
+    if (msg.alert_type === 'error') category = 'critical';
+    else if (msg.alert_type === 'success') category = 'recovery';
+
+    const notifyEnabled = localStorage.getItem(`BROWSER_NOTIFY_${category.toUpperCase()}_ENABLED`) !== 'false';
+    
+    if (notifyEnabled && Notification.permission === "granted") {
+        const notification = new Notification(msg.title, {
+            body: msg.body,
+            icon: '/static/logo.webp',
+            tag: `hikstatus-${category}`,
+            dir: 'rtl'
+        });
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+    }
+
+    playSynthesizedSound(category);
 }
 
 // ===== MAP & HEATMAP LOGIC =====
