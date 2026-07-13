@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
+from typing import Optional
 from sqlmodel import Session, select, col
 from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, hash_password, verify_password, engine, sqlite_file_name
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
