@@ -3,8 +3,8 @@ import requests
 import jdatetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from database import Session, engine, Settings
-
+from database import Session, engine, Settings, User, UserAlertSettings
+from sqlmodel import select
 
 def get_persian_datetime():
     now = jdatetime.datetime.now()
@@ -33,10 +33,7 @@ def invalidate_config_cache():
     _config_cache = None
     _config_cache_time = 0
 
-def send_email_batch(subject, lines, alert_type="warning"):
-    conf = get_config_dict()
-    if conf.get("MAIL_ENABLED") != "true" or not lines: return False
-    
+def get_email_body(subject, lines, alert_type):
     colors = {
         "error": "#dc3545",
         "warning": "#ffc107", 
@@ -85,13 +82,35 @@ def send_email_batch(subject, lines, alert_type="warning"):
         </div>
     </body>
     </html>"""
-    
-    return send_email_raw(conf, subject, body)
+    return body
 
-def send_email_raw(conf, subject, body):
+def send_email_batch(subject, lines, alert_type="warning", group_id=None):
+    conf = get_config_dict()
+    
+    # 1. Send to admin
+    if conf.get("MAIL_ENABLED") == "true" and lines:
+        body = get_email_body(subject, lines, alert_type)
+        recipients = [r.strip() for r in conf.get("MAIL_RECIPIENTS", "").split(",") if r.strip()]
+        if recipients:
+            send_email_raw(conf, subject, body, recipients)
+            
+    # 2. Send to group control users
+    if group_id is not None and lines:
+        with Session(engine) as session:
+            users = session.exec(select(User).where(User.group_id == group_id, User.role == "group_control", User.is_active == True)).all()
+            for u in users:
+                alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
+                if alert_settings and alert_settings.mail_enabled and alert_settings.mail_recipients:
+                    recipients = [r.strip() for r in alert_settings.mail_recipients.split(",") if r.strip()]
+                    if recipients:
+                        body = get_email_body(subject, lines, alert_type)
+                        send_email_raw(conf, subject, body, recipients)
+                        
+    return True
+
+def send_email_raw(conf, subject, body, recipients):
     try:
         sender = conf.get("MAIL_USER")
-        recipients = conf.get("MAIL_RECIPIENTS", "").split(",")
         server = conf.get("MAIL_SERVER")
         port = int(conf.get("MAIL_PORT", 587))
         password = conf.get("MAIL_PASS")
@@ -111,10 +130,7 @@ def send_email_raw(conf, subject, body):
         print(f"📧 خطای ایمیل: {e}")
         return str(e)
 
-def send_telegram_batch(header, lines, alert_type="warning"):
-    conf = get_config_dict()
-    if conf.get("TELEGRAM_ENABLED") != "true" or not lines: return False
-    
+def get_telegram_message(header, lines, alert_type):
     icons = {
         "error": "🚨",
         "warning": "⚠️", 
@@ -130,20 +146,39 @@ def send_telegram_batch(header, lines, alert_type="warning"):
         msg += f"  • {safe_line}\n"
     msg += "━" * 20 + "\n"
     msg += f"📅 {get_persian_datetime()}"
-    
-    return send_telegram_raw(conf, msg)
+    return msg
 
-def send_telegram_raw(conf, message):
+def send_telegram_batch(header, lines, alert_type="warning", group_id=None):
+    conf = get_config_dict()
+    
+    # 1. Send to admin
+    if conf.get("TELEGRAM_ENABLED") == "true" and lines:
+        msg = get_telegram_message(header, lines, alert_type)
+        chat_ids = [c.strip() for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()]
+        if chat_ids:
+            send_telegram_raw(conf, msg, chat_ids)
+            
+    # 2. Send to group control users
+    if group_id is not None and lines:
+        with Session(engine) as session:
+            users = session.exec(select(User).where(User.group_id == group_id, User.role == "group_control", User.is_active == True)).all()
+            for u in users:
+                alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
+                if alert_settings and alert_settings.telegram_enabled and alert_settings.telegram_chat_ids:
+                    chat_ids = [c.strip() for c in alert_settings.telegram_chat_ids.split(",") if c.strip()]
+                    if chat_ids:
+                        msg = get_telegram_message(header, lines, alert_type)
+                        send_telegram_raw(conf, msg, chat_ids)
+                        
+    return True
+
+def send_telegram_raw(conf, message, chat_ids):
     token = conf.get("TELEGRAM_BOT_TOKEN")
-    raw_ids = conf.get("TELEGRAM_CHAT_IDS", "")
     proxy_url = conf.get("TELEGRAM_PROXY", "")
     
-    if not token or not raw_ids: return "Missing Token/ID"
+    if not token or not chat_ids: return "Missing Token/ID"
     
-    chat_ids = [c.strip() for c in raw_ids.split(",") if c.strip()]
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    
-    # Configure Proxy
     proxies = {'https': proxy_url, 'http': proxy_url} if proxy_url else None
 
     errors = []

@@ -290,6 +290,13 @@
                 });
 
                 if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('user_role', data.role);
+                    if (data.group_id) {
+                        localStorage.setItem('user_group_id', data.group_id);
+                    } else {
+                        localStorage.removeItem('user_group_id');
+                    }
                     window.location.href = '/';
                 } else {
                     const data = await res.json();

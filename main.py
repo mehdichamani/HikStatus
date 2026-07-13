@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from sqlmodel import Session, select, col
-from database import init_db, get_session, Camera, Log, NVR, Settings, DowntimeEvent, engine, sqlite_file_name
+from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, hash_password, verify_password, engine, sqlite_file_name
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime
 
@@ -80,6 +80,8 @@ def seed_database(session: Session, init_from_json: bool):
     session.query(NVR).delete()
     session.query(Log).delete()
     session.query(Settings).delete()
+    session.query(UserAlertSettings).delete()
+    session.query(User).delete()
     session.commit()
 
     init_data = {}
@@ -232,11 +234,27 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)
 
-def require_auth(request: Request):
+def require_auth(request: Request) -> dict:
+    """Returns {username, role, group_id, user_id} or raises 401."""
     token = request.cookies.get("session_token")
     if not token or token not in _sessions:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return _sessions[token]
+
+def require_admin(user: dict = Depends(require_auth)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="فقط مدیر سیستم دسترسی دارد")
+    return user
+
+def require_control(user: dict = Depends(require_auth)):
+    """admin or group_control."""
+    if user["role"] not in ("admin", "group_control"):
+        raise HTTPException(status_code=403, detail="دسترسی کنترل الزامی است")
+    return user
+
+@app.get("/api/auth/me")
+def get_me(user: dict = Depends(require_auth)):
+    return user
 
 @app.post("/api/auth/login")
 def login(payload: LoginRequest, request: Request, response: Response):
@@ -247,15 +265,25 @@ def login(payload: LoginRequest, request: Request, response: Response):
     admin_user, admin_pass = get_admin_credentials()
     if payload.username == admin_user and payload.password == admin_pass:
         token = create_session_token()
-        _sessions[token] = payload.username
-        response.set_cookie(
-            key="session_token",
-            value=token,
-            httponly=True,
-            samesite="lax",
-            max_age=86400
-        )
-        return {"status": "ok"}
+        _sessions[token] = {"username": payload.username, "role": "admin", "group_id": None, "user_id": None}
+        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=86400)
+        return {"status": "ok", "role": "admin"}
+
+    # Check database users
+    from sqlmodel import Session as DbSession
+    with DbSession(engine) as db:
+        db_user = db.exec(select(User).where(User.username == payload.username, User.is_active == True)).first()
+        if db_user and verify_password(payload.password, db_user.password_hash):
+            token = create_session_token()
+            _sessions[token] = {
+                "username": db_user.username,
+                "role": db_user.role,
+                "group_id": db_user.group_id,
+                "user_id": db_user.id
+            }
+            response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=86400)
+            return {"status": "ok", "role": db_user.role, "group_id": db_user.group_id}
+
     raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
 
 @app.post("/api/auth/logout")
@@ -359,17 +387,20 @@ def test_telegram():
     raise HTTPException(status_code=400, detail="خطا در ارسال تلگرام. تنظیمات را بررسی کنید.")
 
 # --- API ---
-@app.get("/api/nvrs", response_model=list[NVR], dependencies=[Depends(require_auth)])
-def get_nvrs(session: Session = Depends(get_session)): return session.exec(select(NVR)).all()
+@app.get("/api/nvrs", response_model=list[NVR])
+def get_nvrs(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    if user["role"] == "admin":
+        return session.exec(select(NVR)).all()
+    return session.exec(select(NVR).where(NVR.group_id == user["group_id"])).all()
 
-@app.post("/api/nvrs", dependencies=[Depends(require_auth)])
-def create_nvr(nvr: NVR, session: Session = Depends(get_session)):
+@app.post("/api/nvrs")
+def create_nvr(nvr: NVR, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
     session.add(nvr)
     session.commit()
     return nvr
 
-@app.delete("/api/nvrs/{ip}", dependencies=[Depends(require_auth)])
-def delete_nvr(ip: str, session: Session = Depends(get_session)):
+@app.delete("/api/nvrs/{ip}")
+def delete_nvr(ip: str, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
     nvr = session.get(NVR, ip)
     if not nvr:
         raise HTTPException(status_code=404, detail="NVR not found")
@@ -383,14 +414,81 @@ def delete_nvr(ip: str, session: Session = Depends(get_session)):
     session.commit()
     return {"ok": True}
 
-@app.get("/api/cameras", response_model=list[Camera], dependencies=[Depends(require_auth)])
-def get_cameras(session: Session = Depends(get_session)): return session.exec(select(Camera).order_by(Camera.nvr_ip, Camera.channel_id)).all()
+@app.put("/api/nvrs/{ip}")
+def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: dict = Depends(require_control)):
+    n = session.get(NVR, ip)
+    if not n:
+        raise HTTPException(status_code=404, detail="NVR not found")
+    if user["role"] != "admin" and n.group_id != user["group_id"]:
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز به این NVR")
+    if "name" in p:
+        n.name = p["name"]
+    if "user" in p:
+        n.user = p["user"]
+    if "password" in p:
+        if p["password"]:
+            n.password = p["password"]
+    if "group_id" in p and user["role"] == "admin":
+        n.group_id = p["group_id"] if p["group_id"] is not None else None
+    session.add(n)
+    session.commit()
+    return n
 
-@app.put("/api/cameras/{id}", dependencies=[Depends(require_auth)])
-def update_cam(id: int, p: dict, session: Session = Depends(get_session)):
+@app.get("/api/groups", response_model=list[NVRGroup])
+def get_groups(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    return session.exec(select(NVRGroup)).all()
+
+@app.post("/api/groups")
+def create_group(group: NVRGroup, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    session.add(group)
+    session.commit()
+    return group
+
+@app.put("/api/groups/{id}")
+def update_group(id: int, p: dict, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    g = session.get(NVRGroup, id)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if "name" in p:
+        g.name = p["name"]
+    if "description" in p:
+        g.description = p["description"]
+    session.add(g)
+    session.commit()
+    return g
+
+@app.delete("/api/groups/{id}")
+def delete_group(id: int, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    g = session.get(NVRGroup, id)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    nvrs = session.exec(select(NVR).where(NVR.group_id == id)).all()
+    for n in nvrs:
+        n.group_id = None
+        session.add(n)
+    session.delete(g)
+    session.commit()
+    return {"ok": True}
+
+@app.get("/api/cameras", response_model=list[Camera])
+def get_cameras(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    if user["role"] == "admin":
+        return session.exec(select(Camera).order_by(Camera.nvr_ip, Camera.channel_id)).all()
+    nvrs = session.exec(select(NVR).where(NVR.group_id == user["group_id"])).all()
+    nvr_ips = [n.ip for n in nvrs]
+    if not nvr_ips:
+        return []
+    return session.exec(select(Camera).where(Camera.nvr_ip.in_(nvr_ips)).order_by(Camera.nvr_ip, Camera.channel_id)).all()
+
+@app.put("/api/cameras/{id}")
+def update_cam(id: int, p: dict, session: Session = Depends(get_session), user: dict = Depends(require_control)):
     c = session.get(Camera, id)
     if not c:
         raise HTTPException(status_code=404, detail="Camera not found")
+    if user["role"] != "admin":
+        nvr = session.get(NVR, c.nvr_ip)
+        if not nvr or nvr.group_id != user["group_id"]:
+            raise HTTPException(status_code=403, detail="دسترسی غیرمجاز به این دوربین")
     if "importance" in p:
         importance = int(p["importance"])
         if importance not in (1, 2, 3):
@@ -414,8 +512,8 @@ def update_cam(id: int, p: dict, session: Session = Depends(get_session)):
     session.commit()
     return c
 
-@app.get("/api/cameras/{id}/snapshot", dependencies=[Depends(require_auth)])
-async def get_camera_snapshot(id: int, session: Session = Depends(get_session)):
+@app.get("/api/cameras/{id}/snapshot")
+async def get_camera_snapshot(id: int, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     import requests
     from requests.auth import HTTPDigestAuth
     
@@ -426,6 +524,9 @@ async def get_camera_snapshot(id: int, session: Session = Depends(get_session)):
     nvr = session.exec(select(NVR).where(NVR.ip == camera.nvr_ip)).first()
     if not nvr:
         raise HTTPException(status_code=404, detail="NVR not found")
+        
+    if user["role"] != "admin" and nvr.group_id != user["group_id"]:
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز به این دوربین")
         
     try:
         chan_int = int(camera.channel_id)
@@ -453,8 +554,8 @@ async def get_camera_snapshot(id: int, session: Session = Depends(get_session)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch snapshot: {str(e)}")
 
-@app.post("/api/map/upload", dependencies=[Depends(require_auth)])
-async def upload_map(file: UploadFile = File(...)):
+@app.post("/api/map/upload")
+async def upload_map(file: UploadFile = File(...), user: dict = Depends(require_admin)):
     os.makedirs("static", exist_ok=True)
     ext = file.filename.split(".")[-1].lower()
     if ext not in ["png", "jpg", "jpeg", "svg"]:
@@ -484,14 +585,28 @@ async def upload_map(file: UploadFile = File(...)):
             
     return {"status": "ok", "url": f"/static/{filename}"}
 
-@app.get("/api/stats/heatmap", dependencies=[Depends(require_auth)])
-def get_heatmap_stats(session: Session = Depends(get_session)):
+@app.get("/api/stats/heatmap")
+def get_heatmap_stats(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     now = datetime.now()
     thirty_days_ago = now - timedelta(days=30)
     
-    events = session.exec(select(DowntimeEvent).where(
-        (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time >= thirty_days_ago)
-    )).all()
+    if user["role"] == "admin":
+        events = session.exec(select(DowntimeEvent).where(
+            (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time >= thirty_days_ago)
+        )).all()
+    else:
+        nvrs = session.exec(select(NVR).where(NVR.group_id == user["group_id"])).all()
+        nvr_ips = [n.ip for n in nvrs]
+        if not nvr_ips:
+            return []
+        cams = session.exec(select(Camera).where(Camera.nvr_ip.in_(nvr_ips))).all()
+        cam_ids = [c.id for c in cams]
+        if not cam_ids:
+            return []
+        events = session.exec(select(DowntimeEvent).where(
+            (DowntimeEvent.camera_id.in_(cam_ids)) &
+            ((DowntimeEvent.end_time == None) | (DowntimeEvent.end_time >= thirty_days_ago))
+        )).all()
     
     grid = [[0 for _ in range(24)] for _ in range(7)]
     
@@ -522,11 +637,11 @@ def get_heatmap_stats(session: Session = Depends(get_session)):
             output.append({"day": d, "hour": h, "value": int(grid[d][h])})
     return output
 
-@app.get("/api/settings", response_model=list[Settings], dependencies=[Depends(require_auth)])
-def get_settings(session: Session = Depends(get_session)): return session.exec(select(Settings)).all()
+@app.get("/api/settings", response_model=list[Settings])
+def get_settings(session: Session = Depends(get_session), user: dict = Depends(require_admin)): return session.exec(select(Settings)).all()
 
-@app.put("/api/settings/{key}", dependencies=[Depends(require_auth)])
-def update_setting(key: str, p: Settings, session: Session = Depends(get_session)):
+@app.put("/api/settings/{key}")
+def update_setting(key: str, p: Settings, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
     s = session.get(Settings, key)
     if not s:
         raise HTTPException(status_code=404, detail="Setting not found")
@@ -536,9 +651,12 @@ def update_setting(key: str, p: Settings, session: Session = Depends(get_session
     invalidate_config_cache()
     return s
 
-@app.post("/api/config/sync-names", dependencies=[Depends(require_auth)])
-async def sync_names(session: Session = Depends(get_session)):
-    nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+@app.post("/api/config/sync-names")
+async def sync_names(session: Session = Depends(get_session), user: dict = Depends(require_control)):
+    if user["role"] == "admin":
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+    else:
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True, NVR.group_id == user["group_id"])).all()
     if not nvrs:
         raise HTTPException(status_code=400, detail="No enabled NVRs found to sync")
     
@@ -549,8 +667,8 @@ async def sync_names(session: Session = Depends(get_session)):
         
     return {"results": results}
 
-@app.get("/api/logs", dependencies=[Depends(require_auth)])
-def search_logs(q: str = None, limit: int = 50, offset: int = 0, session: Session = Depends(get_session)):
+@app.get("/api/logs")
+def search_logs(q: str = None, limit: int = 50, offset: int = 0, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
     query = select(Log).order_by(Log.timestamp.desc()).offset(offset).limit(limit)
     if q: 
         if q in ['Camera','NVR','Telegram','Mail','Service']: query = query.where(col(Log.log_type) == q)
@@ -585,18 +703,32 @@ def calculate_downtime_range(session, cam_id, start_ts, end_ts):
             total_minutes += (overlap_end - overlap_start).total_seconds() / 60
     return int(total_minutes)
 
-@app.get("/api/stats/{cam_id}", dependencies=[Depends(require_auth)])
-def get_cam_stats(cam_id: int, session: Session = Depends(get_session)):
+@app.get("/api/stats/{cam_id}")
+def get_cam_stats(cam_id: int, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    c = session.get(Camera, cam_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Camera not found")
+    if user["role"] != "admin":
+        nvr = session.get(NVR, c.nvr_ip)
+        if not nvr or nvr.group_id != user["group_id"]:
+            raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
     now = datetime.now()
     d1 = calculate_downtime_range(session, cam_id, now - timedelta(hours=1), now)
     d24 = calculate_downtime_range(session, cam_id, now - timedelta(hours=24), now)
     return {"down_1h": d1, "down_24h": d24}
 
-@app.get("/api/reports/generate", dependencies=[Depends(require_auth)])
-def generate_report(start: float, end: float, session: Session = Depends(get_session)):
+@app.get("/api/reports/generate")
+def generate_report(start: float, end: float, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     start_dt = datetime.fromtimestamp(start)
     end_dt = datetime.fromtimestamp(end)
-    cameras = session.exec(select(Camera)).all()
+    if user["role"] == "admin":
+        cameras = session.exec(select(Camera)).all()
+    else:
+        nvrs = session.exec(select(NVR).where(NVR.group_id == user["group_id"])).all()
+        nvr_ips = [n.ip for n in nvrs]
+        if not nvr_ips:
+            return []
+        cameras = session.exec(select(Camera).where(Camera.nvr_ip.in_(nvr_ips))).all()
     report_data = []
     for c in cameras:
         mins = calculate_downtime_range(session, c.id, start_dt, end_dt)
@@ -604,3 +736,115 @@ def generate_report(start: float, end: float, session: Session = Depends(get_ses
             report_data.append({"name": c.name, "ip": c.ip, "mins": mins})
     report_data.sort(key=lambda x: x['mins'], reverse=True)
     return report_data
+
+# --- User & Personal Alerts API ---
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str
+    group_id: Optional[int] = None
+
+class UserUpdate(BaseModel):
+    password: Optional[str] = None
+    role: Optional[str] = None
+    group_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+@app.get("/api/users", response_model=list[User])
+def get_users(session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    return session.exec(select(User)).all()
+
+@app.post("/api/users")
+def create_user(payload: UserCreate, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    existing = session.exec(select(User).where(User.username == payload.username)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="نام کاربری تکراری است")
+    
+    db_user = User(
+        username=payload.username,
+        password_hash=hash_password(payload.password),
+        role=payload.role,
+        group_id=payload.group_id,
+        is_active=True
+    )
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+    
+    alert_settings = UserAlertSettings(user_id=db_user.id)
+    session.add(alert_settings)
+    session.commit()
+    
+    return db_user
+
+@app.put("/api/users/{id}")
+def update_user(id: int, payload: UserUpdate, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    db_user = session.get(User, id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if payload.password:
+        db_user.password_hash = hash_password(payload.password)
+    if payload.role is not None:
+        db_user.role = payload.role
+    if payload.group_id is not None or "group_id" in payload.model_fields_set:
+        db_user.group_id = payload.group_id
+    if payload.is_active is not None:
+        db_user.is_active = payload.is_active
+        
+    session.add(db_user)
+    session.commit()
+    return db_user
+
+@app.delete("/api/users/{id}")
+def delete_user(id: int, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    db_user = session.get(User, id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == id)).first()
+    if alert_settings:
+        session.delete(alert_settings)
+        
+    session.delete(db_user)
+    session.commit()
+    return {"ok": True}
+
+class AlertSettingsUpdate(BaseModel):
+    mail_enabled: bool
+    mail_recipients: Optional[str] = None
+    telegram_enabled: bool
+    telegram_chat_ids: Optional[str] = None
+
+@app.get("/api/me/alerts")
+def get_my_alerts(session: Session = Depends(get_session), user: dict = Depends(require_control)):
+    u_id = user["user_id"]
+    if u_id is None:
+        raise HTTPException(status_code=400, detail="مدیر سیستم از تنظیمات عمومی استفاده می‌کند")
+        
+    alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u_id)).first()
+    if not alert_settings:
+        alert_settings = UserAlertSettings(user_id=u_id)
+        session.add(alert_settings)
+        session.commit()
+        session.refresh(alert_settings)
+    return alert_settings
+
+@app.put("/api/me/alerts")
+def update_my_alerts(payload: AlertSettingsUpdate, session: Session = Depends(get_session), user: dict = Depends(require_control)):
+    u_id = user["user_id"]
+    if u_id is None:
+        raise HTTPException(status_code=400, detail="مدیر سیستم از تنظیمات عمومی استفاده می‌کند")
+        
+    alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u_id)).first()
+    if not alert_settings:
+        alert_settings = UserAlertSettings(user_id=u_id)
+    
+    alert_settings.mail_enabled = payload.mail_enabled
+    alert_settings.mail_recipients = payload.mail_recipients
+    alert_settings.telegram_enabled = payload.telegram_enabled
+    alert_settings.telegram_chat_ids = payload.telegram_chat_ids
+    
+    session.add(alert_settings)
+    session.commit()
+    return alert_settings

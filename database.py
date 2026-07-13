@@ -2,6 +2,12 @@ from __future__ import annotations
 from sqlmodel import SQLModel, Field, create_engine, Session
 from datetime import datetime
 from typing import Optional
+import hashlib, secrets
+
+class NVRGroup(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(unique=True)
+    description: Optional[str] = None
 
 class NVR(SQLModel, table=True):
     ip: str = Field(primary_key=True)
@@ -15,6 +21,7 @@ class NVR(SQLModel, table=True):
     mail_last_alert: Optional[datetime] = None
     telegram_alert_count: int = 0
     telegram_last_alert: Optional[datetime] = None
+    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
 
 class Camera(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -64,6 +71,28 @@ class Settings(SQLModel, table=True):
     key: str = Field(primary_key=True)
     value: str
     description: Optional[str] = None
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str = Field(unique=True, index=True)
+    password_hash: str           # sha256 hex (simple, no extra deps)
+    role: str = "group_view"     # "admin" | "group_control" | "group_view"
+    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
+    is_active: bool = True
+
+class UserAlertSettings(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", unique=True)
+    mail_enabled: bool = False
+    mail_recipients: Optional[str] = None   # comma-separated
+    telegram_enabled: bool = False
+    telegram_chat_ids: Optional[str] = None  # comma-separated
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password: str, hashed: str) -> bool:
+    return hashlib.sha256(password.encode()).hexdigest() == hashed
 
 sqlite_file_name = "data/monitor.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -128,7 +157,8 @@ def init_db():
             "mail_alert_count": "INTEGER DEFAULT 0",
             "mail_last_alert": "TIMESTAMP",
             "telegram_alert_count": "INTEGER DEFAULT 0",
-            "telegram_last_alert": "TIMESTAMP"
+            "telegram_last_alert": "TIMESTAMP",
+            "group_id": "INTEGER"
         }
 
         for col_name, col_type in nvr_new_cols.items():
@@ -136,6 +166,18 @@ def init_db():
                 cursor.execute(f"ALTER TABLE nvr ADD COLUMN {col_name} {col_type}")
                 print(f"Added column {col_name} to nvr table.")
         
+        # user table migrations
+        cursor.execute("PRAGMA table_info(user)")
+        user_cols = [row[1] for row in cursor.fetchall()]
+        user_new_cols = {
+            "is_active": "BOOLEAN DEFAULT 1",
+            "group_id": "INTEGER",
+        }
+        for col_name, col_type in user_new_cols.items():
+            if col_name not in user_cols:
+                cursor.execute(f"ALTER TABLE user ADD COLUMN {col_name} {col_type}")
+                print(f"Added column {col_name} to user table.")
+
         conn.commit()
         conn.close()
     except Exception as e:

@@ -1,6 +1,6 @@
 const API = '/api';
 let logOff = 0, logFilter = '', logSearchVal = '', loading = false, allLoaded = false;
-let currentCamId, currentImp, settingsCache = [], nvrCache = [];
+let currentCamId, currentImp, settingsCache = [], nvrCache = [], groupCache = [];
 let ws = null, wsRetryDelay = 1000;
 
 async function apiFetch(url, options = {}) {
@@ -68,6 +68,12 @@ async function fetchDash() {
     } catch (e) {
         console.error('Error loading NVRs:', e);
     }
+    try {
+        const gRes = await apiFetch(`${API}/groups`);
+        groupCache = await gRes.json();
+    } catch (e) {
+        console.error('Error loading Groups:', e);
+    }
     const res = await apiFetch(`${API}/cameras`);
     const cams = await res.json();
     const on = cams.filter(c => c.status === 'Online').length;
@@ -100,22 +106,89 @@ async function fetchDash() {
     const con = document.getElementById('nvr-container');
     con.innerHTML = '';
 
-    Object.keys(groups).sort((a, b) => parseInt(getNvrNum(a)) - parseInt(getNvrNum(b))).forEach(ip => {
-        const list = groups[ip];
-        const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
-        const cards = sorted.map(c => createCard(c)).join('');
-        con.innerHTML += `
-            <div class="nvr-block open">
-                <div class="nvr-header" onclick="toggleNvr(this)">
-                    <div class="nvr-header-left">
-                        <span class="nvr-badge">${getNvrDisplayName(ip)}</span>
-                        <span class="nvr-ip">${ip}</span>
-                    </div>
-                    <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="nvr-grid">${cards}</div>
-            </div>`;
+    // Map of group_id to list of NVR IPs
+    const groupNVRs = {};
+    const groupMap = {};
+    groupCache.forEach(g => {
+        groupMap[g.id] = g.name;
+        groupNVRs[g.id] = [];
     });
+    const unassignedNvrIps = [];
+
+    Object.keys(groups).sort((a, b) => parseInt(getNvrNum(a)) - parseInt(getNvrNum(b))).forEach(ip => {
+        const nvrObj = nvrCache.find(n => n.ip === ip);
+        const groupId = nvrObj ? nvrObj.group_id : null;
+        if (groupId && groupMap[groupId]) {
+            if (!groupNVRs[groupId]) groupNVRs[groupId] = [];
+            groupNVRs[groupId].push(ip);
+        } else {
+            unassignedNvrIps.push(ip);
+        }
+    });
+
+    // Render grouped factories
+    groupCache.forEach(g => {
+        const ips = groupNVRs[g.id] || [];
+        if (ips.length === 0) return;
+
+        let factoryHtml = `<div class="factory-group-section" style="margin-bottom: 30px;">
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); display: flex; align-items: center; gap: 8px; color: var(--text-primary);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                ${g.name}
+                ${g.description ? `<span style="font-size: 12px; font-weight: normal; color: var(--text-secondary); margin-right: 8px;">(${g.description})</span>` : ''}
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">`;
+
+        ips.forEach(ip => {
+            const list = groups[ip];
+            const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
+            const cards = sorted.map(c => createCard(c)).join('');
+            factoryHtml += `
+                <div class="nvr-block open">
+                    <div class="nvr-header" onclick="toggleNvr(this)">
+                        <div class="nvr-header-left">
+                            <span class="nvr-badge">${getNvrDisplayName(ip)}</span>
+                            <span class="nvr-ip">${ip}</span>
+                        </div>
+                        <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="nvr-grid">${cards}</div>
+                </div>`;
+        });
+
+        factoryHtml += `</div></div>`;
+        con.innerHTML += factoryHtml;
+    });
+
+    // Render unassigned NVRs
+    if (unassignedNvrIps.length > 0) {
+        let unassignedHtml = `<div class="factory-group-section" style="margin-bottom: 30px;">
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-secondary);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                سایر NVRها (بدون دسته‌بندی کارخانه‌ای)
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">`;
+
+        unassignedNvrIps.forEach(ip => {
+            const list = groups[ip];
+            const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
+            const cards = sorted.map(c => createCard(c)).join('');
+            unassignedHtml += `
+                <div class="nvr-block open">
+                    <div class="nvr-header" onclick="toggleNvr(this)">
+                        <div class="nvr-header-left">
+                            <span class="nvr-badge">${getNvrDisplayName(ip)}</span>
+                            <span class="nvr-ip">${ip}</span>
+                        </div>
+                        <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="nvr-grid">${cards}</div>
+                </div>`;
+        });
+
+        unassignedHtml += `</div></div>`;
+        con.innerHTML += unassignedHtml;
+    }
 }
 
 function toggleNvr(header) {
@@ -193,6 +266,10 @@ async function showCam(data) {
     }
     
     document.getElementById('camModal').classList.add('open');
+    const impBtn = document.getElementById('m-imp-btn');
+    if (impBtn) {
+        impBtn.style.display = (window.currentUser && window.currentUser.role === 'group_view') ? 'none' : '';
+    }
 
     const res = await apiFetch(`${API}/stats/${c.id}`);
     const s = await res.json();
@@ -270,81 +347,110 @@ const settingLabels = {
 };
 
 async function loadSettings() {
-    const sRes = await apiFetch(`${API}/settings`);
-    settingsCache = await sRes.json();
+    const role = window.currentUser ? window.currentUser.role : 'group_view';
+    if (role === 'admin') {
+        const sRes = await apiFetch(`${API}/settings`);
+        settingsCache = await sRes.json();
+    } else {
+        settingsCache = [];
+    }
 
     const nav = document.getElementById('config-nav');
-    nav.innerHTML = `
-        <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
-        <button data-tab="grp-Email" onclick="switchSettingsTab('grp-Email')">تنظیمات ایمیل</button>
-        <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
-        <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
-        <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
-    `;
+    if (role === 'admin') {
+        nav.innerHTML = `
+            <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
+            <button data-tab="sec-groups" onclick="switchSettingsTab('sec-groups')">کارخانه‌ها / گروه‌ها</button>
+            <button data-tab="sec-users" onclick="switchSettingsTab('sec-users')">مدیریت کاربران</button>
+            <button data-tab="grp-Email" onclick="switchSettingsTab('grp-Email')">تنظیمات ایمیل</button>
+            <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
+            <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
+            <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
+        `;
+    } else if (role === 'group_control') {
+        nav.innerHTML = `
+            <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
+            <button data-tab="sec-my-alerts" onclick="switchSettingsTab('sec-my-alerts')">تنظیمات اعلان شخصی من</button>
+            <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
+        `;
+    }
+
+    const nvrForm = document.querySelector('#sec-nvr .nvr-form');
+    if (nvrForm) {
+        nvrForm.style.display = (role === 'admin') ? '' : 'none';
+    }
 
     const con = document.getElementById('config-forms');
     con.innerHTML = '';
 
-    const groups = {
-        'ایمیل': ['MAIL_ENABLED', 'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASS', 'MAIL_RECIPIENTS', 'MAIL_FIRST_ALERT_DELAY_MINUTES', 'MAIL_LOW_IMPORTANCE_DELAY_MINUTES', 'MAIL_ALERT_FREQUENCY_MINUTES', 'MAIL_MUTE_AFTER_N_ALERTS'],
-        'تلگرام': ['TELEGRAM_ENABLED', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY', 'TELEGRAM_FIRST_ALERT_DELAY_MINUTES', 'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES', 'TELEGRAM_ALERT_FREQUENCY_MINUTES', 'TELEGRAM_MUTE_AFTER_N_ALERTS']
-    };
+    if (role === 'admin') {
+        const groups = {
+            'ایمیل': ['MAIL_ENABLED', 'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASS', 'MAIL_RECIPIENTS', 'MAIL_FIRST_ALERT_DELAY_MINUTES', 'MAIL_LOW_IMPORTANCE_DELAY_MINUTES', 'MAIL_ALERT_FREQUENCY_MINUTES', 'MAIL_MUTE_AFTER_N_ALERTS'],
+            'تلگرام': ['TELEGRAM_ENABLED', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY', 'TELEGRAM_FIRST_ALERT_DELAY_MINUTES', 'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES', 'TELEGRAM_ALERT_FREQUENCY_MINUTES', 'TELEGRAM_MUTE_AFTER_N_ALERTS']
+        };
 
-    const groupKeys = {
-        'ایمیل': 'Email',
-        'تلگرام': 'Telegram'
-    };
+        const groupKeys = {
+            'ایمیل': 'Email',
+            'تلگرام': 'Telegram'
+        };
 
-    for (const [grp, keys] of Object.entries(groups)) {
-        const engKey = groupKeys[grp];
+        for (const [grp, keys] of Object.entries(groups)) {
+            const engKey = groupKeys[grp];
 
-        let html = `<div class="card" id="grp-${engKey}">
-            <div class="card-header">
-                <h3>تنظیمات ${grp}</h3>
-                <button class="btn btn-ghost" style="padding:4px 12px; font-size:11px" onclick="testConn('${engKey.toLowerCase()}')">تست اتصال</button>
-            </div>`;
-
-        // 1. Add Master toggle if it exists
-        const enabledKey = keys.find(k => k.endsWith('ENABLED'));
-        if (enabledKey) {
-            const item = settingsCache.find(s => s.key === enabledKey);
-            if (item) {
-                const label = settingLabels[enabledKey] || enabledKey;
-                html += `<div class="settings-toggle-header">
-                    <span class="toggle-label">${label}</span>
-                    <label class="toggle">
-                        <input type="checkbox" id="${enabledKey}" ${item.value === 'true' ? 'checked' : ''}>
-                        <span class="toggle-slider"></span>
-                    </label>
+            let html = `<div class="card" id="grp-${engKey}">
+                <div class="card-header">
+                    <h3>تنظیمات ${grp}</h3>
+                    <button class="btn btn-ghost" style="padding:4px 12px; font-size:11px" onclick="testConn('${engKey.toLowerCase()}')">تست اتصال</button>
                 </div>`;
+
+            // 1. Add Master toggle if it exists
+            const enabledKey = keys.find(k => k.endsWith('ENABLED'));
+            if (enabledKey) {
+                const item = settingsCache.find(s => s.key === enabledKey);
+                if (item) {
+                    const label = settingLabels[enabledKey] || enabledKey;
+                    html += `<div class="settings-toggle-header">
+                        <span class="toggle-label">${label}</span>
+                        <label class="toggle">
+                            <input type="checkbox" id="${enabledKey}" ${item.value === 'true' ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>`;
+                }
             }
-        }
 
-        // 2. Add grid container for other fields
-        html += `<div class="settings-fields-grid">`;
+            // 2. Add grid container for other fields
+            html += `<div class="settings-fields-grid">`;
 
-        keys.forEach(k => {
-            if (k.endsWith('ENABLED')) return; // already handled
+            keys.forEach(k => {
+                if (k.endsWith('ENABLED')) return; // already handled
 
-            const item = settingsCache.find(s => s.key === k);
-            if (!item) return;
-            const label = settingLabels[k] || k;
+                const item = settingsCache.find(s => s.key === k);
+                if (!item) return;
+                const label = settingLabels[k] || k;
 
-            const isLongField = ['MAIL_RECIPIENTS', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY'].includes(k);
-            const gridClass = isLongField ? 'span-2' : '';
+                const isLongField = ['MAIL_RECIPIENTS', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY'].includes(k);
+                const gridClass = isLongField ? 'span-2' : '';
 
-            html += `<div class="form-field-group ${gridClass}">
-                <label class="form-label">${label}</label>
-                <input class="form-input" id="${k}" value="${item.value || ''}" type="${k.includes('PASS') || k.includes('TOKEN') ? 'password' : 'text'}">
+                html += `<div class="form-field-group ${gridClass}">
+                    <label class="form-label">${label}</label>
+                    <input class="form-input" id="${k}" value="${item.value || ''}" type="${k.includes('PASS') || k.includes('TOKEN') ? 'password' : 'text'}">
+                </div>`;
+            });
+
+            html += `</div>
+                <div class="settings-action-row">
+                    <button class="btn btn-primary" onclick="apply()">ذخیره و اعمال تنظیمات</button>
+                </div>
             </div>`;
-        });
+            con.innerHTML += html;
+        }
+    }
 
-        html += `</div>
-            <div class="settings-action-row">
-                <button class="btn btn-primary" onclick="apply()">ذخیره و اعمال تنظیمات</button>
-            </div>
-        </div>`;
-        con.innerHTML += html;
+    try {
+        const gRes = await apiFetch(`${API}/groups`);
+        groupCache = await gRes.json();
+    } catch (e) {
+        console.error('Error loading groups:', e);
     }
 
     const nRes = await apiFetch(`${API}/nvrs`);
@@ -364,7 +470,7 @@ function switchSettingsTab(tabId) {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
 
-    const tabs = ['sec-nvr', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system'];
+    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -374,6 +480,15 @@ function switchSettingsTab(tabId) {
 
     if (tabId === 'grp-Browser') {
         updateBrowserAlertsUI();
+    }
+    if (tabId === 'sec-groups') {
+        renderGroupsList();
+    }
+    if (tabId === 'sec-users') {
+        loadUsers();
+    }
+    if (tabId === 'sec-my-alerts') {
+        loadMyAlerts();
     }
 }
 
@@ -482,16 +597,109 @@ function renderNVRRow(n, deleted = false) {
             </div>
         </div>`;
     }
+
+    const role = window.currentUser ? window.currentUser.role : 'group_view';
+    let groupSelectOrLabel = '';
+    if (role === 'admin') {
+        let options = `<option value="">بدون کارخانه (بدون گروه)</option>`;
+        groupCache.forEach(g => {
+            const selected = n.group_id === g.id ? 'selected' : '';
+            options += `<option value="${g.id}" ${selected}>${g.name}</option>`;
+        });
+        groupSelectOrLabel = `<select class="form-input form-input-sm" style="margin-right: 12px; width: 160px; padding: 2px 8px; font-size:12px; height:28px" onchange="updateNVRGroup('${n.ip}', this.value)">${options}</select>`;
+    } else {
+        const group = groupCache.find(g => g.id === n.group_id);
+        const groupName = group ? group.name : 'بدون کارخانه';
+        groupSelectOrLabel = `<span style="margin-right: 12px; font-size: 12px; opacity: 0.8; color: var(--text-primary);">کارخانه: ${groupName}</span>`;
+    }
+
+    const deleteBtn = role === 'admin' ? `
+        <button class="btn-icon" onclick="delNVR('${n.ip}')" style="width:28px; height:28px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+    ` : '';
+
     return `<div class="list-item" id="nvr-row-${escaped}" data-ip="${n.ip}">
         <div class="list-item-info">
             ${n.name ? `<strong style="margin-left: 8px; color: var(--text-primary);">${n.name}</strong>` : ''}
             <span class="list-item-ip">${n.ip}</span>
             <span class="list-item-user">(${n.user})</span>
+            ${groupSelectOrLabel}
         </div>
-        <button class="btn-icon" onclick="delNVR('${n.ip}')" style="width:28px; height:28px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
+        ${deleteBtn}
     </div>`;
+}
+
+function renderGroupsList() {
+    const list = document.getElementById('group-list');
+    if (!list) return;
+    list.innerHTML = groupCache.map(g => `
+        <div class="list-item" id="group-row-${g.id}">
+            <div class="list-item-info">
+                <strong style="margin-left: 8px; color: var(--text-primary);">${g.name}</strong>
+                <span class="list-item-user">${g.description || ''}</span>
+            </div>
+            <button class="btn-icon" onclick="deleteGroup(${g.id})" style="width:28px; height:28px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+        </div>
+    `).join('');
+}
+
+async function addGroup() {
+    const name = document.getElementById('groupName').value.trim();
+    const desc = document.getElementById('groupDesc').value.trim();
+    if (!name) return showToast('نام کارخانه الزامی است', 'error');
+
+    try {
+        await apiFetch(`${API}/groups`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description: desc || null })
+        });
+        document.getElementById('groupName').value = '';
+        document.getElementById('groupDesc').value = '';
+        showToast('کارخانه با موفقیت اضافه شد');
+
+        // Refresh groups
+        const gRes = await apiFetch(`${API}/groups`);
+        groupCache = await gRes.json();
+        renderGroupsList();
+    } catch (e) {
+        showToast('خطا در افزودن کارخانه: ' + e.message, 'error');
+    }
+}
+
+async function deleteGroup(id) {
+    if (!confirm('آیا از حذف این کارخانه اطمینان دارید؟ NVRهای این کارخانه بدون گروه خواهند شد.')) return;
+    try {
+        await apiFetch(`${API}/groups/${id}`, { method: 'DELETE' });
+        showToast('کارخانه حذف شد');
+
+        // Refresh groups and reload settings (to refresh NVR dropdowns)
+        const gRes = await apiFetch(`${API}/groups`);
+        groupCache = await gRes.json();
+        loadSettings();
+    } catch (e) {
+        showToast('خطا در حذف کارخانه: ' + e.message, 'error');
+    }
+}
+
+async function updateNVRGroup(ip, groupId) {
+    try {
+        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ group_id: groupId ? parseInt(groupId) : null })
+        });
+        showToast('کارخانه NVR به‌روزرسانی شد');
+
+        // Update local nvrCache
+        const nRes = await apiFetch(`${API}/nvrs`);
+        nvrCache = await nRes.json();
+    } catch (e) {
+        showToast('خطا در به‌روزرسانی کارخانه NVR: ' + e.message, 'error');
+    }
 }
 
 function delNVR(ip) {
@@ -712,7 +920,21 @@ function toggleReportSection(forceHeatmap = null) {
 }
 
 // --- INIT ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+            window.currentUser = await res.json();
+            applyRoleUI();
+        } else {
+            window.location.href = '/login';
+            return;
+        }
+    } catch (e) {
+        console.error('Auth verification failed:', e);
+        window.location.href = '/login';
+        return;
+    }
     nav('summ');
     connectWS();
     initBrowserAlerts();
@@ -1945,5 +2167,149 @@ async function addCameraToCenter(id, hasFov) {
         marker.openPopup();
     } catch (e) {
         showToast('خطا در ذخیره موقعیت: ' + e.message, 'error');
+    }
+}
+
+// --- Role-Based Access Control (RBAC) frontend logic ---
+
+function applyRoleUI() {
+    if (!window.currentUser) return;
+    const role = window.currentUser.role;
+    
+    // Hide navigation views
+    document.querySelectorAll('[data-view="logs"]').forEach(el => {
+        el.style.display = (role === 'admin') ? '' : 'none';
+    });
+    document.querySelectorAll('[data-view="reports"]').forEach(el => {
+        el.style.display = (role === 'admin' || role === 'group_control') ? '' : 'none';
+    });
+    document.querySelectorAll('[data-view="settings"]').forEach(el => {
+        el.style.display = (role === 'admin' || role === 'group_control') ? '' : 'none';
+    });
+
+    const editBtn = document.getElementById('btn-edit-positions');
+    if (editBtn) {
+        editBtn.style.display = (role === 'group_view') ? 'none' : '';
+    }
+}
+
+// User CRUD management
+let usersCache = [];
+
+async function loadUsers() {
+    try {
+        const res = await apiFetch(`${API}/users`);
+        usersCache = await res.json();
+        renderUsersList();
+        
+        // Populate group options in User Form dropdown
+        const select = document.getElementById('userGroup');
+        if (select) {
+            select.innerHTML = '<option value="">بدون گروه</option>' + groupCache.map(g => 
+                `<option value="${g.id}">${g.name}</option>`
+            ).join('');
+        }
+    } catch (e) {
+        console.error('Error loading users:', e);
+    }
+}
+
+function renderUsersList() {
+    const list = document.getElementById('user-list');
+    if (!list) return;
+    if (usersCache.length === 0) {
+        list.innerHTML = '<div class="empty-state">کاربری تعریف نشده است</div>';
+        return;
+    }
+    list.innerHTML = usersCache.map(u => {
+        const group = groupCache.find(g => g.id === u.group_id);
+        const groupName = group ? group.name : 'بدون گروه';
+        const roleLabel = {
+            'admin': 'مدیر کامل',
+            'group_control': 'کنترل گروه',
+            'group_view': 'مشاهده گروه'
+        }[u.role] || u.role;
+        
+        return `<div class="list-item">
+            <div class="list-item-info">
+                <strong>${u.username}</strong>
+                <span style="font-size:12px; opacity:0.7; margin-right:15px;">نقش: ${roleLabel} | کارخانه: ${groupName}</span>
+            </div>
+            <div class="list-item-actions">
+                <button class="btn btn-ghost" onclick="deleteUser(${u.id})" style="color:var(--danger)">حذف</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function addUser() {
+    const username = document.getElementById('userName').value.trim();
+    const password = document.getElementById('userPass').value;
+    const role = document.getElementById('userRole').value;
+    const grpVal = document.getElementById('userGroup').value;
+    const group_id = grpVal ? parseInt(grpVal) : null;
+    
+    if (!username || !password) {
+        return showToast('نام کاربری و رمز عبور را وارد کنید', 'error');
+    }
+    
+    try {
+        await apiFetch(`${API}/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, role, group_id })
+        });
+        showToast('کاربر جدید با موفقیت اضافه شد');
+        document.getElementById('userName').value = '';
+        document.getElementById('userPass').value = '';
+        loadUsers();
+    } catch (e) {
+        showToast('خطا در افزودن کاربر: ' + e.message, 'error');
+    }
+}
+
+async function deleteUser(id) {
+    if (!confirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
+    try {
+        await apiFetch(`${API}/users/${id}`, { method: 'DELETE' });
+        showToast('کاربر با موفقیت حذف شد');
+        loadUsers();
+    } catch (e) {
+        showToast('خطا در حذف کاربر: ' + e.message, 'error');
+    }
+}
+
+// Personal Alert Settings management
+async function loadMyAlerts() {
+    try {
+        const res = await apiFetch(`${API}/me/alerts`);
+        const data = await res.json();
+        
+        document.getElementById('myMailEnabled').checked = data.mail_enabled;
+        document.getElementById('myMailRecipients').value = data.mail_recipients || '';
+        document.getElementById('myTelegramEnabled').checked = data.telegram_enabled;
+        document.getElementById('myTelegramChatIds').value = data.telegram_chat_ids || '';
+    } catch (e) {
+        console.error('Error loading personal alert settings:', e);
+    }
+}
+
+async function saveMyAlerts() {
+    const payload = {
+        mail_enabled: document.getElementById('myMailEnabled').checked,
+        mail_recipients: document.getElementById('myMailRecipients').value.trim(),
+        telegram_enabled: document.getElementById('myTelegramEnabled').checked,
+        telegram_chat_ids: document.getElementById('myTelegramChatIds').value.trim()
+    };
+    
+    try {
+        await apiFetch(`${API}/me/alerts`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        showToast('تنظیمات اعلان شخصی با موفقیت ذخیره شد');
+    } catch (e) {
+        showToast('خطا در ذخیره تنظیمات: ' + e.message, 'error');
     }
 }
