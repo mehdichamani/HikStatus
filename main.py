@@ -849,3 +849,21 @@ def update_my_alerts(payload: AlertSettingsUpdate, session: Session = Depends(ge
     session.add(alert_settings)
     session.commit()
     return alert_settings
+
+class ChangePasswordRequest(BaseModel):
+    new_password: str
+
+@app.post("/api/me/change-password")
+def change_my_password_endpoint(payload: ChangePasswordRequest, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    u_id = user["user_id"]
+    if u_id is None:
+        raise HTTPException(status_code=400, detail="رمز عبور مدیر سیستم باید از طریق تنظیمات سرور تغییر کند")
+        
+    db_user = session.get(User, u_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    db_user.password_hash = hash_password(payload.new_password)
+    session.add(db_user)
+    session.commit()
+    return {"status": "ok"}

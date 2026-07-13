@@ -2191,6 +2191,11 @@ function applyRoleUI() {
     if (editBtn) {
         editBtn.style.display = (role === 'group_view') ? 'none' : '';
     }
+
+    const headerUsername = document.getElementById('header-username');
+    if (headerUsername) {
+        headerUsername.textContent = window.currentUser.username;
+    }
 }
 
 // User CRUD management
@@ -2311,5 +2316,53 @@ async function saveMyAlerts() {
         showToast('تنظیمات اعلان شخصی با موفقیت ذخیره شد');
     } catch (e) {
         showToast('خطا در ذخیره تنظیمات: ' + e.message, 'error');
+    }
+}
+
+// --- Profile & Change Password Handlers ---
+
+function openProfileModal() {
+    if (!window.currentUser) return;
+    
+    document.getElementById('p-username').textContent = window.currentUser.username;
+    
+    const roleLabel = {
+        'admin': 'مدیر کامل سیستم',
+        'group_control': 'کنترل گروه/کارخانه',
+        'group_view': 'مشاهده گروه/کارخانه'
+    }[window.currentUser.role] || window.currentUser.role;
+    
+    document.getElementById('p-role').textContent = roleLabel;
+    document.getElementById('p-new-pass').value = '';
+    document.getElementById('p-new-pass-confirm').value = '';
+    
+    document.getElementById('profileModal').classList.add('open');
+}
+
+function closeProfileModal() {
+    document.getElementById('profileModal').classList.remove('open');
+}
+
+async function changeMyPassword() {
+    const newPass = document.getElementById('p-new-pass').value;
+    const confirmPass = document.getElementById('p-new-pass-confirm').value;
+    
+    if (!newPass) {
+        return showToast('رمز عبور جدید را وارد کنید', 'error');
+    }
+    if (newPass !== confirmPass) {
+        return showToast('رمز عبور جدید و تکرار آن مطابقت ندارند', 'error');
+    }
+    
+    try {
+        await apiFetch(`${API}/me/change-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_password: newPass })
+        });
+        showToast('رمز عبور با موفقیت تغییر یافت');
+        closeProfileModal();
+    } catch (e) {
+        showToast('خطا در تغییر رمز عبور: ' + e.message, 'error');
     }
 }
