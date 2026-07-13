@@ -365,6 +365,53 @@
                         </p>
                     </div>
 
+                    <!-- Camera FOV Settings Sidebar Section -->
+                    <div class="side-section" id="map-fov-section" style="display: none; background: rgba(99, 102, 241, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.15); margin-bottom: 12px; direction: rtl;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong style="color: var(--text-primary); font-size: 13px;" id="map-fov-cam-name">تنظیم محدوده دید دوربین</strong>
+                            <button class="btn-close" onclick="closeMapFovSection()" style="width: 20px; height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-muted); cursor: pointer;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="settings-toggle-header" style="padding: 0; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <span class="toggle-label" style="font-size: 12px;">فعال‌سازی محدوده دید (FOV)</span>
+                            <label class="toggle">
+                                <input type="checkbox" id="sidebar-fov-enable" onchange="toggleSidebarFov(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="sidebar-fov-sliders" style="display: none;">
+                            <div class="form-field-group" style="margin-bottom: 10px; display: flex; flex-direction: column;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <span class="form-label" style="margin: 0; font-size: 11px;">جهت زاویه</span>
+                                    <span id="lbl-sidebar-angle" style="color: var(--primary-hover); font-weight: bold; font-size: 12px;">0°</span>
+                                </div>
+                                <input type="range" id="sidebar-fov-angle" min="0" max="360" value="0" style="width: 100%; accent-color: var(--primary);" oninput="updateSidebarFovVal('angle', this.value)">
+                            </div>
+                            
+                            <div class="form-field-group" style="margin-bottom: 10px; display: flex; flex-direction: column;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <span class="form-label" style="margin: 0; font-size: 11px;">شعاع برد (فاصله)</span>
+                                    <span id="lbl-sidebar-radius" style="color: var(--primary-hover); font-weight: bold; font-size: 12px;">50</span>
+                                </div>
+                                <input type="range" id="sidebar-fov-radius" min="5" max="500" value="50" style="width: 100%; accent-color: var(--primary);" oninput="updateSidebarFovVal('radius', this.value)">
+                            </div>
+                            
+                            <div class="form-field-group" style="margin-bottom: 10px; display: flex; flex-direction: column;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <span class="form-label" style="margin: 0; font-size: 11px;">زاویه پخش (وسعت دید)</span>
+                                    <span id="lbl-sidebar-spread" style="color: var(--primary-hover); font-weight: bold; font-size: 12px;">60°</span>
+                                </div>
+                                <input type="range" id="sidebar-fov-spread" min="10" max="180" value="60" style="width: 100%; accent-color: var(--primary);" oninput="updateSidebarFovVal('spread', this.value)">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="side-section"
                         style="flex: 1; display: flex; flex-direction: column; min-height: 250px; overflow: hidden; margin-bottom: 0;">
                         <label class="form-label">لیست دوربین‌ها</label>

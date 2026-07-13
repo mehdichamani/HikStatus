@@ -1458,6 +1458,10 @@ function setupLeafletMap() {
             localStorage.setItem(zoomKey, map.getZoom());
         }
     });
+
+    map.on('click', () => {
+        closeMapFovSection();
+    });
 }
 
 function getFovPolygonPoints(centerLatLng, radius, angle, spread) {
@@ -1775,7 +1779,10 @@ function createMarkerForMap(c, latlng) {
     marker.camera_id = c.id;
     marker.fovPolygon = fovPolygon;
 
-    marker.bindPopup(getMarkerPopupContent(c));
+    marker.on('click', function (e) {
+        L.DomEvent.stopPropagation(e);
+        selectMarkerForFov(marker, c);
+    });
 
     marker.on('drag', function (e) {
         if (marker.fovPolygon) {
@@ -1822,6 +1829,9 @@ function createMarkerForMap(c, latlng) {
 }
 
 function drawCameraMarkers(bounds = null, w = 1, h = 1) {
+    if (typeof clearActiveFovSelection === 'function') {
+        clearActiveFovSelection();
+    }
     mapMarkers.forEach(m => {
         if (m.fovPolygon) {
             map.removeLayer(m.fovPolygon);
@@ -2092,7 +2102,8 @@ function focusCameraOnMap(id) {
     if (marker) {
         const latlng = marker.getLatLng();
         map.flyTo(latlng, map.getZoom());
-        marker.openPopup();
+        const c = mapCamerasList.find(cam => cam.id === id);
+        if (c) selectMarkerForFov(marker, c);
     } else {
         showToast('این دوربین در نقشه یافت نشد', 'error');
     }
@@ -2163,8 +2174,8 @@ async function addCameraToCenter(id, hasFov) {
         // Re-render the sidebar list to update buttons without modifying map position
         renderMapCameraList();
 
-        // Open the marker's popup immediately
-        marker.openPopup();
+        // Select the marker to open the FOV sidebar immediately
+        selectMarkerForFov(marker, c);
     } catch (e) {
         showToast('خطا در ذخیره موقعیت: ' + e.message, 'error');
     }
@@ -2365,4 +2376,267 @@ async function changeMyPassword() {
     } catch (e) {
         showToast('خطا در تغییر رمز عبور: ' + e.message, 'error');
     }
+}
+
+// --- Interactive FOV Editor & Dragging Handles ---
+
+let activeFovMarker = null;
+let activeFovCamera = null;
+let fovHandles = [];
+
+function selectMarkerForFov(marker, c) {
+    clearActiveFovSelection();
+    
+    activeFovMarker = marker;
+    activeFovCamera = c;
+    
+    const panel = document.getElementById('map-fov-section');
+    if (!panel) return;
+    panel.style.display = 'block';
+    
+    document.getElementById('map-fov-cam-name').textContent = `تنظیم محدوده دید دوربین "${c.name}"`;
+    
+    const isFovEnabled = c.fov_angle != null && c.fov_radius != null;
+    document.getElementById('sidebar-fov-enable').checked = isFovEnabled;
+    
+    const slidersBlock = document.getElementById('sidebar-fov-sliders');
+    slidersBlock.style.display = isFovEnabled ? 'block' : 'none';
+    
+    if (isFovEnabled) {
+        document.getElementById('sidebar-fov-angle').value = c.fov_angle || 0;
+        document.getElementById('lbl-sidebar-angle').textContent = `${c.fov_angle || 0}°`;
+        
+        document.getElementById('sidebar-fov-radius').value = c.fov_radius || 50;
+        document.getElementById('lbl-sidebar-radius').textContent = c.fov_radius || 50;
+        
+        document.getElementById('sidebar-fov-spread').value = c.fov_spread || 60;
+        document.getElementById('lbl-sidebar-spread').textContent = `${c.fov_spread || 60}°`;
+        
+        spawnFovHandles();
+    }
+}
+
+function clearActiveFovSelection() {
+    fovHandles.forEach(h => map.removeLayer(h));
+    fovHandles = [];
+    activeFovMarker = null;
+    activeFovCamera = null;
+}
+
+function closeMapFovSection() {
+    const panel = document.getElementById('map-fov-section');
+    if (panel) panel.style.display = 'none';
+    clearActiveFovSelection();
+}
+
+function spawnFovHandles() {
+    fovHandles.forEach(h => map.removeLayer(h));
+    fovHandles = [];
+    
+    if (!activeFovMarker || !activeFovCamera || !activeFovMarker.fovPolygon) return;
+    
+    const c = activeFovCamera;
+    const center = activeFovMarker.getLatLng();
+    const pts = activeFovMarker.fovPolygon.getLatLngs()[0];
+    
+    if (!pts || pts.length < 3) return;
+    
+    const leftPt = pts[1];
+    const rightPt = pts[pts.length - 2];
+    
+    const handleIcon = L.divIcon({
+        className: 'fov-handle-icon',
+        html: `<div style="width: 12px; height: 12px; background: #ef4444; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); cursor: move;"></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+    });
+    
+    const leftHandle = L.marker(leftPt, { icon: handleIcon, draggable: true }).addTo(map);
+    const rightHandle = L.marker(rightPt, { icon: handleIcon, draggable: true }).addTo(map);
+    
+    fovHandles.push(leftHandle, rightHandle);
+    
+    leftHandle.on('drag', () => handleDrag(leftHandle, rightHandle));
+    rightHandle.on('drag', () => handleDrag(leftHandle, rightHandle));
+    
+    leftHandle.on('dragend', () => saveFovFromHandles());
+    rightHandle.on('dragend', () => saveFovFromHandles());
+}
+
+function getFlatAngle(center, pt) {
+    const cy = center.lat !== undefined ? center.lat : center[0];
+    const cx = center.lng !== undefined ? center.lng : center[1];
+    const py = pt.lat !== undefined ? pt.lat : pt[0];
+    const px = pt.lng !== undefined ? pt.lng : pt[1];
+    
+    const dx = px - cx;
+    const dy = py - cy;
+    const rad = Math.atan2(dy, dx);
+    let deg = 90 - (rad * 180 / Math.PI);
+    while (deg < 0) deg += 360;
+    while (deg >= 360) deg -= 360;
+    return deg;
+}
+
+function getGeoAngle(center, pt) {
+    const lat1 = (center.lat) * Math.PI / 180;
+    const lng1 = (center.lng) * Math.PI / 180;
+    const lat2 = (pt.lat) * Math.PI / 180;
+    const lng2 = (pt.lng) * Math.PI / 180;
+    
+    const dLng = lng2 - lng1;
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    let brng = Math.atan2(y, x) * 180 / Math.PI;
+    while (brng < 0) brng += 360;
+    while (brng >= 360) brng -= 360;
+    return brng;
+}
+
+function handleDrag(leftHandle, rightHandle) {
+    if (!activeFovMarker || !activeFovCamera) return;
+    
+    const c = activeFovCamera;
+    const center = activeFovMarker.getLatLng();
+    const leftLatLng = leftHandle.getLatLng();
+    const rightLatLng = rightHandle.getLatLng();
+    
+    let radius, leftAngle, rightAngle;
+    
+    if (mapType === 'floor') {
+        const distL = Math.sqrt(Math.pow(leftLatLng.lat - center.lat, 2) + Math.pow(leftLatLng.lng - center.lng, 2));
+        const distR = Math.sqrt(Math.pow(rightLatLng.lat - center.lat, 2) + Math.pow(rightLatLng.lng - center.lng, 2));
+        radius = Math.round((distL + distR) / 2);
+        
+        leftAngle = getFlatAngle(center, leftLatLng);
+        rightAngle = getFlatAngle(center, rightLatLng);
+    } else {
+        const distL = map.distance(center, leftLatLng);
+        const distR = map.distance(center, rightLatLng);
+        radius = Math.round((distL + distR) / 2);
+        
+        leftAngle = getGeoAngle(center, leftLatLng);
+        rightAngle = getGeoAngle(center, rightLatLng);
+    }
+    
+    let spread = rightAngle - leftAngle;
+    if (spread < 0) spread += 360;
+    
+    spread = Math.max(10, Math.min(180, spread));
+    
+    let angle = leftAngle + (spread / 2);
+    while (angle >= 360) angle -= 360;
+    
+    c.fov_angle = Math.round(angle);
+    c.fov_radius = Math.round(radius);
+    c.fov_spread = Math.round(spread);
+    
+    document.getElementById('sidebar-fov-angle').value = c.fov_angle;
+    document.getElementById('lbl-sidebar-angle').textContent = `${c.fov_angle}°`;
+    
+    document.getElementById('sidebar-fov-radius').value = c.fov_radius;
+    document.getElementById('lbl-sidebar-radius').textContent = c.fov_radius;
+    
+    document.getElementById('sidebar-fov-spread').value = c.fov_spread;
+    document.getElementById('lbl-sidebar-spread').textContent = `${c.fov_spread}°`;
+    
+    if (activeFovMarker.fovPolygon) {
+        const pts = calculateFovPoints(c, center);
+        activeFovMarker.fovPolygon.setLatLngs(pts);
+    }
+}
+
+function saveFovFromHandles() {
+    if (!activeFovCamera) return;
+    const c = activeFovCamera;
+    saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
+    spawnFovHandles();
+}
+
+async function toggleSidebarFov(enabled) {
+    if (!activeFovMarker || !activeFovCamera) return;
+    
+    const c = activeFovCamera;
+    const marker = activeFovMarker;
+    const slidersBlock = document.getElementById('sidebar-fov-sliders');
+    
+    if (enabled) {
+        slidersBlock.style.display = 'block';
+        c.fov_angle = 0;
+        c.fov_radius = mapType === 'floor' ? 80 : 50;
+        c.fov_spread = 60;
+        
+        document.getElementById('sidebar-fov-angle').value = c.fov_angle;
+        document.getElementById('lbl-sidebar-angle').textContent = `${c.fov_angle}°`;
+        document.getElementById('sidebar-fov-radius').value = c.fov_radius;
+        document.getElementById('lbl-sidebar-radius').textContent = c.fov_radius;
+        document.getElementById('sidebar-fov-spread').value = c.fov_spread;
+        document.getElementById('lbl-sidebar-spread').textContent = `${c.fov_spread}°`;
+        
+        if (marker.fovPolygon) {
+            map.removeLayer(marker.fovPolygon);
+        }
+        
+        const pts = calculateFovPoints(c, marker.getLatLng());
+        marker.fovPolygon = L.polygon(pts, {
+            color: '#ef4444',
+            fillColor: '#ef4444',
+            fillOpacity: 0.15,
+            weight: 1.5
+        }).addTo(map);
+        
+        spawnFovHandles();
+        saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
+    } else {
+        slidersBlock.style.display = 'none';
+        c.fov_angle = null;
+        c.fov_radius = null;
+        c.fov_spread = null;
+        
+        if (marker.fovPolygon) {
+            map.removeLayer(marker.fovPolygon);
+            marker.fovPolygon = null;
+        }
+        
+        fovHandles.forEach(h => map.removeLayer(h));
+        fovHandles = [];
+        
+        await apiFetch(`${API}/cameras/${c.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fov_angle: null,
+                fov_radius: null,
+                fov_spread: null
+            })
+        });
+        showToast('محدوده دید دوربین غیرفعال شد');
+    }
+}
+
+function updateSidebarFovVal(field, value) {
+    if (!activeFovMarker || !activeFovCamera) return;
+    
+    const c = activeFovCamera;
+    const marker = activeFovMarker;
+    const val = parseInt(value);
+    
+    if (field === 'angle') {
+        c.fov_angle = val;
+        document.getElementById('lbl-sidebar-angle').textContent = `${val}°`;
+    } else if (field === 'radius') {
+        c.fov_radius = val;
+        document.getElementById('lbl-sidebar-radius').textContent = val;
+    } else if (field === 'spread') {
+        c.fov_spread = val;
+        document.getElementById('lbl-sidebar-spread').textContent = `${val}°`;
+    }
+    
+    if (marker.fovPolygon) {
+        const pts = calculateFovPoints(c, marker.getLatLng());
+        marker.fovPolygon.setLatLngs(pts);
+    }
+    
+    spawnFovHandles();
+    saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
 }
