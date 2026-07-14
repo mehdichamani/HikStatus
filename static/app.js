@@ -246,19 +246,14 @@ async function showCam(data) {
         recConfigEl.style.color = '';
     }
     
-    const recActualEl = document.getElementById('m-rec-actual');
-    if (c.is_recording === true) {
-        recActualEl.textContent = 'در حال ضبط';
-        recActualEl.style.color = '#28a745';
-    } else if (c.is_recording === false) {
-        recActualEl.textContent = 'عدم ضبط';
-        recActualEl.style.color = '#dc3545';
-    } else {
-        recActualEl.textContent = 'نامشخص';
-        recActualEl.style.color = '';
+    let rec24hText = 'نامشخص';
+    if (c.recording_hours_24h !== null) {
+        const totalSeconds = Math.round(c.recording_hours_24h * 3600);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        rec24hText = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
-    
-    document.getElementById('m-rec-24h').textContent = c.recording_hours_24h !== null ? `${c.recording_hours_24h} ساعت` : 'نامشخص';
+    document.getElementById('m-rec-24h').textContent = rec24hText;
     
     if (c.oldest_record) {
         const dt = new Date(c.oldest_record);

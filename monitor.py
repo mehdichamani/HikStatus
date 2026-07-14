@@ -603,7 +603,7 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
                                     if et_dt > recent_threshold:
                                         is_recording = True
                                         
-                            recording_hours_24h = round(total_seconds_24h / 3600, 1)
+                            recording_hours_24h = total_seconds_24h / 3600
                 
                 cam.is_recording = is_recording
                 cam.recording_hours_24h = recording_hours_24h
