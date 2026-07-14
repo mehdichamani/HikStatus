@@ -54,6 +54,7 @@ class Camera(SQLModel, table=True):
     oldest_record: Optional[datetime] = None
     total_record_size_gb: Optional[float] = None
     total_record_duration_hours: Optional[float] = None
+    recording_hours_24h: Optional[float] = None
     stats_last_updated: Optional[datetime] = None
 
 class DowntimeEvent(SQLModel, table=True):
@@ -141,6 +142,7 @@ def init_db():
             "oldest_record": "TIMESTAMP",
             "total_record_size_gb": "REAL",
             "total_record_duration_hours": "REAL",
+            "recording_hours_24h": "REAL",
             "stats_last_updated": "TIMESTAMP"
         }
         

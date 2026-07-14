@@ -484,7 +484,8 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
         url = f"http://{ip}/ISAPI/ContentMgmt/search"
         headers = {"Content-Type": "application/xml"}
         now_local = datetime.now()
-        now_utc = datetime.utcnow()
+        from datetime import timezone
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         now_str = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
         
         for cam in cams:
@@ -528,6 +529,7 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
                     total_size_bytes = 0
                     total_duration_seconds = 0
                     is_recording = False
+                    recording_hours_24h = 0.0
                     
                     match_items = root.findall('.//ns:searchMatchItem', namespace)
                     if match_items:
@@ -556,8 +558,10 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
                         # Duration is the total span from oldest record to now
                         total_duration_seconds = (now_utc - oldest_record).total_seconds()
                         
-                        # Check active recording by searching last 15 mins
-                        recent_start = (now_utc - timedelta(minutes=15)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        # Query the last 24 hours of recordings to compute 24h stats and current status
+                        yesterday_utc = now_utc - timedelta(hours=24)
+                        yesterday_str = yesterday_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+                        
                         recent_payload = f"""<CMSearchDescription version="1.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
     <searchID>{str(uuid.uuid4()).upper()}</searchID>
     <trackIDList>
@@ -565,20 +569,44 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
     </trackIDList>
     <timeSpanList>
         <timeSpan>
-            <startTime>{recent_start}</startTime>
+            <startTime>{yesterday_str}</startTime>
             <endTime>{now_str}</endTime>
         </timeSpan>
     </timeSpanList>
-    <maxResults>1</maxResults>
+    <maxResults>2000</maxResults>
+    <searchResultPostion>0</searchResultPostion>
 </CMSearchDescription>"""
-                    resp_recent = req_sess.post(url, auth=HTTPDigestAuth(user, password), data=recent_payload, headers=headers, timeout=5, proxies={})
-                    if resp_recent.status_code == 200:
-                        root_recent = ET.fromstring(resp_recent.content)
-                        recent_matches = root_recent.find('ns:numOfMatches', namespace)
-                        recent_count = int(recent_matches.text) if recent_matches is not None else 0
-                        is_recording = recent_count > 0
+                        resp_recent = req_sess.post(url, auth=HTTPDigestAuth(user, password), data=recent_payload, headers=headers, timeout=10, proxies={})
+                        
+                        if resp_recent.status_code == 200:
+                            root_recent = ET.fromstring(resp_recent.content)
+                            match_items_24h = root_recent.findall('.//ns:searchMatchItem', namespace)
+                            
+                            total_seconds_24h = 0
+                            recent_threshold = now_utc - timedelta(minutes=15)
+                            
+                            for item in match_items_24h:
+                                st_str = item.find('.//ns:startTime', namespace).text
+                                et_str = item.find('.//ns:endTime', namespace).text
+                                
+                                if st_str and et_str:
+                                    st_dt = datetime.fromisoformat(st_str.replace("Z", ""))
+                                    et_dt = datetime.fromisoformat(et_str.replace("Z", ""))
+                                    
+                                    # Calculate 24h overlap
+                                    overlap_start = max(st_dt, yesterday_utc)
+                                    overlap_end = min(et_dt, now_utc)
+                                    if overlap_end > overlap_start:
+                                        total_seconds_24h += (overlap_end - overlap_start).total_seconds()
+                                    
+                                    # Check if it recorded anything in the last 15 minutes
+                                    if et_dt > recent_threshold:
+                                        is_recording = True
+                                        
+                            recording_hours_24h = round(total_seconds_24h / 3600, 1)
                 
                 cam.is_recording = is_recording
+                cam.recording_hours_24h = recording_hours_24h
                 cam.oldest_record = oldest_record
                 cam.total_record_size_gb = round(total_size_bytes / (1024 * 1024 * 1024), 2)
                 cam.total_record_duration_hours = round(total_duration_seconds / 3600, 1)
@@ -776,6 +804,7 @@ async def start_monitor_loop():
                         "is_recording": c.is_recording,
                         "recording_scheduled": c.recording_scheduled,
                         "recording_schedule_type": c.recording_schedule_type,
+                        "recording_hours_24h": c.recording_hours_24h,
                         "oldest_record": c.oldest_record.isoformat() if c.oldest_record else None,
                         "total_record_size_gb": c.total_record_size_gb,
                         "total_record_duration_hours": c.total_record_duration_hours,

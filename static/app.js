@@ -258,6 +258,8 @@ async function showCam(data) {
         recActualEl.style.color = '';
     }
     
+    document.getElementById('m-rec-24h').textContent = c.recording_hours_24h !== null ? `${c.recording_hours_24h} ساعت` : 'نامشخص';
+    
     if (c.oldest_record) {
         const dt = new Date(c.oldest_record);
         document.getElementById('m-oldest').textContent = dt.toLocaleString('fa-IR');
