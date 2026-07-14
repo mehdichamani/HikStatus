@@ -49,6 +49,8 @@ class Camera(SQLModel, table=True):
 
     model: Optional[str] = None
     is_recording: Optional[bool] = None
+    recording_scheduled: Optional[bool] = None
+    recording_schedule_type: Optional[str] = None
     oldest_record: Optional[datetime] = None
     total_record_size_gb: Optional[float] = None
     total_record_duration_hours: Optional[float] = None
@@ -134,6 +136,8 @@ def init_db():
             "fov_spread": "REAL",
             "model": "TEXT",
             "is_recording": "BOOLEAN",
+            "recording_scheduled": "BOOLEAN",
+            "recording_schedule_type": "TEXT",
             "oldest_record": "TIMESTAMP",
             "total_record_size_gb": "REAL",
             "total_record_duration_hours": "REAL",

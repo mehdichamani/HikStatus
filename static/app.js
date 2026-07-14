@@ -233,16 +233,29 @@ async function showCam(data) {
     // Populate specs & recording stats
     document.getElementById('m-model').textContent = c.model || 'نامشخص';
     
-    const recEl = document.getElementById('m-rec');
-    if (c.is_recording === true) {
-        recEl.textContent = 'در حال ضبط';
-        recEl.style.color = '#28a745';
-    } else if (c.is_recording === false) {
-        recEl.textContent = 'عدم ضبط';
-        recEl.style.color = '#dc3545';
+    const recConfigEl = document.getElementById('m-rec-config');
+    if (c.recording_scheduled === true) {
+        const typeStr = c.recording_schedule_type ? ` (${c.recording_schedule_type})` : '';
+        recConfigEl.textContent = `فعال${typeStr}`;
+        recConfigEl.style.color = '#28a745';
+    } else if (c.recording_scheduled === false) {
+        recConfigEl.textContent = 'غیرفعال';
+        recConfigEl.style.color = '#dc3545';
     } else {
-        recEl.textContent = 'نامشخص';
-        recEl.style.color = '';
+        recConfigEl.textContent = 'نامشخص';
+        recConfigEl.style.color = '';
+    }
+    
+    const recActualEl = document.getElementById('m-rec-actual');
+    if (c.is_recording === true) {
+        recActualEl.textContent = 'در حال ضبط';
+        recActualEl.style.color = '#28a745';
+    } else if (c.is_recording === false) {
+        recActualEl.textContent = 'عدم ضبط';
+        recActualEl.style.color = '#dc3545';
+    } else {
+        recActualEl.textContent = 'نامشخص';
+        recActualEl.style.color = '';
     }
     
     if (c.oldest_record) {

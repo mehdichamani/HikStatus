@@ -310,6 +310,118 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
 
     session.add(nvr_obj)
 
+def sync_recording_schedule_config(ip, user, password, session=None):
+    is_local_session = session is None
+    db_session = session if session is not None else Session(engine)
+    
+    try:
+        cams = db_session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
+        if not cams:
+            return
+            
+        url_all = f"http://{ip}/ISAPI/ContentMgmt/record/tracks"
+        req_sess = requests.Session()
+        req_sess.trust_env = False
+        
+        # Try fetching all tracks at once
+        tracks_data = {}
+        try:
+            resp = req_sess.get(url_all, auth=HTTPDigestAuth(user, password), timeout=8, proxies={})
+            if resp.status_code == 200:
+                root = ET.fromstring(resp.content)
+                
+                def get_local_name(elem):
+                    return elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+
+                for elem in root.iter():
+                    local_name = get_local_name(elem)
+                    if local_name in ('RecordTrack', 'Track'):
+                        t_id = None
+                        enabled = None
+                        sched_type = None
+                        
+                        for child in elem:
+                            c_local = get_local_name(child)
+                            if c_local == 'id':
+                                t_id = child.text
+                            elif c_local in ('enabled', 'Enable', 'Enabled'):
+                                enabled = child.text == 'true'
+                            elif c_local in ('recordScheduleType', 'scheduleType', 'recordType'):
+                                sched_type = child.text
+                            elif c_local == 'RecordSchedule':
+                                for sub_child in child:
+                                    sc_local = get_local_name(sub_child)
+                                    if sc_local in ('scheduleType', 'ScheduleType', 'recordScheduleType'):
+                                        sched_type = sub_child.text
+                                        
+                        if t_id is not None:
+                            tracks_data[t_id] = {'enabled': enabled, 'type': sched_type}
+        except Exception as e:
+            print(f"Warning: Failed to fetch all tracks config at once for {ip}: {e}")
+
+        for cam in cams:
+            try:
+                chan_int = int(cam.channel_id)
+                track_id = str(chan_int * 100 + 1) if chan_int < 100 else cam.channel_id
+            except ValueError:
+                track_id = cam.channel_id
+                
+            enabled = None
+            sched_type = None
+            
+            if track_id in tracks_data:
+                enabled = tracks_data[track_id]['enabled']
+                sched_type = tracks_data[track_id]['type']
+            else:
+                try:
+                    url_single = f"http://{ip}/ISAPI/ContentMgmt/record/tracks/{track_id}"
+                    resp_single = req_sess.get(url_single, auth=HTTPDigestAuth(user, password), timeout=5, proxies={})
+                    if resp_single.status_code == 200:
+                        root_s = ET.fromstring(resp_single.content)
+                        
+                        def get_local_name(elem):
+                            return elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+                            
+                        for elem in root_s.iter():
+                            local_name = get_local_name(elem)
+                            if local_name in ('enabled', 'Enable', 'Enabled'):
+                                enabled = elem.text == 'true'
+                            elif local_name in ('recordScheduleType', 'scheduleType', 'recordType'):
+                                sched_type = elem.text
+                            elif local_name == 'RecordSchedule':
+                                for sub_child in elem:
+                                    sc_local = get_local_name(sub_child)
+                                    if sc_local in ('scheduleType', 'ScheduleType', 'recordScheduleType'):
+                                        sched_type = sub_child.text
+                except Exception as e_single:
+                    print(f"Warning: Failed to fetch single track {track_id} for NVR {ip}: {e_single}")
+
+            cam.recording_scheduled = enabled
+            if sched_type:
+                translation_map = {
+                    "Continuous": "مداوم (Continuous)",
+                    "Motion": "حرکتی (Motion)",
+                    "Alarm": "آلارم (Alarm)",
+                    "Motion | Alarm": "حرکت و آلارم (Motion/Alarm)",
+                    "Motion/Alarm": "حرکت و آلارم (Motion/Alarm)",
+                    "Event": "رویداد (Event)"
+                }
+                cam.recording_schedule_type = translation_map.get(sched_type, sched_type)
+            else:
+                cam.recording_schedule_type = None
+                
+            db_session.add(cam)
+            
+        db_session.commit()
+    except Exception as outer_err:
+        print(f"Warning: Error syncing recording schedule config for NVR {ip}: {outer_err}")
+    finally:
+        if is_local_session:
+            db_session.close()
+
+def run_config_sync_in_thread(ip, user, password):
+    sync_recording_schedule_config(ip, user, password)
+
 def sync_recording_stats_from_nvr(ip, user, password, session=None):
     import uuid
     import urllib.parse
@@ -444,6 +556,7 @@ async def start_monitor_loop():
     print("Monitor loop started...")
     last_summary_hour = -1
     last_stats_update_time = None
+    last_config_update_time = None
     
     with Session(engine) as session:
         log_event(session, "Service", "Started", "Monitor loop initialized")
@@ -454,9 +567,12 @@ async def start_monitor_loop():
             for n in nvrs:
                 print(f"Syncing camera names for NVR {n.ip} on startup...")
                 await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password)
+                print(f"Syncing recording schedule configs for NVR {n.ip} on startup...")
+                await asyncio.to_thread(sync_recording_schedule_config, n.ip, n.user, n.password)
                 print(f"Syncing recording stats for NVR {n.ip} on startup...")
                 await asyncio.to_thread(sync_recording_stats_from_nvr, n.ip, n.user, n.password)
             last_stats_update_time = datetime.now()
+            last_config_update_time = datetime.now()
         except Exception as startup_sync_err:
             print(f"Warning: Startup camera sync failed: {startup_sync_err}")
 
@@ -612,6 +728,8 @@ async def start_monitor_loop():
                         "x_pos": c.x_pos, "y_pos": c.y_pos,
                         "model": c.model,
                         "is_recording": c.is_recording,
+                        "recording_scheduled": c.recording_scheduled,
+                        "recording_schedule_type": c.recording_schedule_type,
                         "oldest_record": c.oldest_record.isoformat() if c.oldest_record else None,
                         "total_record_size_gb": c.total_record_size_gb,
                         "total_record_duration_hours": c.total_record_duration_hours,
@@ -619,8 +737,15 @@ async def start_monitor_loop():
                     })
                 await broadcast({"type": "cameras", "data": cam_data})
                 
+                # Trigger periodic camera config update in the background (every 1 hour)
                 # Trigger periodic camera stats update in the background (every 2 hours)
                 now_dt = datetime.now()
+                if last_config_update_time is None or (now_dt - last_config_update_time).total_seconds() > 3600:
+                    print("Triggering background camera recording config sync...")
+                    for n in nvrs:
+                        asyncio.create_task(asyncio.to_thread(run_config_sync_in_thread, n.ip, n.user, n.password))
+                    last_config_update_time = now_dt
+
                 if last_stats_update_time is None or (now_dt - last_stats_update_time).total_seconds() > 7200:
                     print("Triggering background camera recording stats sync...")
                     for n in nvrs:
