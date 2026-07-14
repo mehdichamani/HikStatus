@@ -340,12 +340,22 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                         enabled = None
                         sched_type = None
                         
+                        # Check enableSchedule first
+                        enable_sched_elem = None
+                        for sub_elem in elem.iter():
+                            if get_local_name(sub_elem) == 'enableSchedule':
+                                enable_sched_elem = sub_elem
+                                break
+                        if enable_sched_elem is not None:
+                            enabled = enable_sched_elem.text == 'true'
+                        
                         for child in elem:
                             c_local = get_local_name(child)
                             if c_local == 'id':
                                 t_id = child.text
                             elif c_local in ('enabled', 'Enable', 'Enabled'):
-                                enabled = child.text == 'true'
+                                if enabled is None:
+                                    enabled = child.text == 'true'
                             elif c_local in ('recordScheduleType', 'scheduleType', 'recordType'):
                                 sched_type = child.text
                             elif c_local == 'RecordSchedule':
@@ -354,6 +364,16 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                                     if sc_local in ('scheduleType', 'ScheduleType', 'recordScheduleType'):
                                         sched_type = sub_child.text
                                         
+                        # Fallback for schedule type
+                        if sched_type is None:
+                            def_rec_elem = None
+                            for sub_elem in elem.iter():
+                                if get_local_name(sub_elem) in ('DefaultRecordingMode', 'ActionRecordingMode'):
+                                    def_rec_elem = sub_elem
+                                    break
+                            if def_rec_elem is not None:
+                                sched_type = def_rec_elem.text
+
                         if t_id is not None:
                             tracks_data[t_id] = {'enabled': enabled, 'type': sched_type}
         except Exception as e:
@@ -382,10 +402,20 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                         def get_local_name(elem):
                             return elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
                             
+                        # Try to find enableSchedule first
+                        enable_sched_elem = None
+                        for elem in root_s.iter():
+                            if get_local_name(elem) == 'enableSchedule':
+                                enable_sched_elem = elem
+                                break
+                        if enable_sched_elem is not None:
+                            enabled = enable_sched_elem.text == 'true'
+                            
                         for elem in root_s.iter():
                             local_name = get_local_name(elem)
                             if local_name in ('enabled', 'Enable', 'Enabled'):
-                                enabled = elem.text == 'true'
+                                if enabled is None:
+                                    enabled = elem.text == 'true'
                             elif local_name in ('recordScheduleType', 'scheduleType', 'recordType'):
                                 sched_type = elem.text
                             elif local_name == 'RecordSchedule':
@@ -393,6 +423,16 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                                     sc_local = get_local_name(sub_child)
                                     if sc_local in ('scheduleType', 'ScheduleType', 'recordScheduleType'):
                                         sched_type = sub_child.text
+                                        
+                        # Fallback for schedule type
+                        if sched_type is None:
+                            def_rec_elem = None
+                            for elem in root_s.iter():
+                                if get_local_name(elem) in ('DefaultRecordingMode', 'ActionRecordingMode'):
+                                    def_rec_elem = elem
+                                    break
+                            if def_rec_elem is not None:
+                                sched_type = def_rec_elem.text
                 except Exception as e_single:
                     print(f"Warning: Failed to fetch single track {track_id} for NVR {ip}: {e_single}")
 
@@ -400,11 +440,17 @@ def sync_recording_schedule_config(ip, user, password, session=None):
             if sched_type:
                 translation_map = {
                     "Continuous": "مداوم (Continuous)",
+                    "CMR": "مداوم (Continuous)",
                     "Motion": "حرکتی (Motion)",
+                    "MOTION": "حرکتی (Motion)",
                     "Alarm": "آلارم (Alarm)",
+                    "ALARM": "آلارم (Alarm)",
                     "Motion | Alarm": "حرکت و آلارم (Motion/Alarm)",
                     "Motion/Alarm": "حرکت و آلارم (Motion/Alarm)",
-                    "Event": "رویداد (Event)"
+                    "ALARMANDMOTION": "حرکت و آلارم (Motion/Alarm)",
+                    "EDR": "رویداد (Event)",
+                    "Event": "رویداد (Event)",
+                    "NONE": "غیرفعال (None)"
                 }
                 cam.recording_schedule_type = translation_map.get(sched_type, sched_type)
             else:
