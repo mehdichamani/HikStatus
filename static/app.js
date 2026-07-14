@@ -599,6 +599,9 @@ function renderNVRRow(n, deleted = false) {
     }
 
     const role = window.currentUser ? window.currentUser.role : 'group_view';
+    const currentGroupId = window.currentUser ? window.currentUser.group_id : null;
+    const canEdit = role === 'admin' || (role === 'group_control' && n.group_id === currentGroupId);
+
     let groupSelectOrLabel = '';
     if (role === 'admin') {
         let options = `<option value="">بدون کارخانه (بدون گروه)</option>`;
@@ -613,11 +616,25 @@ function renderNVRRow(n, deleted = false) {
         groupSelectOrLabel = `<span style="margin-right: 12px; font-size: 12px; opacity: 0.8; color: var(--text-primary);">کارخانه: ${groupName}</span>`;
     }
 
-    const deleteBtn = role === 'admin' ? `
-        <button class="btn-icon" onclick="delNVR('${n.ip}')" style="width:28px; height:28px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
-    ` : '';
+    let actionBtns = '';
+    if (canEdit || role === 'admin') {
+        actionBtns += `<div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">`;
+        if (canEdit) {
+            actionBtns += `
+                <button class="btn-icon" onclick="startEditNVR('${n.ip}')" style="width:28px; height:28px" title="ویرایش">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"/></svg>
+                </button>
+            `;
+        }
+        if (role === 'admin') {
+            actionBtns += `
+                <button class="btn-icon" onclick="delNVR('${n.ip}')" style="width:28px; height:28px" title="حذف">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            `;
+        }
+        actionBtns += `</div>`;
+    }
 
     return `<div class="list-item" id="nvr-row-${escaped}" data-ip="${n.ip}">
         <div class="list-item-info">
@@ -626,7 +643,7 @@ function renderNVRRow(n, deleted = false) {
             <span class="list-item-user">(${n.user})</span>
             ${groupSelectOrLabel}
         </div>
-        ${deleteBtn}
+        ${actionBtns}
     </div>`;
 }
 
@@ -728,6 +745,76 @@ async function applyNVRDelete(ip) {
         loadSettings();
     } catch (e) {
         showToast('خطا در حذف NVR: ' + e.message, 'error');
+    }
+}
+
+function startEditNVR(ip) {
+    const n = nvrCache.find(n => n.ip === ip);
+    if (!n) return;
+    const escaped = ip.replace(/[^\w]/g, '_');
+    const row = document.getElementById(`nvr-row-${escaped}`);
+    if (!row) return;
+
+    row.innerHTML = `
+        <div style="display: flex; gap: 8px; align-items: center; width: 100%; flex-wrap: wrap;">
+            <span class="list-item-ip" style="font-weight: bold; margin-left: 8px;">${n.ip}</span>
+            <input class="form-input form-input-sm" id="edit-nvr-name-${escaped}" value="${n.name || ''}" placeholder="نام دلخواه" style="width: 140px; height: 28px; font-size: 12px; padding: 2px 8px;">
+            <input class="form-input form-input-sm" id="edit-nvr-user-${escaped}" value="${n.user || ''}" placeholder="نام کاربری" style="width: 100px; height: 28px; font-size: 12px; padding: 2px 8px;">
+            <input class="form-input form-input-sm" id="edit-nvr-pass-${escaped}" type="password" placeholder="رمز عبور جدید" style="width: 120px; height: 28px; font-size: 12px; padding: 2px 8px;">
+            <button class="btn btn-primary" onclick="saveNVRRow('${n.ip}')" style="padding: 4px 10px; font-size: 12px; height: 28px;">ذخیره</button>
+            <button class="btn" style="padding: 4px 10px; font-size: 12px; height: 28px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);" onclick="cancelEditNVR('${n.ip}')">انصراف</button>
+        </div>
+    `;
+}
+
+function cancelEditNVR(ip) {
+    const n = nvrCache.find(n => n.ip === ip);
+    if (!n) return;
+    const escaped = ip.replace(/[^\w]/g, '_');
+    const row = document.getElementById(`nvr-row-${escaped}`);
+    if (row) {
+        row.outerHTML = renderNVRRow(n, false);
+    }
+}
+
+async function saveNVRRow(ip) {
+    const escaped = ip.replace(/[^\w]/g, '_');
+    const nameEl = document.getElementById(`edit-nvr-name-${escaped}`);
+    const userEl = document.getElementById(`edit-nvr-user-${escaped}`);
+    const passEl = document.getElementById(`edit-nvr-pass-${escaped}`);
+    
+    if (!userEl.value.trim()) {
+        return showToast('نام کاربری الزامی است', 'error');
+    }
+    
+    const payload = {
+        name: nameEl.value.trim() || null,
+        user: userEl.value.trim(),
+    };
+    
+    if (passEl.value) {
+        payload.password = passEl.value;
+    }
+    
+    try {
+        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        showToast('NVR با موفقیت به‌روزرسانی شد');
+        
+        // Refresh local cache and UI
+        const nRes = await apiFetch(`${API}/nvrs`);
+        nvrCache = await nRes.json();
+        
+        const n = nvrCache.find(x => x.ip === ip);
+        const row = document.getElementById(`nvr-row-${escaped}`);
+        if (row && n) {
+            row.outerHTML = renderNVRRow(n, false);
+        }
+    } catch (e) {
+        showToast('خطا در به‌روزرسانی NVR: ' + e.message, 'error');
     }
 }
 
