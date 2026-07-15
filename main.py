@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from sqlmodel import Session, select, col
-from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, hash_password, verify_password, engine, sqlite_file_name
+from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, UserSession, hash_password, verify_password, engine, sqlite_file_name
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime
 
@@ -197,7 +197,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(AuthMiddleware)
 
-_sessions = {}
 _login_attempts = {}
 
 def get_admin_credentials():
@@ -225,9 +224,14 @@ def health_check():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     token = websocket.cookies.get("session_token")
-    if not token or token not in _sessions:
+    if not token:
         await websocket.close(code=4001)
         return
+    with Session(engine) as db:
+        session_record = db.exec(select(UserSession).where(UserSession.token == token)).first()
+        if not session_record or session_record.expires_at < datetime.now():
+            await websocket.close(code=4001)
+            return
     await ws_manager.connect(websocket)
     try:
         while True:
@@ -235,12 +239,37 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)
 
-def require_auth(request: Request) -> dict:
+def require_auth(request: Request, response: Response, db: Session = Depends(get_session)) -> dict:
     """Returns {username, role, group_id, user_id} or raises 401."""
     token = request.cookies.get("session_token")
-    if not token or token not in _sessions:
+    if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    return _sessions[token]
+    
+    session_record = db.exec(select(UserSession).where(UserSession.token == token)).first()
+    if not session_record:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    now = datetime.now()
+    if session_record.expires_at < now:
+        db.delete(session_record)
+        db.commit()
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    # Sliding Expiration: تمدید سشن در صورت فعالیت بیش از ۱ روز
+    if session_record.last_activity < now - timedelta(days=1):
+        session_record.last_activity = now
+        session_record.expires_at = now + timedelta(days=30)
+        db.add(session_record)
+        db.commit()
+        db.refresh(session_record)
+        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+        
+    return {
+        "username": session_record.username,
+        "role": session_record.role,
+        "group_id": session_record.group_id,
+        "user_id": session_record.user_id
+    }
 
 def require_admin(user: dict = Depends(require_auth)):
     if user["role"] != "admin":
@@ -258,7 +287,7 @@ def get_me(user: dict = Depends(require_auth)):
     return user
 
 @app.post("/api/auth/login")
-def login(payload: LoginRequest, request: Request, response: Response):
+def login(payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_session)):
     client_ip = request.client.host
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="تعداد تلاش‌ها بیش از حد مجاز است. لطفاً یک دقیقه صبر کنید")
@@ -266,32 +295,52 @@ def login(payload: LoginRequest, request: Request, response: Response):
     admin_user, admin_pass = get_admin_credentials()
     if payload.username == admin_user and payload.password == admin_pass:
         token = create_session_token()
-        _sessions[token] = {"username": payload.username, "role": "admin", "group_id": None, "user_id": None}
-        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=86400)
+        
+        expires_at = datetime.now() + timedelta(days=30)
+        session_record = UserSession(
+            token=token,
+            username=payload.username,
+            role="admin",
+            group_id=None,
+            user_id=None,
+            expires_at=expires_at
+        )
+        db.add(session_record)
+        db.commit()
+        
+        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "role": "admin"}
 
     # Check database users
-    from sqlmodel import Session as DbSession
-    with DbSession(engine) as db:
-        db_user = db.exec(select(User).where(User.username == payload.username, User.is_active == True)).first()
-        if db_user and verify_password(payload.password, db_user.password_hash):
-            token = create_session_token()
-            _sessions[token] = {
-                "username": db_user.username,
-                "role": db_user.role,
-                "group_id": db_user.group_id,
-                "user_id": db_user.id
-            }
-            response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=86400)
-            return {"status": "ok", "role": db_user.role, "group_id": db_user.group_id}
+    db_user = db.exec(select(User).where(User.username == payload.username, User.is_active == True)).first()
+    if db_user and verify_password(payload.password, db_user.password_hash):
+        token = create_session_token()
+        
+        expires_at = datetime.now() + timedelta(days=30)
+        session_record = UserSession(
+            token=token,
+            username=db_user.username,
+            role=db_user.role,
+            group_id=db_user.group_id,
+            user_id=db_user.id,
+            expires_at=expires_at
+        )
+        db.add(session_record)
+        db.commit()
+        
+        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+        return {"status": "ok", "role": db_user.role, "group_id": db_user.group_id}
 
     raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
 
 @app.post("/api/auth/logout")
-def logout(request: Request, response: Response):
+def logout(request: Request, response: Response, db: Session = Depends(get_session)):
     token = request.cookies.get("session_token")
-    if token and token in _sessions:
-        del _sessions[token]
+    if token:
+        session_record = db.exec(select(UserSession).where(UserSession.token == token)).first()
+        if session_record:
+            db.delete(session_record)
+            db.commit()
     response.delete_cookie("session_token")
     return {"status": "ok"}
 # Serve Static Assets (CSS, JS)

@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timedelta
 from requests.auth import HTTPDigestAuth
 from sqlmodel import Session, select
-from database import engine, NVR, Camera, Log, Settings, DowntimeEvent
+from database import engine, NVR, Camera, Log, Settings, DowntimeEvent, UserSession
 from alerts import send_email_batch, send_telegram_batch
 
 _broadcast_callback = None
@@ -107,6 +107,7 @@ def cleanup_old_data(session, days=90):
             DowntimeEvent.end_time < cutoff,
             DowntimeEvent.end_time != None
         ).delete()
+        session.query(UserSession).filter(UserSession.expires_at < datetime.now()).delete()
         session.commit()
     except Exception as e:
         print(f"Warning: Failed to cleanup old data: {e}")

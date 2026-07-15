@@ -90,6 +90,16 @@ class UserAlertSettings(SQLModel, table=True):
     telegram_enabled: bool = False
     telegram_chat_ids: Optional[str] = None  # comma-separated
 
+class UserSession(SQLModel, table=True):
+    token: str = Field(primary_key=True)
+    username: str
+    role: str
+    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.now)
+    expires_at: datetime
+    last_activity: datetime = Field(default_factory=datetime.now)
+
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
