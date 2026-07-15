@@ -728,9 +728,7 @@ def search_logs(q: str = None, limit: int = 50, offset: int = 0, session: Sessio
     output = []
     for l in logs:
         jd = jdatetime.datetime.fromgregorian(datetime=l.timestamp)
-        months = {1:'فروردین',2:'اردیبهشت',3:'خرداد',4:'تیر',5:'مرداد',6:'شهریور',7:'مهر',8:'آبان',9:'آذر',10:'دی',11:'بهمن',12:'اسفند'}
-        days = ['دوشنبه','سه‌شنبه','چهارشنبه','پنج‌شنبه','جمعه','شنبه','یکشنبه']
-        shamsi = f"{days[l.timestamp.weekday()]} {jd.day} {months[jd.month]} {jd.year} {jd.strftime('%H:%M')}"
+        shamsi = jd.strftime('%A %d %B %Y %H:%M')
         
         item = l.model_dump()
         item['shamsi_date'] = shamsi
