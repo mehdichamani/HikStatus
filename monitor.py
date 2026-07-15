@@ -528,7 +528,6 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
                     oldest_record = None
                     total_size_bytes = 0
                     total_duration_seconds = 0
-                    is_recording = False
                     recording_hours_24h = 0.0
                     
                     match_items = root.findall('.//ns:searchMatchItem', namespace)
@@ -599,13 +598,8 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
                                     if overlap_end > overlap_start:
                                         total_seconds_24h += (overlap_end - overlap_start).total_seconds()
                                     
-                                    # Check if it recorded anything in the last 15 minutes
-                                    if et_dt > recent_threshold:
-                                        is_recording = True
-                                        
                             recording_hours_24h = total_seconds_24h / 3600
                 
-                cam.is_recording = is_recording
                 cam.recording_hours_24h = recording_hours_24h
                 cam.oldest_record = oldest_record
                 cam.total_record_size_gb = round(total_size_bytes / (1024 * 1024 * 1024), 2)
@@ -801,7 +795,6 @@ async def start_monitor_loop():
                         "latitude": c.latitude, "longitude": c.longitude,
                         "x_pos": c.x_pos, "y_pos": c.y_pos,
                         "model": c.model,
-                        "is_recording": c.is_recording,
                         "recording_scheduled": c.recording_scheduled,
                         "recording_schedule_type": c.recording_schedule_type,
                         "recording_hours_24h": c.recording_hours_24h,
