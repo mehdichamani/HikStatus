@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "agent": {
+    "default": {
+      "description": "Agent پیش‌فرض پروژه HikStatus",
+      "mode": "primary"
+    }
+  }
+}
