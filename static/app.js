@@ -923,13 +923,15 @@ function showToast(msg, type = 'success') {
         border: 1px solid ${type === 'error' ? 'var(--danger)' : 'var(--border)'};
         animation: fadeIn 0.3s ease;
     `;
-    toast.textContent = msg;
+    toast.innerHTML = msg;
     document.body.appendChild(toast);
+    
+    const duration = type === 'error' ? 6000 : 2500;
     setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transition = 'opacity 0.3s';
         setTimeout(() => toast.remove(), 300);
-    }, 2500);
+    }, duration);
 }
 
 // --- LOGS ---

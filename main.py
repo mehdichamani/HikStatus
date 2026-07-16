@@ -955,7 +955,7 @@ class ChangePasswordRequest(BaseModel):
 def change_my_password_endpoint(payload: ChangePasswordRequest, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     u_id = user["user_id"]
     if u_id is None:
-        raise HTTPException(status_code=400, detail="رمز عبور مدیر سیستم باید از طریق تنظیمات سرور تغییر کند")
+        raise HTTPException(status_code=400, detail="رمز عبور مدیر سیستم باید از طریق تنظیمات سرور تغییر کند. <a href='/static/admin-password-help.html' target='_blank' style='color:#3b82f6;text-decoration:underline;font-weight:bold;margin-right:5px;'>[مشاهده راهنما]</a>")
         
     db_user = session.get(User, u_id)
     if not db_user:
