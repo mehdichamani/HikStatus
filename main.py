@@ -8,6 +8,8 @@ from contextlib import asynccontextmanager
 import secrets
 from dotenv import load_dotenv
 load_dotenv()
+
+
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
@@ -15,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from sqlmodel import Session, select, col
-from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, UserSession, hash_password, verify_password, engine, sqlite_file_name
+from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, UserSession, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
 
@@ -204,6 +206,23 @@ def get_admin_credentials():
     password = os.environ.get("ADMIN_PASS", "admin")
     return username, password
 
+def verify_admin_password(input_password: str, env_password_val: str) -> bool:
+    parts = env_password_val.split(":")
+    is_hash = False
+    if len(parts) == 2:
+        salt_hex, hash_hex = parts
+        if len(salt_hex) == 32 and len(hash_hex) == 64:
+            try:
+                int(salt_hex, 16)
+                int(hash_hex, 16)
+                is_hash = True
+            except ValueError:
+                pass
+    if is_hash:
+        return verify_password(input_password, env_password_val)
+    return input_password == env_password_val
+
+
 def create_session_token():
     return secrets.token_hex(32)
 
@@ -241,6 +260,18 @@ async def websocket_endpoint(websocket: WebSocket):
 
 def require_auth(request: Request, response: Response, db: Session = Depends(get_session)) -> dict:
     """Returns {username, role, group_id, user_id} or raises 401."""
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        origin = request.headers.get("origin")
+        referer = request.headers.get("referer")
+        base_url = str(request.base_url).rstrip("/")
+        
+        if origin:
+            if not origin.rstrip("/").startswith(base_url):
+                raise HTTPException(status_code=403, detail="درخواست غیرمجاز (CSRF Origin)")
+        elif referer:
+            if not referer.rstrip("/").startswith(base_url):
+                raise HTTPException(status_code=403, detail="درخواست غیرمجاز (CSRF Referer)")
+
     token = request.cookies.get("session_token")
     if not token:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -293,7 +324,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         raise HTTPException(status_code=429, detail="تعداد تلاش‌ها بیش از حد مجاز است. لطفاً یک دقیقه صبر کنید")
     
     admin_user, admin_pass = get_admin_credentials()
-    if payload.username == admin_user and payload.password == admin_pass:
+    if payload.username == admin_user and verify_admin_password(payload.password, admin_pass):
         token = create_session_token()
         
         expires_at = datetime.now() + timedelta(days=30)
@@ -314,6 +345,12 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
     # Check database users
     db_user = db.exec(select(User).where(User.username == payload.username, User.is_active == True)).first()
     if db_user and verify_password(payload.password, db_user.password_hash):
+        if ":" not in db_user.password_hash:
+            db_user.password_hash = hash_password(payload.password)
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+            
         token = create_session_token()
         
         expires_at = datetime.now() + timedelta(days=30)
@@ -402,15 +439,26 @@ def backup_database():
 async def restore_database(file: UploadFile = File(...)):
     if not file.filename or not file.filename.endswith(".db"):
         raise HTTPException(status_code=400, detail="فایل باید با پسوند .db باشد")
-    contents = await file.read()
-    # Basic SQLite magic-number validation
+    
+    MAX_SIZE = 50 * 1024 * 1024
+    size = 0
+    chunks = []
+    while True:
+        chunk = await file.read(8192)
+        if not chunk:
+            break
+        size += len(chunk)
+        if size > MAX_SIZE:
+            raise HTTPException(status_code=413, detail="حجم فایل پشتیبان بیش از حد مجاز (۵۰ مگابایت) است")
+        chunks.append(chunk)
+    contents = b"".join(chunks)
+
     if not contents.startswith(b"SQLite format 3\x00"):
         raise HTTPException(status_code=400, detail="فایل معتبر SQLite نیست")
     tmp_path = sqlite_file_name + ".restore_tmp"
     try:
         with open(tmp_path, "wb") as f:
             f.write(contents)
-        # Atomically replace the database
         os.replace(tmp_path, sqlite_file_name)
     except Exception as e:
         if os.path.exists(tmp_path):
@@ -437,7 +485,7 @@ def test_telegram():
     raise HTTPException(status_code=400, detail="خطا در ارسال تلگرام. تنظیمات را بررسی کنید.")
 
 # --- API ---
-@app.get("/api/nvrs", response_model=list[NVR])
+@app.get("/api/nvrs", response_model=list[NVR], response_model_exclude={"password"})
 def get_nvrs(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     if user["role"] == "admin":
         return session.exec(select(NVR)).all()
@@ -445,6 +493,8 @@ def get_nvrs(session: Session = Depends(get_session), user: dict = Depends(requi
 
 @app.post("/api/nvrs")
 def create_nvr(nvr: NVR, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    if nvr.password:
+        nvr.password = encrypt_password(nvr.password)
     session.add(nvr)
     session.commit()
     return nvr
@@ -477,7 +527,7 @@ def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: 
         n.user = p["user"]
     if "password" in p:
         if p["password"]:
-            n.password = p["password"]
+            n.password = encrypt_password(p["password"])
     if "group_id" in p and user["role"] == "admin":
         n.group_id = p["group_id"] if p["group_id"] is not None else None
     session.add(n)
@@ -590,7 +640,8 @@ async def get_camera_snapshot(id: int, session: Session = Depends(get_session), 
         def fetch_pic():
             req_sess = requests.Session()
             req_sess.trust_env = False
-            resp = req_sess.get(url, auth=HTTPDigestAuth(nvr.user, nvr.password), timeout=5, proxies={})
+            decrypted_pass = decrypt_password(nvr.password)
+            resp = req_sess.get(url, auth=HTTPDigestAuth(nvr.user, decrypted_pass), timeout=5, proxies={})
             if resp.status_code == 200:
                 return resp.content, resp.headers.get("Content-Type", "image/jpeg")
             return None, resp.status_code
@@ -712,7 +763,8 @@ async def sync_names(session: Session = Depends(get_session), user: dict = Depen
     
     results = []
     for n in nvrs:
-        success, msg = await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password, session)
+        decrypted_pass = decrypt_password(n.password)
+        success, msg = await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, decrypted_pass, session)
         results.append({"nvr": n.ip, "success": success, "message": msg})
         
     return {"results": results}

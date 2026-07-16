@@ -23,6 +23,8 @@ def get_setting(session, key, default):
     return s.value if s else default
 
 def sync_camera_names_from_nvr(ip, user, password, session=None):
+    from database import decrypt_password
+    password = decrypt_password(password)
     parts = ip.split(':')
     host = parts[0]
     port = parts[1] if len(parts) > 1 else '80'
@@ -113,7 +115,9 @@ def cleanup_old_data(session, days=90):
         print(f"Warning: Failed to cleanup old data: {e}")
 
 def poll_nvr_thread(nvr_data):
+    from database import decrypt_password
     ip, user, password = nvr_data
+    password = decrypt_password(password)
     url = f"http://{ip}/ISAPI/ContentMgmt/InputProxy/channels/status"
     try:
         # Create a session and strictly disable environment proxy inheritance (Karing)
@@ -312,6 +316,8 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
     session.add(nvr_obj)
 
 def sync_recording_schedule_config(ip, user, password, session=None):
+    from database import decrypt_password
+    password = decrypt_password(password)
     is_local_session = session is None
     db_session = session if session is not None else Session(engine)
     
@@ -470,6 +476,8 @@ def run_config_sync_in_thread(ip, user, password):
     sync_recording_schedule_config(ip, user, password)
 
 def sync_recording_stats_from_nvr(ip, user, password, session=None):
+    from database import decrypt_password
+    password = decrypt_password(password)
     import uuid
     import urllib.parse
     

@@ -101,10 +101,74 @@ class UserSession(SQLModel, table=True):
     last_activity: datetime = Field(default_factory=datetime.now)
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    salt = secrets.token_bytes(16)
+    hash_bytes = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100_000)
+    return f"{salt.hex()}:{hash_bytes.hex()}"
 
 def verify_password(password: str, hashed: str) -> bool:
-    return hashlib.sha256(password.encode()).hexdigest() == hashed
+    try:
+        if ":" not in hashed:
+            # Legacy SHA-256 fallback for compatibility
+            legacy_hash = hashlib.sha256(password.encode()).hexdigest()
+            return secrets.compare_digest(legacy_hash, hashed)
+            
+        salt_hex, hash_hex = hashed.split(":")
+        salt = bytes.fromhex(salt_hex)
+        expected_hash = bytes.fromhex(hash_hex)
+        actual_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100_000)
+        return secrets.compare_digest(actual_hash, expected_hash)
+    except Exception:
+        return False
+
+def get_encryption_key() -> bytes:
+    import os
+    key_str = os.environ.get("ENCRYPTION_KEY")
+    if key_str:
+        return key_str.encode()
+        
+    key_file = "data/encryption.key"
+    if os.path.exists(key_file):
+        try:
+            with open(key_file, "r") as f:
+                content = f.read().strip()
+                if content:
+                    return content.encode()
+        except Exception:
+            pass
+            
+    try:
+        from cryptography.fernet import Fernet
+        new_key = Fernet.generate_key().decode()
+        os.makedirs("data", exist_ok=True)
+        with open(key_file, "w") as f:
+            f.write(new_key)
+        print("Generated a new secure persistent ENCRYPTION_KEY in data/encryption.key")
+        return new_key.encode()
+    except Exception as e:
+        print(f"Warning: Failed to generate persistent ENCRYPTION_KEY: {e}")
+        return b'z58G3Ww9P33n2jPz42n2jPz42n2jPz42n2jPz42n2jM='
+
+def encrypt_password(password: str) -> str:
+    if not password:
+        return password
+    from cryptography.fernet import Fernet
+    try:
+        f = Fernet(get_encryption_key())
+        return f.encrypt(password.encode()).decode()
+    except Exception as e:
+        print(f"Encryption error: {e}")
+        return password
+
+def decrypt_password(encrypted_password: str) -> str:
+    if not encrypted_password:
+        return encrypted_password
+    from cryptography.fernet import Fernet, InvalidToken
+    try:
+        f = Fernet(get_encryption_key())
+        return f.decrypt(encrypted_password.encode()).decode()
+    except (InvalidToken, Exception):
+        return encrypted_password
+
 
 sqlite_file_name = "data/monitor.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
