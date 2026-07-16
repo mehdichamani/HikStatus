@@ -31,7 +31,6 @@ function nav(id) {
 
     document.querySelectorAll(`[data-view="${id}"]`).forEach(e => e.classList.add('active'));
 
-    if (id === 'summ') fetchDash();
     if (id === 'dash') fetchDash();
     if (id === 'map') initOrRefreshMap();
     if (id === 'reports') {
@@ -404,12 +403,18 @@ async function loadSettings() {
             <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
             <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
             <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
+            <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
         `;
     } else if (role === 'group_control') {
         nav.innerHTML = `
             <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
             <button data-tab="sec-my-alerts" onclick="switchSettingsTab('sec-my-alerts')">تنظیمات اعلان شخصی من</button>
             <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
+            <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
+        `;
+    } else if (role === 'group_view') {
+        nav.innerHTML = `
+            <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
         `;
     }
 
@@ -500,7 +505,11 @@ async function loadSettings() {
         renderNVRRow(n)
     ).join('');
 
-    const activeTab = document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || 'sec-nvr';
+    let defaultTab = 'sec-nvr';
+    if (role === 'group_view') {
+        defaultTab = 'sec-about';
+    }
+    const activeTab = document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || defaultTab;
     switchSettingsTab(activeTab);
 }
 
@@ -509,7 +518,7 @@ function switchSettingsTab(tabId) {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
 
-    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system'];
+    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system', 'sec-about'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -1063,7 +1072,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/login';
         return;
     }
-    nav('summ');
+    nav('dash');
     connectWS();
     initBrowserAlerts();
 });
@@ -2323,7 +2332,7 @@ function applyRoleUI() {
         el.style.display = (role === 'admin' || role === 'group_control') ? '' : 'none';
     });
     document.querySelectorAll('[data-view="settings"]').forEach(el => {
-        el.style.display = (role === 'admin' || role === 'group_control') ? '' : 'none';
+        el.style.display = '';
     });
 
     const editBtn = document.getElementById('btn-edit-positions');
