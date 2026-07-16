@@ -12,6 +12,8 @@ services:
     volumes:
       - ./data:/app/data
 
+# شبکه پیش‌فرض داکر. در صورت عدم نیاز به شبکه خارجی vpn، کل بخش زیر را کامنت یا حذف کنید تا شبکه پیش‌فرض (bridge) استفاده شود.
+# Optional external network. Comment out or delete this block to use the default bridge network.
 networks:
   default:
     name: vpn

@@ -40,6 +40,16 @@ cp init_config.example.json init_config.json
 docker compose up -d
 ```
 
+> [!IMPORTANT]
+> **وابستگی به شبکه خارجی داکر (`vpn`)**
+> 
+> به طور پیش‌فرض، فایل `docker-compose.yml` به یک شبکه خارجی به نام `vpn` متصل است.
+> - **در صورتی که می‌خواهید از این شبکه استفاده کنید**، پیش از اجرای داکر حتماً آن را بسازید:
+>   ```bash
+>   docker network create vpn
+>   ```
+> - **در صورتی که نیازی به این شبکه ندارید (اختیاری)**، می‌توانید بخش `networks` را در انتهای فایل [docker-compose.yml](file:///home/unreal/docker/HikStatus/docker-compose.yml) کامنت کرده یا حذف کنید تا کانتینر از شبکه پیش‌فرض (Bridge) استفاده کند.
+
 > [!TIP]
 > **مشکل دسترسی (`sqlite3.OperationalError: unable to open database file`)**
 >

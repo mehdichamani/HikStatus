@@ -40,6 +40,16 @@ cp init_config.example.json init_config.json
 docker compose up -d
 ```
 
+> [!IMPORTANT]
+> **External Network Dependency (`vpn`)**
+> 
+> By default, `docker-compose.yml` expects an external network named `vpn`.
+> - **If you want to use this network**, create it before starting the container:
+>   ```bash
+>   docker network create vpn
+>   ```
+> - **If you don't need it (optional)**, comment out or delete the `networks` block at the bottom of [docker-compose.yml](file:///home/unreal/docker/HikStatus/docker-compose.yml) to use the default bridge network.
+
 > [!TIP]
 > **Permission Issues (`sqlite3.OperationalError: unable to open database file`)**
 >
