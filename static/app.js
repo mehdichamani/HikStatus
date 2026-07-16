@@ -216,6 +216,36 @@ function createCard(c) {
     </div>`;
 }
 
+function formatShamsiDate(dateInput) {
+    if (!dateInput) return 'نامشخص';
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) return 'نامشخص';
+    
+    const formatter = new Intl.DateTimeFormat('fa-IR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    
+    try {
+        const parts = formatter.formatToParts(date);
+        const partMap = {};
+        parts.forEach(p => partMap[p.type] = p.value);
+        
+        let weekday = partMap.weekday;
+        if (weekday === 'پنجشنبه') weekday = 'پنج‌شنبه';
+        else if (weekday === 'یکشنبه') weekday = 'یک‌شنبه';
+        else if (weekday === 'سه شنبه' || weekday === 'سه‌شنبه') weekday = 'سه‌شنبه';
+        
+        return `${weekday} ${partMap.day} ${partMap.month} ${partMap.hour}:${partMap.minute}`;
+    } catch (e) {
+        return date.toLocaleString('fa-IR');
+    }
+}
+
 async function showCam(data) {
     const c = JSON.parse(decodeURIComponent(data));
     currentCamId = c.id;
@@ -256,8 +286,7 @@ async function showCam(data) {
     document.getElementById('m-rec-24h').textContent = rec24hText;
     
     if (c.oldest_record) {
-        const dt = new Date(c.oldest_record);
-        document.getElementById('m-oldest').textContent = dt.toLocaleString('fa-IR');
+        document.getElementById('m-oldest').textContent = formatShamsiDate(c.oldest_record);
     } else {
         document.getElementById('m-oldest').textContent = 'نامشخص';
     }

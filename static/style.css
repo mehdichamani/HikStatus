@@ -550,6 +550,7 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow-y: auto;
+    overflow-x: auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -1466,6 +1467,21 @@ body {
     .panel-main {
         min-height: 300px;
         width: 100%;
+        overflow-x: auto;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+
+    .data-table th {
+        font-size: 10px;
+    }
+
+    .data-table {
+        min-width: 500px;
     }
 
     .nvr-form {

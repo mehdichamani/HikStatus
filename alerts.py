@@ -6,8 +6,61 @@ from email.mime.multipart import MIMEMultipart
 from database import Session, engine, Settings, User, UserAlertSettings
 from sqlmodel import select
 
+def format_shamsi_datetime(dt):
+    if not dt:
+        return "نامشخص"
+    import datetime
+    import jdatetime
+    if isinstance(dt, datetime.datetime):
+        jd = jdatetime.datetime.fromgregorian(datetime=dt)
+    elif isinstance(dt, jdatetime.datetime):
+        jd = dt
+    else:
+        try:
+            jd = jdatetime.datetime.fromgregorian(datetime=dt)
+        except Exception:
+            return str(dt)
+            
+    weekdays = {
+        0: "شنبه",
+        1: "یک‌شنبه",
+        2: "دوشنبه",
+        3: "سه‌شنبه",
+        4: "چهارشنبه",
+        5: "پنج‌شنبه",
+        6: "جمعه"
+    }
+    
+    months = {
+        1: "فروردین",
+        2: "اردیبهشت",
+        3: "خرداد",
+        4: "تیر",
+        5: "مرداد",
+        6: "شهریور",
+        7: "مهر",
+        8: "آبان",
+        9: "آذر",
+        10: "دی",
+        11: "بهمن",
+        12: "اسفند"
+    }
+    
+    weekday_str = weekdays.get(jd.weekday(), "")
+    day_str = str(jd.day)
+    month_str = months.get(jd.month, "")
+    time_str = jd.strftime('%H:%M')
+    
+    res = f"{weekday_str} {day_str} {month_str} {time_str}"
+    
+    eng = "0123456789"
+    per = "۰۱۲۳۴۵۶۷۸۹"
+    translation_table = str.maketrans(eng, per)
+    return res.translate(translation_table)
+
 def get_persian_datetime():
-    return jdatetime.datetime.now().strftime('%A %d %B %Y - ساعت %H:%M')
+    import datetime
+    return format_shamsi_datetime(datetime.datetime.now())
 
 _config_cache = None
 _config_cache_time = 0

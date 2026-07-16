@@ -17,7 +17,7 @@ from typing import Optional
 from sqlmodel import Session, select, col
 from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, UserSession, hash_password, verify_password, engine, sqlite_file_name
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
-from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime
+from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
 
 class ConnectionManager:
     def __init__(self):
@@ -727,8 +727,7 @@ def search_logs(q: str = None, limit: int = 50, offset: int = 0, session: Sessio
     
     output = []
     for l in logs:
-        jd = jdatetime.datetime.fromgregorian(datetime=l.timestamp)
-        shamsi = jd.strftime('%A %d %B %Y %H:%M')
+        shamsi = format_shamsi_datetime(l.timestamp)
         
         item = l.model_dump()
         item['shamsi_date'] = shamsi
