@@ -821,6 +821,31 @@
         </div>
     </div>
 
+    <!-- Security Warning Modal (plain password) -->
+    <div class="modal-overlay" id="securityWarningModal">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h2 style="color: var(--danger);">هشدار امنیتی</h2>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 14px; line-height: 1.8; color: var(--text); margin-bottom: 12px;">
+                    رمز عبور ادمین در فایل <code style="background:var(--surface-2); padding:2px 6px; border-radius:4px;">.env</code> به صورت <strong style="color: var(--danger);">خام (هش نشده)</strong> ذخیره شده است.
+                </p>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                    لطفاً هرچه سریع‌تر رمز عبور را هش کنید. برای راهنمای کامل روی لینک زیر کلیک کنید:
+                </p>
+                <a href="/static/admin-password-help.html" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none; padding: 8px 14px; border: 1px solid var(--primary); border-radius: var(--radius-sm); transition: 0.2s;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    راهنمای تغییر رمز عبور
+                </a>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeSecurityWarning()" style="flex: 1;">متوجه شدم</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Profile & Change Password Modal -->
     <div class="modal-overlay" id="profileModal" onclick="closeProfileModal()">
         <div class="modal-sheet" onclick="event.stopPropagation()">

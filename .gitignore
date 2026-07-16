@@ -13,6 +13,9 @@ data/
 .env
 init_config.json
 
+# --- Dev/Test Tools ---
+.playwright-mcp/
+
 # --- Legacy/Backup Files ---
 monitor_state.json
 monitor_events.csv

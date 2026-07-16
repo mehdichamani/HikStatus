@@ -1075,7 +1075,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     nav('dash');
     connectWS();
     initBrowserAlerts();
+    checkAdminPasswordWarning();
 });
+
+function checkAdminPasswordWarning() {
+    if (localStorage.getItem('admin_plain_password') === '1') {
+        document.getElementById('securityWarningModal').classList.add('open');
+    }
+}
+
+function closeSecurityWarning() {
+    document.getElementById('securityWarningModal').classList.remove('open');
+    localStorage.removeItem('admin_plain_password');
+}
 
 function setConnectionStatus(connected) {
     const el = document.getElementById('header-status');

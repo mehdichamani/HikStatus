@@ -206,7 +206,7 @@ def get_admin_credentials():
     password = os.environ.get("ADMIN_PASS", "admin")
     return username, password
 
-def verify_admin_password(input_password: str, env_password_val: str) -> bool:
+def verify_admin_password(input_password: str, env_password_val: str) -> tuple[bool, bool]:
     parts = env_password_val.split(":")
     is_hash = False
     if len(parts) == 2:
@@ -219,8 +219,8 @@ def verify_admin_password(input_password: str, env_password_val: str) -> bool:
             except ValueError:
                 pass
     if is_hash:
-        return verify_password(input_password, env_password_val)
-    return input_password == env_password_val
+        return verify_password(input_password, env_password_val), False
+    return input_password == env_password_val, True
 
 
 def create_session_token():
@@ -324,7 +324,10 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         raise HTTPException(status_code=429, detail="تعداد تلاش‌ها بیش از حد مجاز است. لطفاً یک دقیقه صبر کنید")
     
     admin_user, admin_pass = get_admin_credentials()
-    if payload.username == admin_user and verify_admin_password(payload.password, admin_pass):
+    password_ok, password_is_plain = verify_admin_password(payload.password, admin_pass)
+    if payload.username == admin_user and password_ok:
+        if password_is_plain:
+            print("⚠️ SECURITY WARNING: Admin password in .env is stored in plain text (not hashed). Please hash it and replace. Guide: static/admin-password-help.html")
         token = create_session_token()
         
         expires_at = datetime.now() + timedelta(days=30)
@@ -340,7 +343,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         db.commit()
         
         response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
-        return {"status": "ok", "role": "admin"}
+        return {"status": "ok", "role": "admin", "password_is_plain": password_is_plain}
 
     # Check database users
     db_user = db.exec(select(User).where(User.username == payload.username, User.is_active == True)).first()

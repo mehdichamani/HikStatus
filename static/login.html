@@ -297,6 +297,11 @@
                     } else {
                         localStorage.removeItem('user_group_id');
                     }
+                    if (data.password_is_plain) {
+                        localStorage.setItem('admin_plain_password', '1');
+                    } else {
+                        localStorage.removeItem('admin_plain_password');
+                    }
                     window.location.href = '/';
                 } else {
                     const data = await res.json();
