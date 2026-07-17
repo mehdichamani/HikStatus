@@ -666,15 +666,19 @@ def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: 
         n.name = p["name"]
     if "user" in p:
         n.user = p["user"]
+        n.status = "Unknown"
     if "password" in p:
         if p["password"]:
             n.password = encrypt_password(p["password"])
+            n.status = "Unknown"
     if "group_id" in p and user["role"] == "admin":
         n.group_id = p["group_id"] if p["group_id"] is not None else None
     if "rtsp_port" in p:
         n.rtsp_port = int(p["rtsp_port"])
+        n.status = "Unknown"
     if "enabled" in p:
         n.enabled = bool(p["enabled"])
+        n.status = "Unknown"
     session.add(n)
     session.commit()
     return n

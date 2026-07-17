@@ -197,6 +197,7 @@ async function fetchDash() {
         ips.forEach(ip => {
             const nvrObj = nvrCache.find(n => n.ip === ip);
             const isNvrOffline = nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online';
+            const isAuthError = nvrObj && nvrObj.status === 'AuthError';
             const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
             const cards = sorted.map(c => createCard(c)).join('');
@@ -206,7 +207,7 @@ async function fetchDash() {
                         <div class="nvr-header-left">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
-                            ${isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : ''}
+                            ${isAuthError ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>خطای رمز عبور</span>` : (isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : '')}
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
@@ -241,6 +242,7 @@ async function fetchDash() {
         unassignedNvrIps.forEach(ip => {
             const nvrObj = nvrCache.find(n => n.ip === ip);
             const isNvrOffline = nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online';
+            const isAuthError = nvrObj && nvrObj.status === 'AuthError';
             const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
             const cards = sorted.map(c => createCard(c)).join('');
@@ -250,7 +252,7 @@ async function fetchDash() {
                         <div class="nvr-header-left">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
-                            ${isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : ''}
+                            ${isAuthError ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>خطای رمز عبور</span>` : (isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : '')}
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
@@ -1489,7 +1491,8 @@ function updateDashFromWS(cams) {
         ips.forEach(ip => {
             const nvrObj = nvrCache.find(n => n.ip === ip);
             const isNvrOffline = nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online';
-            const list = groups[ip];
+            const isAuthError = nvrObj && nvrObj.status === 'AuthError';
+            const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
             const cards = sorted.map(c => createCard(c)).join('');
             factoryHtml += `
@@ -1498,7 +1501,7 @@ function updateDashFromWS(cams) {
                         <div class="nvr-header-left">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
-                            ${isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : ''}
+                            ${isAuthError ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>خطای رمز عبور</span>` : (isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : '')}
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
@@ -1545,7 +1548,8 @@ function updateDashFromWS(cams) {
         unassignedNvrIps.forEach(ip => {
             const nvrObj = nvrCache.find(n => n.ip === ip);
             const isNvrOffline = nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online';
-            const list = groups[ip];
+            const isAuthError = nvrObj && nvrObj.status === 'AuthError';
+            const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
             const cards = sorted.map(c => createCard(c)).join('');
             unassignedHtml += `
@@ -1554,7 +1558,7 @@ function updateDashFromWS(cams) {
                         <div class="nvr-header-left">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
-                            ${isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : ''}
+                            ${isAuthError ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>خطای رمز عبور</span>` : (isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : '')}
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>

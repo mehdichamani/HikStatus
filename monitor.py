@@ -153,9 +153,15 @@ def poll_nvr_thread(nvr_data):
                 cam_ip = port.find('ns:ipAddress', namespace).text if port is not None else "0.0.0.0"
                 results.append({"channel_id": chan_id, "ip": cam_ip, "online": online})
             return ("OK", results)
+        elif resp.status_code == 401:
+            return ("AUTH_FAIL", "Authentication failed (401)")
         return ("FAIL", f"HTTP {resp.status_code}")
     except Exception as e:
-        return ("FAIL", str(e))
+        # Check if the exception message contains 401
+        err_str = str(e)
+        if "401" in err_str or "unauthorized" in err_str.lower():
+            return ("AUTH_FAIL", f"Auth error via exception: {err_str}")
+        return ("FAIL", err_str)
 
 async def process_batch_alerts(session, cams_to_check):
     tele_alerts = []
@@ -652,7 +658,7 @@ last_summary_hour = -1
 async def task_ping_cameras():
     global last_summary_hour
     with Session(engine) as session:
-        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")).all()
     if not nvrs:
         return
         
@@ -664,7 +670,31 @@ async def task_ping_cameras():
     with Session(engine) as session:
         for nvr_obj, res in zip(nvrs, results):
             status, payload = res
-            if status == "FAIL":
+            if status == "AUTH_FAIL":
+                nvr_label = f"{nvr_obj.name} ({nvr_obj.ip})" if nvr_obj.name else f"NVR {nvr_obj.ip}"
+                error_message = f"خطای احراز هویت: رمز عبور نامعتبر است برای {nvr_label}"
+                nvr_obj.status = "AuthError"
+                log_event(session, "NVR", "AuthError", error_message)
+                await broadcast({
+                    "type": "alert",
+                    "title": "خطای احراز هویت NVR",
+                    "body": error_message,
+                    "alert_type": "error"
+                })
+                # Mark all cameras of this NVR as Offline since we cannot authenticate to poll them
+                offline_cams = session.exec(select(Camera).where(Camera.nvr_ip == nvr_obj.ip)).all()
+                for cam in offline_cams:
+                    if cam.status != "Offline":
+                        log_event(session, "Camera", "Offline", f"{cam.name} ({cam.ip}) - NVR auth error")
+                        cam.status = "Offline"
+                        open_evt = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id, DowntimeEvent.end_time == None)).first()
+                        if not open_evt:
+                            session.add(DowntimeEvent(camera_id=cam.id, start_time=datetime.now()))
+                        session.add(cam)
+                    cams_processed.append(cam)
+                session.add(nvr_obj)
+                continue
+            elif status == "FAIL":
                 nvr_label = f"{nvr_obj.name} ({nvr_obj.ip})" if nvr_obj.name else f"NVR {nvr_obj.ip}"
                 error_message = f"{nvr_label} Failed: {payload}"
                 await process_nvr_alerts(session, nvr_obj, True, error_message)
@@ -823,7 +853,7 @@ async def task_ping_cameras():
 
 async def task_sync_nvr_configs():
     with Session(engine) as session:
-        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")).all()
     if not nvrs:
         return
     logger.info(f"Syncing recording config for {len(nvrs)} NVRs in parallel...")
@@ -837,7 +867,7 @@ async def task_sync_nvr_configs():
 
 async def task_sync_nvr_stats():
     with Session(engine) as session:
-        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")).all()
     if not nvrs:
         return
     logger.info(f"Syncing recording stats for {len(nvrs)} NVRs in parallel...")
@@ -857,7 +887,7 @@ async def task_cleanup_database():
 
 async def task_sync_camera_names():
     with Session(engine) as session:
-        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")).all()
     if not nvrs:
         return
     logger.info(f"Syncing camera names for {len(nvrs)} NVRs in parallel...")
