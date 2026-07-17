@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.css">
 </head>
 
 <body>
@@ -240,11 +241,11 @@
                     </div>
                     <div class="side-section">
                         <label class="form-label">زمان شروع</label>
-                        <input type="datetime-local" id="startDt" class="form-input" style="color-scheme:dark">
+                        <input type="text" id="startDt" class="form-input" data-jdp placeholder="انتخاب تاریخ و زمان شروع">
                     </div>
                     <div class="side-section">
                         <label class="form-label">زمان پایان</label>
-                        <input type="datetime-local" id="endDt" class="form-input" style="color-scheme:dark">
+                        <input type="text" id="endDt" class="form-input" data-jdp placeholder="انتخاب تاریخ و زمان پایان">
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         <button class="btn btn-primary" onclick="genReport()">ساخت گزارش</button>
@@ -966,6 +967,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.js"></script>
     <script src="/static/app.js?v=2" defer></script>
 </body>
 
