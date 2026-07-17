@@ -53,7 +53,7 @@ class LoginRequest(BaseModel):
 
 monitor_task = None
 
-def seed_database(session: Session, init_from_json: bool):
+def seed_database(session: Session):
     defaults = {
         "MAIL_ENABLED": ("false", "Enable Email"),
         "MAIL_SERVER": ("smtp.gmail.com", "Server"),
@@ -91,70 +91,9 @@ def seed_database(session: Session, init_from_json: bool):
     session.query(Log).delete()
     session.commit()
 
-    init_data = {}
-    if init_from_json and os.path.exists("init_config.json"):
-        try:
-            with open("init_config.json", "r", encoding="utf-8") as f:
-                init_data = json.load(f)
-        except Exception as e:
-            logger.error(f"Error loading init_config.json: {e}")
-
     # Seed Settings
-    json_settings = init_data.get("settings", {})
     for key, (default_val, desc) in defaults.items():
-        val = json_settings.get(key, default_val) if init_from_json else default_val
-        session.add(Settings(key=key, value=str(val), description=desc))
-
-    # Seed Groups
-    json_groups = init_data.get("groups", [])
-    for group_data in json_groups:
-        session.add(NVRGroup(
-            id=group_data.get("id"),
-            name=group_data["name"],
-            description=group_data.get("description"),
-            image_url=group_data.get("image_url", ""),
-            sort_order=group_data.get("sort_order", 0)
-        ))
-    session.commit()
-
-    # Seed NVRs if init_from_json
-    if init_from_json:
-        json_nvrs = init_data.get("nvrs", [])
-        for nvr_data in json_nvrs:
-            session.add(NVR(
-                ip=nvr_data["ip"],
-                name=nvr_data.get("name"),
-                user=nvr_data["user"],
-                password=nvr_data.get("password", ""),
-                enabled=nvr_data.get("enabled", True),
-                group_id=nvr_data.get("group_id"),
-                rtsp_port=nvr_data.get("rtsp_port", 554)
-            ))
-    session.commit()
-
-    # Seed Users
-    json_users = init_data.get("users", [])
-    for u_data in json_users:
-        pass_hash = hash_password(u_data["password"])
-        db_user = User(
-            username=u_data["username"],
-            password_hash=pass_hash,
-            role=u_data.get("role", "group_view"),
-            group_id=u_data.get("group_id"),
-            is_active=u_data.get("is_active", True)
-        )
-        session.add(db_user)
-        session.flush()
-
-        a_settings = u_data.get("alert_settings", {})
-        db_alert = UserAlertSettings(
-            user_id=db_user.id,
-            mail_enabled=a_settings.get("mail_enabled", True),
-            mail_recipients=a_settings.get("mail_recipients", ""),
-            telegram_enabled=a_settings.get("telegram_enabled", True),
-            telegram_chat_ids=a_settings.get("telegram_chat_ids", "")
-        )
-        session.add(db_alert)
+        session.add(Settings(key=key, value=str(default_val), description=desc))
     session.commit()
 
 def seed_defaults():
@@ -189,72 +128,9 @@ def seed_defaults():
             "MAP_START_LNG": ("45.062508", "Default Map Start Longitude"),
         }
 
-        init_data = {}
-        if os.path.exists("init_config.json"):
-            try:
-                with open("init_config.json", "r", encoding="utf-8") as f:
-                    init_data = json.load(f)
-            except Exception as e:
-                logger.error(f"Error loading init_config.json: {e}")
-
-        json_settings = init_data.get("settings", {})
         for key, (default_val, desc) in defaults.items():
             if not session.get(Settings, key):
-                val = json_settings.get(key, default_val)
-                session.add(Settings(key=key, value=str(val), description=desc))
-
-        # Seed Groups
-        json_groups = init_data.get("groups", [])
-        for group_data in json_groups:
-            if "id" in group_data and not session.get(NVRGroup, group_data["id"]):
-                session.add(NVRGroup(
-                    id=group_data["id"],
-                    name=group_data["name"],
-                    description=group_data.get("description"),
-                    image_url=group_data.get("image_url", ""),
-                    sort_order=group_data.get("sort_order", 0)
-                ))
-        session.commit()
-
-        json_nvrs = init_data.get("nvrs", [])
-        for nvr_data in json_nvrs:
-            if not session.get(NVR, nvr_data["ip"]):
-                session.add(NVR(
-                    ip=nvr_data["ip"],
-                    name=nvr_data.get("name"),
-                    user=nvr_data["user"],
-                    password=nvr_data.get("password", ""),
-                    enabled=nvr_data.get("enabled", True),
-                    group_id=nvr_data.get("group_id"),
-                    rtsp_port=nvr_data.get("rtsp_port", 554)
-                ))
-        session.commit()
-
-        # Seed Users
-        json_users = init_data.get("users", [])
-        for u_data in json_users:
-            existing = session.exec(select(User).where(User.username == u_data["username"])).first()
-            if not existing:
-                pass_hash = hash_password(u_data["password"])
-                db_user = User(
-                    username=u_data["username"],
-                    password_hash=pass_hash,
-                    role=u_data.get("role", "group_view"),
-                    group_id=u_data.get("group_id"),
-                    is_active=u_data.get("is_active", True)
-                )
-                session.add(db_user)
-                session.flush()
-
-                a_settings = u_data.get("alert_settings", {})
-                db_alert = UserAlertSettings(
-                    user_id=db_user.id,
-                    mail_enabled=a_settings.get("mail_enabled", True),
-                    mail_recipients=a_settings.get("mail_recipients", ""),
-                    telegram_enabled=a_settings.get("telegram_enabled", True),
-                    telegram_chat_ids=a_settings.get("telegram_chat_ids", "")
-                )
-                session.add(db_alert)
+                session.add(Settings(key=key, value=str(default_val), description=desc))
         session.commit()
 
 def seed_scheduled_tasks():
@@ -626,16 +502,9 @@ async def stop_task_immediately(task_id: str, user: dict = Depends(require_auth)
         raise HTTPException(status_code=400, detail="تسک در حال اجرا نیست")
     return {"status": "stopped"}
 
-@app.post("/api/data/purge/empty", dependencies=[Depends(require_auth)])
-async def purge_empty(session: Session = Depends(get_session)):
-    seed_database(session, init_from_json=False)
-    invalidate_config_cache()
-    await restart_monitor()
-    return {"status": "ok"}
-
-@app.post("/api/data/purge/init", dependencies=[Depends(require_auth)])
-async def purge_init(session: Session = Depends(get_session)):
-    seed_database(session, init_from_json=True)
+@app.post("/api/data/purge", dependencies=[Depends(require_auth)])
+async def purge_database(session: Session = Depends(get_session)):
+    seed_database(session)
     invalidate_config_cache()
     await restart_monitor()
     return {"status": "ok"}
@@ -750,16 +619,11 @@ def export_config_json(session: Session = Depends(get_session)):
             "alert_settings": alert_dict
         })
 
-    config_data = {
-        "settings": settings_dict,
-        "groups": groups_list,
-        "nvrs": nvrs_list,
-        "users": users_list
-    }
-    
-    from fastapi.responses import JSONResponse
-    return JSONResponse(
-        content=config_data,
+    config_json = json.dumps(config_data, indent=2, ensure_ascii=False)
+    from fastapi.responses import Response
+    return Response(
+        content=config_json,
+        media_type="application/json",
         headers={"Content-Disposition": "attachment; filename=hikstatus_config.json"}
     )
 

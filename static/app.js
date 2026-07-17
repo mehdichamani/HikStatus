@@ -938,22 +938,11 @@ async function saveNVRRow(ip) {
     }
 }
 
-async function purgeEmpty() {
-    if (!confirm('توجه: تمامی اطلاعات دیتابیس (دوربین‌ها، NVRها، لاگ‌ها و تنظیمات) پاک خواهند شد و پایگاه داده خالی ایجاد می‌شود. ادامه می‌دهید؟')) return;
+async function purgeDatabase() {
+    if (!confirm('توجه: تمامی اطلاعات دیتابیس (دوربین‌ها، NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات) به طور کامل پاک خواهند شد. آیا مطمئن هستید؟')) return;
     try {
-        await apiFetch(`${API}/data/purge/empty`, { method: 'POST' });
-        showToast('پاکسازی و ایجاد دیتابیس خالی با موفقیت انجام شد');
-        setTimeout(() => location.reload(), 1000);
-    } catch (e) {
-        showToast('خطا: ' + e.message, 'error');
-    }
-}
-
-async function purgeInit() {
-    if (!confirm('توجه: تمامی اطلاعات فعلی دیتابیس پاک شده و با مقادیر پیش‌فرض فایل init_config.json جایگزین خواهد شد. ادامه می‌دهید؟')) return;
-    try {
-        await apiFetch(`${API}/data/purge/init`, { method: 'POST' });
-        showToast('پاکسازی و بارگذاری تنظیمات اولیه انجام شد');
+        await apiFetch(`${API}/data/purge`, { method: 'POST' });
+        showToast('پاکسازی کامل دیتابیس با موفقیت انجام شد');
         setTimeout(() => location.reload(), 1000);
     } catch (e) {
         showToast('خطا: ' + e.message, 'error');

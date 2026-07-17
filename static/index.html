@@ -682,19 +682,12 @@
                                 <h3>منطقه خطر</h3>
                             </div>
                             <div style="display: flex; flex-direction: column;">
-                                <div class="danger-row" style="border-bottom: 1px solid var(--border);">
-                                    <div style="text-align: right; margin-bottom: 8px;">
-                                        <p class="danger-text" style="font-weight: 600; color: var(--danger); margin-bottom: 4px;">ریست کامل و ایجاد پایگاه داده خالی</p>
-                                        <p class="danger-warning" style="font-size: 12px; color: var(--text-secondary);">تمامی دوربین‌ها، NVRها، لاگ‌ها و تنظیمات حذف شده و پایگاه داده خام ایجاد می‌شود.</p>
-                                    </div>
-                                    <button class="btn btn-danger" onclick="purgeEmpty()" style="white-space: nowrap; margin-top: 8px;">پاکسازی و پایگاه داده خالی</button>
-                                </div>
                                 <div class="danger-row">
                                     <div style="text-align: right; margin-bottom: 8px;">
-                                        <p class="danger-text" style="font-weight: 600; color: var(--danger); margin-bottom: 4px;">ریست کامل و بارگذاری از init_config.json</p>
-                                        <p class="danger-warning" style="font-size: 12px; color: var(--text-secondary);">دیتابیس پاکسازی شده و با اطلاعات فایل init_config.json مقداردهی اولیه می‌شود.</p>
+                                        <p class="danger-text" style="font-weight: 600; color: var(--danger); margin-bottom: 4px;">ریست کامل و پاکسازی پایگاه داده</p>
+                                        <p class="danger-warning" style="font-size: 12px; color: var(--text-secondary);">تمامی دوربین‌ها، NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات حذف شده و پایگاه داده خام ایجاد می‌شود.</p>
                                     </div>
-                                    <button class="btn btn-danger" onclick="purgeInit()" style="white-space: nowrap; margin-top: 8px;">پاکسازی و تنظیمات اولیه</button>
+                                    <button class="btn btn-danger" onclick="purgeDatabase()" style="white-space: nowrap; margin-top: 8px;">حذف کامل داده‌ها و ریست</button>
                                 </div>
                             </div>
                         </div>
