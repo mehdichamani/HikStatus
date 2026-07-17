@@ -103,6 +103,18 @@ def seed_database(session: Session, init_from_json: bool):
         val = json_settings.get(key, default_val) if init_from_json else default_val
         session.add(Settings(key=key, value=str(val), description=desc))
 
+    # Seed Groups
+    json_groups = init_data.get("groups", [])
+    for group_data in json_groups:
+        session.add(NVRGroup(
+            id=group_data.get("id"),
+            name=group_data["name"],
+            description=group_data.get("description"),
+            image_url=group_data.get("image_url", ""),
+            sort_order=group_data.get("sort_order", 0)
+        ))
+    session.commit()
+
     # Seed NVRs if init_from_json
     if init_from_json:
         json_nvrs = init_data.get("nvrs", [])
@@ -112,7 +124,9 @@ def seed_database(session: Session, init_from_json: bool):
                 name=nvr_data.get("name"),
                 user=nvr_data["user"],
                 password=nvr_data.get("password", ""),
-                enabled=nvr_data.get("enabled", True)
+                enabled=nvr_data.get("enabled", True),
+                group_id=nvr_data.get("group_id"),
+                rtsp_port=nvr_data.get("rtsp_port", 554)
             ))
     session.commit()
 
@@ -162,6 +176,19 @@ def seed_defaults():
                 val = json_settings.get(key, default_val)
                 session.add(Settings(key=key, value=str(val), description=desc))
 
+        # Seed Groups
+        json_groups = init_data.get("groups", [])
+        for group_data in json_groups:
+            if "id" in group_data and not session.get(NVRGroup, group_data["id"]):
+                session.add(NVRGroup(
+                    id=group_data["id"],
+                    name=group_data["name"],
+                    description=group_data.get("description"),
+                    image_url=group_data.get("image_url", ""),
+                    sort_order=group_data.get("sort_order", 0)
+                ))
+        session.commit()
+
         json_nvrs = init_data.get("nvrs", [])
         for nvr_data in json_nvrs:
             if not session.get(NVR, nvr_data["ip"]):
@@ -170,9 +197,10 @@ def seed_defaults():
                     name=nvr_data.get("name"),
                     user=nvr_data["user"],
                     password=nvr_data.get("password", ""),
-                    enabled=nvr_data.get("enabled", True)
+                    enabled=nvr_data.get("enabled", True),
+                    group_id=nvr_data.get("group_id"),
+                    rtsp_port=nvr_data.get("rtsp_port", 554)
                 ))
-
         session.commit()
 
 def seed_scheduled_tasks():

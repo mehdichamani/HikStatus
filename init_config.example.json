@@ -20,12 +20,24 @@
     "TELEGRAM_ALERT_FREQUENCY_MINUTES": "30",
     "TELEGRAM_MUTE_AFTER_N_ALERTS": "3"
   },
+  "groups": [
+    {
+      "id": 1,
+      "name": "کارخانه شماره ۱",
+      "description": "خط تولید اصلی و بسته‌بندی",
+      "image_url": "/static/plans/plan_1.png",
+      "sort_order": 1
+    }
+  ],
   "nvrs": [
     {
       "ip": "192.168.1.100",
+      "name": "NVR خط تولید",
       "user": "admin",
       "password": "your-nvr-password",
-      "enabled": true
+      "enabled": true,
+      "group_id": 1,
+      "rtsp_port": 554
     }
   ]
 }
