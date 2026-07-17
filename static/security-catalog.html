@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>سند جامع امنیت سیستم مانیتورینگ نظارتی</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #060912;
@@ -20,7 +20,6 @@
   }
   * { font-family: 'Vazirmatn', sans-serif; -webkit-font-smoothing: antialiased; }
   body { background: var(--bg); color: var(--fg); overflow-x: hidden; line-height: 1.7; }
-  .mono { font-family: 'Share Tech Mono', monospace; direction: ltr; }
 
   .grid-bg::before {
     content: ''; position: absolute; inset: 0;
@@ -354,8 +353,8 @@
                     <path d="M10 50 Q50 10, 100 50 T190 50" fill="none" stroke="url(#flowGrad1)" stroke-width="2" stroke-dasharray="4,4" class="flicker"/>
                     <circle cx="10" cy="50" r="6" fill="#fbbf24"/>
                     <circle cx="190" cy="50" r="6" fill="#00e5ff"/>
-                    <text x="10" y="75" fill="#fbbf24" font-size="9" text-anchor="middle" class="mono">PASSWORD</text>
-                    <text x="190" y="75" fill="#00e5ff" font-size="9" text-anchor="middle" class="mono">HASH</text>
+                    <text x="25" y="75" fill="#fbbf24" font-size="9" text-anchor="middle" class="mono">PASSWORD</text>
+                    <text x="185" y="75" fill="#00e5ff" font-size="9" text-anchor="middle" class="mono">HASH</text>
                   </svg>
                 </div>
                 <div class="text-center space-y-2">
@@ -897,17 +896,14 @@
   document.querySelectorAll('[data-counter]').forEach(el => counterObserver.observe(el));
 
   // PBKDF2 live counter
-  let pbkdf2Count = 0;
+  let pbkdf2Count = 50000;
   const pbkdf2El = document.getElementById('pbkdf2-counter');
   let pbkdf2Started = false;
+  pbkdf2El.textContent = toPersian(pbkdf2Count.toLocaleString('en-US'));
   function updatePbkdf2() {
-    pbkdf2Count = (pbkdf2Count + 137) % 100001;
+    pbkdf2Count = Math.min(pbkdf2Count + 137, 100000);
     pbkdf2El.textContent = toPersian(pbkdf2Count.toLocaleString('en-US'));
     if (pbkdf2Count < 100000) requestAnimationFrame(updatePbkdf2);
-    else {
-      pbkdf2Count = 0;
-      setTimeout(updatePbkdf2, 800);
-    }
   }
   const pbkdf2Observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
