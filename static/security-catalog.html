@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سند جامع امنیت سیستم مانیتورینگ نظارتی</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060912;
+    --bg-2: #0c1220;
+    --fg: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #00e5ff;
+    --amber: #fbbf24;
+    --threat: #f43f5e;
+    --success: #10b981;
+    --border: rgba(148, 163, 184, 0.12);
+  }
+  * { font-family: 'Vazirmatn', sans-serif; -webkit-font-smoothing: antialiased; }
+  body { background: var(--bg); color: var(--fg); overflow-x: hidden; line-height: 1.7; }
+  .mono { font-family: 'Share Tech Mono', monospace; direction: ltr; }
+
+  .grid-bg::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    pointer-events: none;
+  }
+  .glass {
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+  }
+  .glow-cyan { box-shadow: 0 0 40px rgba(0, 229, 255, 0.3); }
+  .glow-amber { box-shadow: 0 0 40px rgba(251, 191, 36, 0.3); }
+  .glow-success { box-shadow: 0 0 40px rgba(16, 185, 129, 0.3); }
+  .glow-threat { box-shadow: 0 0 40px rgba(244, 63, 94, 0.3); }
+
+  @keyframes pulse-ring {
+    0% { transform: scale(0.8); opacity: 0.8; }
+    100% { transform: scale(1.8); opacity: 0; }
+  }
+  .pulse-ring { animation: pulse-ring 3s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+
+  @keyframes rotate-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .rotate-slow { animation: rotate-slow 20s linear infinite; }
+  .rotate-slow-reverse { animation: rotate-slow 25s linear infinite reverse; }
+
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  .float { animation: float 4s ease-in-out infinite; }
+
+  .reveal { opacity: 0; transform: translateY(40px); transition: opacity 0.8s, transform 0.8s; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  .num-badge {
+    background: linear-gradient(135deg, #00e5ff, #10b981);
+    color: #060912; font-weight: 900;
+  }
+  @keyframes flicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+  .flicker { animation: flicker 2s ease-in-out infinite; }
+
+  @keyframes lock-pulse {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.6)); }
+    50% { filter: drop-shadow(0 0 20px rgba(0, 229, 255, 1)); }
+  }
+  .lock-pulse { animation: lock-pulse 2s ease-in-out infinite; }
+
+  .progress-stripes {
+    background-image: linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent);
+    background-size: 1rem 1rem;
+    animation: stripes 1s linear infinite;
+  }
+  @keyframes stripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-2); }
+  ::-webkit-scrollbar-thumb { background: linear-gradient(var(--accent), var(--success)); border-radius: 4px; }
+
+  .section-card {
+    position: relative;
+    background: linear-gradient(135deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    overflow: hidden;
+  }
+  .section-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+  .hex-pattern {
+    background-image: radial-gradient(circle at 1px 1px, rgba(0,229,255,0.15) 1px, transparent 0);
+    background-size: 20px 20px;
+  }
+
+  @keyframes flow-dot { 0% { offset-distance: 0%; opacity: 0; } 10%, 90% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+  @keyframes block-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+  .block-shake { animation: block-shake 0.4s ease-in-out infinite; }
+
+  @keyframes chunk-move {
+    0% { transform: translateY(0); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translateY(180px); opacity: 0; }
+  }
+  .chunk-anim { animation: chunk-move 3s linear infinite; }
+
+  .nav-link { position: relative; }
+  .nav-link::after {
+    content: ''; position: absolute; bottom: 4px; right: 50%; left: 50%; height: 1px;
+    background: var(--accent); transition: all 0.3s;
+  }
+  .nav-link:hover::after { right: 12px; left: 12px; }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #00e5ff, #10b981, #fbbf24);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+</style>
+</head>
+<body>
+  <canvas id="particle-canvas" class="fixed inset-0 pointer-events-none" style="z-index: 0;"></canvas>
+
+  <div class="fixed top-0 right-0 left-0 z-50 h-1 bg-white/5">
+    <div id="scroll-progress" class="h-full bg-gradient-to-l from-cyan-400 via-amber-400 to-emerald-400" style="width: 0%"></div>
+  </div>
+
+  <nav class="fixed top-0 right-0 left-0 z-40 backdrop-blur-md bg-[#060912]/80 border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-400 to-emerald-500 flex items-center justify-center glow-cyan">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-[#060912]"><path d="M12 2L4 6V12C4 16.5 7.4 20.7 12 22C16.6 20.7 20 16.5 20 12V6L12 2Z"/></svg>
+        </div>
+        <div>
+          <div class="text-sm font-bold">سند جامع امنیت</div>
+          <div class="text-xs text-cyan-400/70 mono">SECURITY ARCHITECTURE</div>
+        </div>
+      </div>
+      <div class="hidden lg:flex items-center gap-1 text-sm">
+        <a href="#executive" class="nav-link px-3 py-2 hover:text-cyan-400 transition">خلاصه اجرایی</a>
+        <a href="#section-1" class="nav-link px-3 py-2 hover:text-cyan-400 transition">هویت</a>
+        <a href="#section-2" class="nav-link px-3 py-2 hover:text-cyan-400 transition">گاوصندوق</a>
+        <a href="#section-3" class="nav-link px-3 py-2 hover:text-cyan-400 transition">سپر CSRF</a>
+        <a href="#section-4" class="nav-link px-3 py-2 hover:text-cyan-400 transition">پایداری</a>
+        <a href="#section-5" class="nav-link px-3 py-2 hover:text-cyan-400 transition">هسته</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="relative min-h-screen flex items-center justify-center grid-bg overflow-hidden pt-20">
+    <div class="absolute top-1/4 right-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-3xl"></div>
+    <div class="absolute bottom-1/4 left-1/4 w-96 h-96 rounded-full bg-amber-500/10 blur-3xl"></div>
+
+    <div class="relative z-10 max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+      <div class="space-y-6 text-center lg:text-right">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="mono">CLASSIFIED · EXECUTIVE BRIEF</span>
+        </div>
+        <h1 class="text-5xl lg:text-7xl font-black leading-tight">
+          سند جامع
+          <span class="block gradient-text">امنیت و معماری محافظتی</span>
+        </h1>
+        <p class="text-lg text-slate-300 max-w-xl mx-auto lg:mx-0">
+          سیستم مانیتورینگ نظارتی یکپارچه تجهیزات (NVR و دوربین‌ها) با استانداردهای روز دنیا، سپری مستحکم در برابر تهدیدات سایبری داخلی و خارجی
+        </p>
+        <div class="flex flex-wrap gap-4 justify-center lg:justify-start">
+          <a href="#executive" class="px-6 py-3 rounded-xl bg-gradient-to-l from-cyan-500 to-emerald-500 text-[#060912] font-bold hover:scale-105 transition glow-cyan">
+            مطالعه سند
+          </a>
+          <a href="#section-1" class="px-6 py-3 rounded-xl glass hover:border-cyan-400/50 transition">
+            ۵ لایه امنیتی ↓
+          </a>
+        </div>
+      </div>
+
+      <div class="relative flex items-center justify-center">
+        <div class="relative w-96 h-96">
+          <div class="absolute inset-0 rounded-full border border-cyan-400/30 pulse-ring"></div>
+          <div class="absolute inset-0 rounded-full border border-cyan-400/30 pulse-ring" style="animation-delay: 1s"></div>
+          <div class="absolute inset-0 rounded-full border border-cyan-400/30 pulse-ring" style="animation-delay: 2s"></div>
+
+          <div class="absolute inset-4 rounded-full border border-dashed border-cyan-400/20 rotate-slow">
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-cyan-400 glow-cyan"></div>
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 rounded-full bg-amber-400 glow-amber"></div>
+          </div>
+          <div class="absolute inset-12 rounded-full border border-dashed border-emerald-400/20 rotate-slow-reverse">
+            <div class="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-emerald-400 glow-success"></div>
+            <div class="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-rose-400 glow-threat"></div>
+          </div>
+
+          <div class="absolute inset-0 flex items-center justify-center">
+            <svg viewBox="0 0 100 100" class="w-44 h-44 lock-pulse">
+              <defs>
+                <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#00e5ff"/>
+                  <stop offset="100%" stop-color="#10b981"/>
+                </linearGradient>
+              </defs>
+              <path d="M50 10 L20 22 L20 50 C20 70 35 85 50 90 C65 85 80 70 80 50 L80 22 Z" fill="url(#shieldGrad)" opacity="0.15"/>
+              <path d="M50 10 L20 22 L20 50 C20 70 35 85 50 90 C65 85 80 70 80 50 L80 22 Z" fill="none" stroke="url(#shieldGrad)" stroke-width="2"/>
+              <rect x="38" y="48" width="24" height="20" rx="2" fill="url(#shieldGrad)"/>
+              <path d="M42 48 V42 C42 38 46 34 50 34 C54 34 58 38 58 42 V48" fill="none" stroke="url(#shieldGrad)" stroke-width="2.5"/>
+              <circle cx="50" cy="56" r="2.5" fill="#060912"/>
+              <rect x="49" y="56" width="2" height="6" fill="#060912"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 text-cyan-400/60 text-xs mono">
+      <div class="flex flex-col items-center gap-2">
+        <span>SCROLL</span>
+        <div class="w-px h-12 bg-gradient-to-b from-cyan-400/60 to-transparent"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <section id="executive" class="relative py-24 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="reveal text-center mb-16">
+        <div class="text-cyan-400 mono text-sm mb-3">EXECUTIVE SUMMARY</div>
+        <h2 class="text-4xl lg:text-5xl font-black mb-6">گزارش اجرایی ویژه مدیریت ارشد</h2>
+        <p class="text-slate-300 max-w-3xl mx-auto text-lg">
+          نمایانگر ساختار امنیتی چندلایه در سیستم مانیتورینگ یکپارچه تجهیزات نظارتی. حفاظت از دارایی‌های فیزیکی، جلوگیری از نشت اطلاعات حساس و تضمین پایداری کسب‌وکار به عنوان بالاترین اولویت
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
+        <div class="reveal glass rounded-2xl p-6 text-center">
+          <div class="text-3xl lg:text-4xl font-black text-cyan-400 mono" data-counter="100000">۰</div>
+          <div class="text-xs text-slate-400 mt-2">دور عملیات رمزنگاری</div>
+        </div>
+        <div class="reveal glass rounded-2xl p-6 text-center">
+          <div class="text-3xl lg:text-4xl font-black text-amber-400 mono" data-counter="50">۰</div>
+          <div class="text-xs text-slate-400 mt-2">مگابایت سقف آپلود</div>
+        </div>
+        <div class="reveal glass rounded-2xl p-6 text-center">
+          <div class="text-3xl lg:text-4xl font-black text-emerald-400 mono">۵</div>
+          <div class="text-xs text-slate-400 mt-2">لایه دفاعی مستقل</div>
+        </div>
+        <div class="reveal glass rounded-2xl p-6 text-center">
+          <div class="text-3xl lg:text-4xl font-black text-rose-400 mono">۱۰۰٪</div>
+          <div class="text-xs text-slate-400 mt-2">سانسور فیلدهای حساس</div>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="reveal glass rounded-2xl p-8 hover:border-cyan-400/30 transition">
+          <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 6V12C4 16.5 7.4 20.7 12 22C16.6 20.7 20 16.5 20 12V6L12 2Z"/></svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">حفاظت از دارایی‌های فیزیکی</h3>
+          <p class="text-slate-400 text-sm">صيانت از تجهیزات نظارتی و زیرساخت‌های حیاتی سازمان در برابر دسترسی غیرمجاز</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-8 hover:border-amber-400/30 transition">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">جلوگیری از نشت اطلاعات</h3>
+          <p class="text-slate-400 text-sm">رمزنگاری نظامی اطلاعات حساس و سانسور خودکار فیلدهای رمز در خروجی</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-8 hover:border-emerald-400/30 transition">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">تضمین پایداری کسب‌وکار</h3>
+          <p class="text-slate-400 text-sm">بازیابی ضدخرابکاری و مقاومت در برابر حملات فلج‌کننده سرور</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 1: PBKDF2 -->
+  <section id="section-1" class="relative py-12 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="section-card p-8 lg:p-12 reveal">
+        <div class="grid lg:grid-cols-12 gap-12">
+          <div class="lg:col-span-7 space-y-6">
+            <div class="flex items-center gap-4">
+              <div class="num-badge w-14 h-14 rounded-2xl flex items-center justify-center text-2xl">۱</div>
+              <div>
+                <div class="text-cyan-400 mono text-xs">LAYER 01 · IDENTITY PROTECTION</div>
+                <h2 class="text-3xl font-black">حفاظت پیشرفته از هویت و دسترسی کاربران</h2>
+              </div>
+            </div>
+            <p class="text-slate-300 leading-loose">
+              سیستم برای نگهداری اطلاعات ورود پرسنل و مدیران، از یکی از قدرتمندترین استانداردهای رمزنگاری یک‌طرفه
+              <span class="mono text-cyan-400">PBKDF2-HMAC-SHA256</span>
+              استفاده می‌کند. در این روش، رمز عبور کاربران مستقیماً ذخیره نمی‌شود، بلکه طی
+              <span class="text-amber-400 font-bold"> ۱۰۰,۰۰۰ دور </span>
+              عملیات ریاضی پیچیده به همراه یک رشته تصادفی (سالت ۱۶ بایتی) به یک شناسه غیرقابل نفوذ تبدیل می‌گردد.
+            </p>
+            <div class="glass rounded-xl p-5 space-y-3">
+              <div class="text-xs text-slate-400 mono">PASSWORD TRANSFORMATION</div>
+              <div class="flex items-center gap-3 text-sm">
+                <span class="text-slate-500">ورودی:</span>
+                <span class="mono text-amber-300">admin@2024</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-1.5 bg-cyan-400/20 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-l from-cyan-400 to-emerald-400 progress-stripes" style="width: 100%"></div>
+                </div>
+                <span class="text-xs text-cyan-400 mono">100,000x</span>
+              </div>
+              <div class="flex items-center gap-3 text-sm">
+                <span class="text-slate-500">خروجی:</span>
+                <span class="mono text-cyan-300 text-xs flicker">9f8a3b2c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a</span>
+              </div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-5">
+                <div class="text-xs text-cyan-400 mb-2 mono">BUSINESS VALUE</div>
+                <h4 class="font-bold mb-2">ارزش تجاری و امنیتی</h4>
+                <p class="text-sm text-slate-400">در صورت وقوع بدترین سناریوها و دسترسی غیرمجاز به پایگاه داده، هکرها با رشته‌هایی کاملاً بی‌معنی روبرو می‌شوند.</p>
+              </div>
+              <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+                <div class="text-xs text-amber-400 mb-2 mono">REAL-WORLD EXAMPLE</div>
+                <h4 class="font-bold mb-2">مثال ملموس</h4>
+                <p class="text-sm text-slate-400">اگر قوی‌ترین ابرکامپیوترهای فعلی بخواهند رمز عبور یکی از مدیران را کشف کنند، به ده‌ها سال زمان نیاز خواهند داشت.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5">
+            <div class="relative h-full min-h-[400px] flex items-center justify-center glass rounded-2xl p-8 overflow-hidden">
+              <div class="absolute inset-0 hex-pattern opacity-30"></div>
+              <div class="relative w-full space-y-6">
+                <div class="text-center">
+                  <div class="text-xs text-slate-400 mono mb-3">ITERATION COUNTER</div>
+                  <div class="text-4xl lg:text-5xl font-black mono text-cyan-400" id="pbkdf2-counter">۰</div>
+                  <div class="text-xs text-slate-500 mt-2">دور عملیات ریاضی</div>
+                </div>
+                <div class="relative h-32 flex items-center justify-center">
+                  <svg viewBox="0 0 200 100" class="w-full">
+                    <defs>
+                      <linearGradient id="flowGrad1" x1="0%" x2="100%">
+                        <stop offset="0%" stop-color="#fbbf24"/>
+                        <stop offset="100%" stop-color="#00e5ff"/>
+                      </linearGradient>
+                    </defs>
+                    <path d="M10 50 Q50 10, 100 50 T190 50" fill="none" stroke="url(#flowGrad1)" stroke-width="2" stroke-dasharray="4,4" class="flicker"/>
+                    <circle cx="10" cy="50" r="6" fill="#fbbf24"/>
+                    <circle cx="190" cy="50" r="6" fill="#00e5ff"/>
+                    <text x="10" y="75" fill="#fbbf24" font-size="9" text-anchor="middle" class="mono">PASSWORD</text>
+                    <text x="190" y="75" fill="#00e5ff" font-size="9" text-anchor="middle" class="mono">HASH</text>
+                  </svg>
+                </div>
+                <div class="text-center space-y-2">
+                  <div class="text-xs text-slate-400 mono">SALT (16 BYTES)</div>
+                  <div class="mono text-xs text-emerald-300 break-all bg-black/40 p-3 rounded-lg">7a2f9c1d4e8b3a6f5c2d9e1b4f7a8c3d</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: AES VAULT -->
+  <section id="section-2" class="relative py-12 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="section-card p-8 lg:p-12 reveal">
+        <div class="grid lg:grid-cols-12 gap-12">
+          <div class="lg:col-span-5 order-2 lg:order-1">
+            <div class="relative h-full min-h-[400px] flex items-center justify-center glass rounded-2xl p-8 overflow-hidden">
+              <div class="absolute inset-0 hex-pattern opacity-30"></div>
+              <div class="relative w-full space-y-5">
+                <!-- Vault -->
+                <div class="flex justify-center">
+                  <div class="relative">
+                    <svg viewBox="0 0 120 120" class="w-40 h-40 lock-pulse">
+                      <defs>
+                        <linearGradient id="vaultGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="#fbbf24"/>
+                          <stop offset="100%" stop-color="#f59e0b"/>
+                        </linearGradient>
+                      </defs>
+                      <rect x="15" y="20" width="90" height="85" rx="6" fill="none" stroke="url(#vaultGrad)" stroke-width="2"/>
+                      <circle cx="60" cy="62" r="22" fill="none" stroke="url(#vaultGrad)" stroke-width="2"/>
+                      <circle cx="60" cy="62" r="14" fill="url(#vaultGrad)" opacity="0.2"/>
+                      <line x1="60" y1="62" x2="60" y2="48" stroke="url(#vaultGrad)" stroke-width="2.5" stroke-linecap="round"/>
+                      <line x1="60" y1="62" x2="72" y2="62" stroke="url(#vaultGrad)" stroke-width="2.5" stroke-linecap="round"/>
+                      <circle cx="60" cy="62" r="3" fill="url(#vaultGrad)"/>
+                      <rect x="20" y="100" width="20" height="5" fill="url(#vaultGrad)" opacity="0.5"/>
+                      <rect x="80" y="100" width="20" height="5" fill="url(#vaultGrad)" opacity="0.5"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="space-y-3">
+                  <div class="text-xs text-slate-400 mono text-center">ENCRYPTED NVR CREDENTIALS</div>
+                  <div class="bg-black/40 rounded-lg p-3 mono text-xs text-amber-300 break-all flicker">
+                    gAAAAABmWXY...k7Hn3pQrS_9vL2aBcD==
+                  </div>
+                  <div class="text-xs text-slate-400 mono text-center">USER VIEW (MASKED)</div>
+                  <div class="bg-black/40 rounded-lg p-3 mono text-xs text-slate-500 text-center">
+                    ••••••••••••••••
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-7 order-1 lg:order-2 space-y-6">
+            <div class="flex items-center gap-4">
+              <div class="num-badge w-14 h-14 rounded-2xl flex items-center justify-center text-2xl">۲</div>
+              <div>
+                <div class="text-amber-400 mono text-xs">LAYER 02 · MILITARY-GRADE VAULT</div>
+                <h2 class="text-3xl font-black">گاوصندوق نظامی برای اطلاعات تجهیزات نظارتی</h2>
+              </div>
+            </div>
+            <p class="text-slate-300 leading-loose">
+              دسترسی به NVRهای کارخانه نیازمند نگهداری کلمات عبور آن‌ها در سیستم است. این پلتفرم به جای ذخیره ساده این کلمات عبور، آن‌ها را در یک «گاوصندوق دیجیتال» با استاندارد رمزنگاری نظامی
+              <span class="mono text-amber-400">AES</span>
+              (کتابخانه
+              <span class="mono text-amber-400">Fernet</span>) قفل می‌کند. کلید این گاوصندوق به صورت خودکار تولید شده و در لایه‌ای کاملاً ایزوله از کدهای برنامه نگهداری می‌شود.
+            </p>
+            <div class="grid sm:grid-cols-3 gap-3">
+              <div class="glass rounded-lg p-4 text-center">
+                <div class="text-xs text-slate-400 mb-1">الگوریتم</div>
+                <div class="mono text-amber-400 text-sm">AES-128</div>
+              </div>
+              <div class="glass rounded-lg p-4 text-center">
+                <div class="text-xs text-slate-400 mb-1">کتابخانه</div>
+                <div class="mono text-amber-400 text-sm">Fernet</div>
+              </div>
+              <div class="glass rounded-lg p-4 text-center">
+                <div class="text-xs text-slate-400 mb-1">سانسور خروجی</div>
+                <div class="mono text-emerald-400 text-sm">۱۰۰٪</div>
+              </div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+                <div class="text-xs text-amber-400 mb-2 mono">BUSINESS VALUE</div>
+                <h4 class="font-bold mb-2">ارزش تجاری و امنیتی</h4>
+                <p class="text-sm text-slate-400">این معماری تضمین می‌کند که حتی توسعه‌دهندگان سیستم نیز نمی‌توانند پسورد دوربین‌ها را مشاهده کنند. فیلدها به طور کامل از خروجی سیستم سانسور و حذف می‌شوند.</p>
+              </div>
+              <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5">
+                <div class="text-xs text-emerald-400 mb-2 mono">REAL-WORLD EXAMPLE</div>
+                <h4 class="font-bold mb-2">مثال ملموس</h4>
+                <p class="text-sm text-slate-400">اگر یک کارمند به پنل مدیریت لاگین کند، می‌تواند وضعیت دوربین‌ها را ببیند، اما به هیچ‌وجه نمی‌تواند پسورد اصلی دستگاه رکوردر را استخراج کند.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 3: CSRF -->
+  <section id="section-3" class="relative py-12 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="section-card p-8 lg:p-12 reveal">
+        <div class="grid lg:grid-cols-12 gap-12">
+          <div class="lg:col-span-7 space-y-6">
+            <div class="flex items-center gap-4">
+              <div class="num-badge w-14 h-14 rounded-2xl flex items-center justify-center text-2xl">۳</div>
+              <div>
+                <div class="text-rose-400 mono text-xs">LAYER 03 · REQUEST FORGERY SHIELD</div>
+                <h2 class="text-3xl font-black">سپر دفاعی هوشمند در برابر جعل درخواست</h2>
+              </div>
+            </div>
+            <p class="text-slate-300 leading-loose">
+              یکی از تهدیدات رایج سازمانی، فریب دادن مدیران برای کلیک روی لینک‌های مخرب است که منجر به صدور دستورات ناخواسته در شبکه‌های داخلی می‌شود. این سیستم مجهز به مکانیزم اعتبارسنجی دقیق مبدأ درخواست‌ها (بررسی هدرهای
+              <span class="mono text-rose-400">Origin</span>
+              و
+              <span class="mono text-rose-400">Referer</span>) است.
+            </p>
+            <p class="text-slate-300 leading-loose">
+              سیستم به صورت خودکار تشخیص می‌دهد که آیا دستورِ صادر شده (مثلاً دستور حذف یک دوربین یا تغییر تنظیمات) دقیقاً از داخل پنل رسمی کارخانه ارسال شده است یا از یک تب مرورگر مخرب.
+            </p>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5">
+                <div class="text-xs text-emerald-400 mb-2 mono">BUSINESS VALUE</div>
+                <h4 class="font-bold mb-2">ارزش تجاری و امنیتی</h4>
+                <p class="text-sm text-slate-400">سرور بلافاصله درخواست‌های خارجی را مسدود می‌کند و از اعتبار دسترسی مدیر برای خرابکاری در تنظیمات NVRها جلوگیری می‌کند.</p>
+              </div>
+              <div class="bg-rose-500/5 border border-rose-500/20 rounded-xl p-5">
+                <div class="text-xs text-rose-400 mb-2 mono">REAL-WORLD EXAMPLE</div>
+                <h4 class="font-bold mb-2">مثال ملموس</h4>
+                <p class="text-sm text-slate-400">اگر مدیر در رایانه خود وارد پنل شده باشد و همزمان ایمیلی آلوده را باز کند، هیچ کد مخربی نمی‌تواند از اعتبار او برای خرابکاری استفاده کند.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5">
+            <div class="relative h-full min-h-[400px] glass rounded-2xl p-8 overflow-hidden">
+              <div class="absolute inset-0 hex-pattern opacity-30"></div>
+              <div class="relative space-y-5">
+                <div class="text-center">
+                  <div class="text-xs text-slate-400 mono mb-2">REQUEST VALIDATION</div>
+                  <div class="text-sm font-bold">دروازه امنیتی سرور</div>
+                </div>
+
+                <!-- Legitimate request -->
+                <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-emerald-400 mono">LEGITIMATE</span>
+                    <span class="text-xs text-emerald-400">✓ تأیید شد</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-xs">
+                    <div class="px-2 py-1 rounded bg-emerald-500/20 text-emerald-300">پنل رسمی</div>
+                    <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    <div class="px-2 py-1 rounded bg-emerald-500/20 text-emerald-300">سرور</div>
+                  </div>
+                  <div class="mono text-xs text-emerald-400/70 mt-2">Origin: panel.factory.lan</div>
+                </div>
+
+                <!-- Malicious request -->
+                <div class="bg-rose-500/10 border border-rose-500/30 rounded-lg p-4 block-shake">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-rose-400 mono">MALICIOUS</span>
+                    <span class="text-xs text-rose-400">✗ مسدود شد</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-xs">
+                    <div class="px-2 py-1 rounded bg-rose-500/20 text-rose-300">تب مخرب</div>
+                    <svg class="w-4 h-4 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <div class="px-2 py-1 rounded bg-rose-500/20 text-rose-300 line-through">سرور</div>
+                  </div>
+                  <div class="mono text-xs text-rose-400/70 mt-2">Origin: evil.attacker.com</div>
+                </div>
+
+                <div class="bg-black/40 rounded-lg p-3 text-center">
+                  <div class="text-xs text-slate-400 mb-1">HEADERS CHECKED</div>
+                  <div class="mono text-xs text-cyan-300">Origin · Referer · CSRF-Token</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: BACKUP -->
+  <section id="section-4" class="relative py-12 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="section-card p-8 lg:p-12 reveal">
+        <div class="grid lg:grid-cols-12 gap-12">
+          <div class="lg:col-span-5 order-2 lg:order-1">
+            <div class="relative h-full min-h-[400px] glass rounded-2xl p-8 overflow-hidden">
+              <div class="absolute inset-0 hex-pattern opacity-30"></div>
+              <div class="relative space-y-6">
+                <div class="text-center">
+                  <div class="text-xs text-slate-400 mono mb-2">CHUNK-BY-CHUNK PROCESSING</div>
+                  <div class="text-sm font-bold">پردازش قطعه‌به‌قطعه</div>
+                </div>
+
+                <!-- Size gauge -->
+                <div class="text-center">
+                  <div class="text-xs text-slate-400 mb-2">سقف آپلود</div>
+                  <div class="relative inline-block">
+                    <svg viewBox="0 0 100 60" class="w-40">
+                      <path d="M10 50 A40 40 0 0 1 90 50" fill="none" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                      <path d="M10 50 A40 40 0 0 1 50 10" fill="none" stroke="#10b981" stroke-width="8" stroke-linecap="round"/>
+                      <circle cx="50" cy="10" r="3" fill="#10b981"/>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center mt-4">
+                      <div>
+                        <div class="text-3xl font-black text-emerald-400 mono">۵۰</div>
+                        <div class="text-xs text-slate-400">مگابایت</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Chunk flow -->
+                <div class="space-y-2">
+                  <div class="text-xs text-slate-400 text-center">SQLite Integrity Check</div>
+                  <div class="relative h-32 bg-black/40 rounded-lg overflow-hidden">
+                    <div class="absolute inset-0 flex flex-col justify-center gap-1 px-3">
+                      <div class="h-2 bg-emerald-400/60 rounded chunk-anim" style="width: 80%; animation-delay: 0s"></div>
+                      <div class="h-2 bg-cyan-400/60 rounded chunk-anim" style="width: 65%; animation-delay: 0.6s"></div>
+                      <div class="h-2 bg-amber-400/60 rounded chunk-anim" style="width: 90%; animation-delay: 1.2s"></div>
+                      <div class="h-2 bg-emerald-400/60 rounded chunk-anim" style="width: 70%; animation-delay: 1.8s"></div>
+                      <div class="h-2 bg-cyan-400/60 rounded chunk-anim" style="width: 85%; animation-delay: 2.4s"></div>
+                    </div>
+                  </div>
+                  <div class="flex justify-between text-xs">
+                    <span class="text-emerald-400">✓ سلامت فایل</span>
+                    <span class="text-cyan-400 mono">5MB chunks</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-7 order-1 lg:order-2 space-y-6">
+            <div class="flex items-center gap-4">
+              <div class="num-badge w-14 h-14 rounded-2xl flex items-center justify-center text-2xl">۴</div>
+              <div>
+                <div class="text-emerald-400 mono text-xs">LAYER 04 · CRISIS MANAGEMENT</div>
+                <h2 class="text-3xl font-black">مدیریت بحران و پایداری سرور</h2>
+              </div>
+            </div>
+            <p class="text-slate-300 leading-loose">
+              قابلیت تهیه نسخه پشتیبان و بازگردانی آن (Restore) برای تداوم کسب‌وکار حیاتی است. با این حال، فرم‌های آپلود می‌توانند نقطه‌ضعفی برای از کار انداختن سرور باشند. این پلتفرم فرآیند بازیابی اطلاعات را با الگوریتم «پردازش قطعه‌به‌قطعه»
+              <span class="mono text-emerald-400">(Chunk-by-Chunk)</span>
+              و محدودیت حجمی ۵۰ مگابایت ایمن کرده است و سلامت فایل‌های SQLite را پیش از هر اقدامی بررسی می‌کند.
+            </p>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5">
+                <div class="text-xs text-emerald-400 mb-2 mono">BUSINESS VALUE</div>
+                <h4 class="font-bold mb-2">ارزش تجاری و امنیتی</h4>
+                <p class="text-sm text-slate-400">سرور مرکزی در برابر حملات فلج‌کننده (مانند ارسال فایل‌های غول‌پیکر برای پر کردن رم سرور یا اصطلاحاً حملات OOM) کاملاً مقاوم است.</p>
+              </div>
+              <div class="bg-rose-500/5 border border-rose-500/20 rounded-xl p-5">
+                <div class="text-xs text-rose-400 mb-2 mono">REAL-WORLD EXAMPLE</div>
+                <h4 class="font-bold mb-2">مثال ملموس</h4>
+                <p class="text-sm text-slate-400">اگر فردی قصد داشته باشد با آپلود یک فایل مخرب چند گیگابایتی سرور را از کار بیندازد، سیستم در همان ثانیه اول بدون مصرف منابع، عملیات را متوقف کرده و خطای امنیتی ثبت می‌کند.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: CONFIG CORE -->
+  <section id="section-5" class="relative py-12 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="section-card p-8 lg:p-12 reveal">
+        <div class="grid lg:grid-cols-12 gap-12">
+          <div class="lg:col-span-7 space-y-6">
+            <div class="flex items-center gap-4">
+              <div class="num-badge w-14 h-14 rounded-2xl flex items-center justify-center text-2xl">۵</div>
+              <div>
+                <div class="text-cyan-400 mono text-xs">LAYER 05 · ISOLATED CONFIGURATION CORE</div>
+                <h2 class="text-3xl font-black">هسته پیکربندی ایزوله و غیرقابل نفوذ</h2>
+              </div>
+            </div>
+            <p class="text-slate-300 leading-loose">
+              حیاتی‌ترین بخش هر نرم‌افزار، فایل‌های تنظیمات اولیه آن است. در این سیستم، کلمات عبور مدیریت کلان
+              <span class="mono text-cyan-400">(Super Admin)</span>
+              هرگز به صورت متن ساده در فایل‌های پیکربندی رها نمی‌شوند. سیستم به گونه‌ای طراحی شده است که اطلاعات حساس را صرفاً از متغیرهای محیطی رمزنگاری‌شده
+              <span class="mono text-cyan-400">(Environment Variables)</span>
+              دریافت کند.
+            </p>
+            <div class="glass rounded-xl p-5 space-y-3">
+              <div class="text-xs text-slate-400 mono">CONFIG SOURCE COMPARISON</div>
+              <div class="grid sm:grid-cols-2 gap-3">
+                <div class="bg-rose-500/5 border border-rose-500/20 rounded-lg p-3">
+                  <div class="text-xs text-rose-400 mb-1">❌ روش سنتی</div>
+                  <div class="mono text-xs text-slate-400 break-all">config.json:<br>"password": "123456"</div>
+                </div>
+                <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+                  <div class="text-xs text-emerald-400 mb-1">✓ روش ایمن</div>
+                  <div class="mono text-xs text-slate-400 break-all">env:<br>SUPER_ADMIN_PWD=••••••</div>
+                </div>
+              </div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-5">
+                <div class="text-xs text-cyan-400 mb-2 mono">BUSINESS VALUE</div>
+                <h4 class="font-bold mb-2">ارزش تجاری و امنیتی</h4>
+                <p class="text-sm text-slate-400">خطای انسانی (مثل جا ماندن پسورد در فایل‌های سیستم) به صفر می‌رسد و دسترسی فیزیکی به فایل‌های سرور لزوماً به معنای دسترسی به مدیریت کلان نرم‌افزار نخواهد بود.</p>
+              </div>
+              <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+                <div class="text-xs text-amber-400 mb-2 mono">REAL-WORLD EXAMPLE</div>
+                <h4 class="font-bold mb-2">مثال ملموس</h4>
+                <p class="text-sm text-slate-400">تنظیمات هسته برنامه به صورت یک حافظه پنهان در ذهن سرور بارگذاری می‌شوند که پس از خاموش شدن سیستم، هیچ ردپایی از رمزهای عبور خام در حافظه دیسک باقی نمی‌ماند.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5">
+            <div class="relative h-full min-h-[400px] glass rounded-2xl p-8 overflow-hidden">
+              <div class="absolute inset-0 hex-pattern opacity-30"></div>
+              <div class="relative space-y-5">
+                <div class="text-center">
+                  <div class="text-xs text-slate-400 mono mb-2">ISOLATED MEMORY CORE</div>
+                  <div class="text-sm font-bold">حافظه ایزوله سرور</div>
+                </div>
+
+                <!-- Server memory visual -->
+                <div class="relative">
+                  <div class="bg-gradient-to-br from-cyan-500/10 to-emerald-500/5 border border-cyan-500/30 rounded-xl p-5">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                      <span class="text-xs mono text-cyan-300">RAM · MEMORY ONLY</span>
+                    </div>
+                    <div class="space-y-2 mono text-xs">
+                      <div class="flex justify-between">
+                        <span class="text-slate-400">SUPER_ADMIN_PWD</span>
+                        <span class="text-cyan-300">•••••••••</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-slate-400">DB_SECRET_KEY</span>
+                        <span class="text-cyan-300">•••••••••</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-slate-400">AES_MASTER_KEY</span>
+                        <span class="text-cyan-300">•••••••••</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Disk with no trace -->
+                <div class="bg-rose-500/5 border border-rose-500/20 rounded-xl p-5">
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="w-2 h-2 rounded-full bg-rose-400"></div>
+                    <span class="text-xs mono text-rose-300">DISK · NO TRACE</span>
+                  </div>
+                  <div class="space-y-2 mono text-xs">
+                    <div class="flex justify-between">
+                      <span class="text-slate-500">config.json</span>
+                      <span class="text-rose-400/70">∅ empty</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-500">.env</span>
+                      <span class="text-rose-400/70">∅ encrypted</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="text-center text-xs text-slate-400">
+                  <span class="text-emerald-400">✓</span> پس از خاموش شدن، هیچ ردپایی باقی نمی‌ماند
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL SUMMARY -->
+  <section class="relative py-24 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="reveal text-center mb-12">
+        <div class="text-cyan-400 mono text-sm mb-3">DEFENSE IN DEPTH</div>
+        <h2 class="text-4xl lg:text-5xl font-black mb-6">معماری دفاعی چندلایه</h2>
+        <p class="text-slate-300 max-w-3xl mx-auto text-lg">
+          پنج لایه مستقل دفاعی که در کنار هم، سپری نفوذناپذیر در برابر تهدیدات داخلی و خارجی ایجاد می‌کنند
+        </p>
+      </div>
+
+      <div class="reveal grid lg:grid-cols-5 gap-4 mb-12">
+        <div class="glass rounded-2xl p-6 text-center hover:border-cyan-400/40 transition group">
+          <div class="num-badge w-10 h-10 rounded-xl flex items-center justify-center text-lg mx-auto mb-3">۱</div>
+          <div class="text-xs text-cyan-400 mono mb-2">PBKDF2</div>
+          <div class="text-sm font-bold">هویت و دسترسی</div>
+          <div class="text-xs text-slate-500 mt-2">رمزنگاری ۱۰۰ هزار دور</div>
+        </div>
+        <div class="glass rounded-2xl p-6 text-center hover:border-amber-400/40 transition group">
+          <div class="num-badge w-10 h-10 rounded-xl flex items-center justify-center text-lg mx-auto mb-3">۲</div>
+          <div class="text-xs text-amber-400 mono mb-2">AES · FERNET</div>
+          <div class="text-sm font-bold">گاوصندوق نظامی</div>
+          <div class="text-xs text-slate-500 mt-2">رمزنگاری دوطرفه</div>
+        </div>
+        <div class="glass rounded-2xl p-6 text-center hover:border-rose-400/40 transition group">
+          <div class="num-badge w-10 h-10 rounded-xl flex items-center justify-center text-lg mx-auto mb-3">۳</div>
+          <div class="text-xs text-rose-400 mono mb-2">CSRF SHIELD</div>
+          <div class="text-sm font-bold">سپر ضد جعل</div>
+          <div class="text-xs text-slate-500 mt-2">اعتبارسنجی مبدأ</div>
+        </div>
+        <div class="glass rounded-2xl p-6 text-center hover:border-emerald-400/40 transition group">
+          <div class="num-badge w-10 h-10 rounded-xl flex items-center justify-center text-lg mx-auto mb-3">۴</div>
+          <div class="text-xs text-emerald-400 mono mb-2">ANTI-OOM</div>
+          <div class="text-sm font-bold">پایداری سرور</div>
+          <div class="text-xs text-slate-500 mt-2">پردازش قطعه‌ای</div>
+        </div>
+        <div class="glass rounded-2xl p-6 text-center hover:border-cyan-400/40 transition group">
+          <div class="num-badge w-10 h-10 rounded-xl flex items-center justify-center text-lg mx-auto mb-3">۵</div>
+          <div class="text-xs text-cyan-400 mono mb-2">ENV ISOLATION</div>
+          <div class="text-sm font-bold">هسته ایزوله</div>
+          <div class="text-xs text-slate-500 mt-2">متغیرهای محیطی</div>
+        </div>
+      </div>
+
+      <div class="reveal section-card p-8 lg:p-12 text-center">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-xs mb-6">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="mono text-emerald-300">SYSTEM PROTECTION: ACTIVE</span>
+        </div>
+        <h3 class="text-3xl lg:text-4xl font-black mb-4 gradient-text">سپر دفاعی مستحکم</h3>
+        <p class="text-slate-300 max-w-3xl mx-auto">
+          با استفاده از استانداردهای روز دنیا، این سیستم یک سپر دفاعی مستحکم در برابر تهدیدات سایبری داخلی و خارجی ایجاد می‌کند و پایداری کسب‌وکار را تضمین می‌نماید.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="relative py-12 px-6 border-t border-white/5">
+    <div class="max-w-7xl mx-auto text-center">
+      <div class="flex items-center justify-center gap-3 mb-4">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-emerald-500 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-[#060912]"><path d="M12 2L4 6V12C4 16.5 7.4 20.7 12 22C16.6 20.7 20 16.5 20 12V6L12 2Z"/></svg>
+        </div>
+        <span class="font-bold">سند جامع امنیت سیستم مانیتورینگ نظارتی</span>
+      </div>
+      <p class="text-xs text-slate-500 mono">CLASSIFIED · EXECUTIVE BRIEF · SECURITY ARCHITECTURE</p>
+    </div>
+  </footer>
+
+<script>
+  // Particle background
+  const canvas = document.getElementById('particle-canvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  class Particle {
+    constructor() {
+      this.reset();
+      this.y = Math.random() * canvas.height;
+    }
+    reset() {
+      this.x = Math.random() * canvas.width;
+      this.y = -10;
+      this.vy = Math.random() * 0.4 + 0.1;
+      this.size = Math.random() * 1.2 + 0.3;
+      this.alpha = Math.random() * 0.5 + 0.1;
+      this.char = Math.random() > 0.5 ? '0' : '1';
+      this.color = Math.random() > 0.7 ? '251, 191, 36' : '0, 229, 255';
+    }
+    update() {
+      this.y += this.vy;
+      if (this.y > canvas.height + 10) this.reset();
+    }
+    draw() {
+      ctx.fillStyle = `rgba(${this.color}, ${this.alpha})`;
+      ctx.font = `${this.size * 10}px Share Tech Mono`;
+      ctx.fillText(this.char, this.x, this.y);
+    }
+  }
+  for (let i = 0; i < 60; i++) particles.push(new Particle());
+
+  function animate() {
+    ctx.fillStyle = 'rgba(6, 9, 18, 0.08)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => { p.update(); p.draw(); });
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  // Scroll progress
+  window.addEventListener('scroll', () => {
+    const sp = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+    document.getElementById('scroll-progress').style.width = sp + '%';
+  });
+
+  // Reveal on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Persian number converter
+  function toPersian(n) {
+    return n.toString().replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+  }
+
+  // Counter animation
+  function animateCounter(el, target, duration = 2200) {
+    const startTime = performance.now();
+    function update(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.floor(target * eased);
+      el.textContent = toPersian(current.toLocaleString('en-US'));
+      if (progress < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+  }
+  const counterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const target = parseInt(entry.target.dataset.counter);
+        animateCounter(entry.target, target);
+        counterObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('[data-counter]').forEach(el => counterObserver.observe(el));
+
+  // PBKDF2 live counter
+  let pbkdf2Count = 0;
+  const pbkdf2El = document.getElementById('pbkdf2-counter');
+  let pbkdf2Started = false;
+  function updatePbkdf2() {
+    pbkdf2Count = (pbkdf2Count + 137) % 100001;
+    pbkdf2El.textContent = toPersian(pbkdf2Count.toLocaleString('en-US'));
+    if (pbkdf2Count < 100000) requestAnimationFrame(updatePbkdf2);
+    else {
+      pbkdf2Count = 0;
+      setTimeout(updatePbkdf2, 800);
+    }
+  }
+  const pbkdf2Observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !pbkdf2Started) {
+        pbkdf2Started = true;
+        updatePbkdf2();
+      }
+    });
+  }, { threshold: 0.3 });
+  pbkdf2Observer.observe(pbkdf2El);
+
+  // Smooth scroll for nav links
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const target = document.querySelector(link.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+</script>
+</body>
+</html>
