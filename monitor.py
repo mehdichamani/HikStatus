@@ -2,12 +2,29 @@ import asyncio
 import requests
 import xml.etree.ElementTree as ET
 import os
+from io import BytesIO
 from datetime import datetime, timedelta
 from requests.auth import HTTPDigestAuth
 from sqlmodel import Session, select
 from database import engine, NVR, Camera, Log, Settings, DowntimeEvent, UserSession
 from alerts import send_email_batch, send_telegram_batch
 from loguru import logger
+
+_XML_STREAM_THRESHOLD = 1_000_000  # 1MB
+
+
+def parse_xml_response(content: bytes):
+    size = len(content)
+    if size < _XML_STREAM_THRESHOLD:
+        return ET.fromstring(content)
+    logger.info(
+        f"Large XML response ({size / 1024 / 1024:.1f} MB), using streaming parser"
+    )
+    context = ET.iterparse(BytesIO(content), events=("end",))
+    root = None
+    for event, elem in context:
+        root = elem
+    return root
 
 _broadcast_callback = None
 
@@ -42,7 +59,7 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
         req_sess.trust_env = False
         resp = req_sess.get(url, auth=HTTPDigestAuth(user, password), timeout=8, proxies={})
         if resp.status_code == 200:
-            root = ET.fromstring(resp.content)
+            root = parse_xml_response(resp.content)
             namespace = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
             for channel in root.findall('ns:InputProxyChannel', namespace):
                 chan_id = channel.find('ns:id', namespace).text
@@ -126,7 +143,7 @@ def poll_nvr_thread(nvr_data):
         session.trust_env = False 
         resp = session.get(url, auth=HTTPDigestAuth(user, password), timeout=6, proxies={})
         if resp.status_code == 200:
-            root = ET.fromstring(resp.content)
+            root = parse_xml_response(resp.content)
             namespace = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
             results = []
             for channel in root.findall('ns:InputProxyChannelStatus', namespace):
@@ -336,7 +353,7 @@ def sync_recording_schedule_config(ip, user, password, session=None):
         try:
             resp = req_sess.get(url_all, auth=HTTPDigestAuth(user, password), timeout=8, proxies={})
             if resp.status_code == 200:
-                root = ET.fromstring(resp.content)
+                root = parse_xml_response(resp.content)
                 
                 def get_local_name(elem):
                     return elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
@@ -405,7 +422,7 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                     url_single = f"http://{ip}/ISAPI/ContentMgmt/record/tracks/{track_id}"
                     resp_single = req_sess.get(url_single, auth=HTTPDigestAuth(user, password), timeout=5, proxies={})
                     if resp_single.status_code == 200:
-                        root_s = ET.fromstring(resp_single.content)
+                        root_s = parse_xml_response(resp_single.content)
                         
                         def get_local_name(elem):
                             return elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
@@ -529,7 +546,7 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
                 resp = req_sess.post(url, auth=HTTPDigestAuth(user, password), data=payload, headers=headers, timeout=10, proxies={})
                 
                 if resp.status_code == 200:
-                    root = ET.fromstring(resp.content)
+                    root = parse_xml_response(resp.content)
                     namespace = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
                     
                     num_matches_node = root.find('ns:numOfMatches', namespace)
@@ -588,7 +605,7 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
                         resp_recent = req_sess.post(url, auth=HTTPDigestAuth(user, password), data=recent_payload, headers=headers, timeout=10, proxies={})
                         
                         if resp_recent.status_code == 200:
-                            root_recent = ET.fromstring(resp_recent.content)
+                            root_recent = parse_xml_response(resp_recent.content)
                             match_items_24h = root_recent.findall('.//ns:searchMatchItem', namespace)
                             
                             total_seconds_24h = 0
