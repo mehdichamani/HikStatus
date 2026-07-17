@@ -122,6 +122,7 @@ class ScheduledTask(SQLModel, table=True):
     last_run: Optional[datetime] = None
     last_duration: Optional[float] = None
     last_status: Optional[str] = None
+    last_error: Optional[str] = None
     next_run: Optional[datetime] = None
 
 def hash_password(password: str) -> str:
@@ -317,6 +318,13 @@ def init_db():
         if "plan_id" not in camera_cols:
             cursor.execute("ALTER TABLE camera ADD COLUMN plan_id INTEGER")
             print("Added column plan_id to camera table.")
+
+        # scheduledtask table migrations
+        cursor.execute("PRAGMA table_info(scheduledtask)")
+        task_cols = [row[1] for row in cursor.fetchall()]
+        if "last_error" not in task_cols:
+            cursor.execute("ALTER TABLE scheduledtask ADD COLUMN last_error TEXT")
+            print("Added column last_error to scheduledtask table.")
 
         conn.commit()
         conn.close()

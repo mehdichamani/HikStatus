@@ -108,6 +108,7 @@ class TaskScheduler:
         await self._broadcast_status(task_id, "Running")
         
         status_str = "Success"
+        error_msg = None
         try:
             await func()
         except asyncio.CancelledError:
@@ -116,6 +117,7 @@ class TaskScheduler:
         except Exception as e:
             print(f"Error running task {task_id}: {e}")
             status_str = "Failed"
+            error_msg = str(e)
         finally:
             duration = time.time() - start_time
             with Session(engine) as session:
@@ -124,6 +126,7 @@ class TaskScheduler:
                     db_task.status = "Idle"
                     db_task.last_duration = round(duration, 2)
                     db_task.last_status = status_str
+                    db_task.last_error = error_msg
                     # Schedule next run based on interval
                     db_task.next_run = datetime.now() + timedelta(seconds=db_task.interval)
                     session.add(db_task)
@@ -163,6 +166,7 @@ class TaskScheduler:
                             "last_run": task.last_run.isoformat() if task.last_run else None,
                             "last_duration": task.last_duration,
                             "last_status": task.last_status,
+                            "last_error": task.last_error,
                             "next_run": task.next_run.isoformat() if task.next_run else None,
                             "interval": task.interval,
                             "is_enabled": task.is_enabled

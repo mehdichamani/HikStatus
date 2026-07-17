@@ -795,16 +795,30 @@ async def task_ping_cameras():
 async def task_sync_nvr_configs():
     with Session(engine) as session:
         nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
-    for n in nvrs:
-        print(f"Triggering NVR recording config sync for {n.ip}...")
-        await asyncio.to_thread(sync_recording_schedule_config, n.ip, n.user, n.password)
+    if not nvrs:
+        return
+    print(f"Syncing recording config for {len(nvrs)} NVRs in parallel...")
+    results = await asyncio.gather(
+        *[asyncio.to_thread(sync_recording_schedule_config, n.ip, n.user, n.password) for n in nvrs],
+        return_exceptions=True
+    )
+    for n, r in zip(nvrs, results):
+        if isinstance(r, Exception):
+            print(f"Config sync failed for {n.ip}: {r}")
 
 async def task_sync_nvr_stats():
     with Session(engine) as session:
         nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
-    for n in nvrs:
-        print(f"Triggering NVR recording stats sync for {n.ip}...")
-        await asyncio.to_thread(sync_recording_stats_from_nvr, n.ip, n.user, n.password)
+    if not nvrs:
+        return
+    print(f"Syncing recording stats for {len(nvrs)} NVRs in parallel...")
+    results = await asyncio.gather(
+        *[asyncio.to_thread(sync_recording_stats_from_nvr, n.ip, n.user, n.password) for n in nvrs],
+        return_exceptions=True
+    )
+    for n, r in zip(nvrs, results):
+        if isinstance(r, Exception):
+            print(f"Stats sync failed for {n.ip}: {r}")
 
 async def task_cleanup_database():
     with Session(engine) as session:
@@ -815,9 +829,16 @@ async def task_cleanup_database():
 async def task_sync_camera_names():
     with Session(engine) as session:
         nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
-    for n in nvrs:
-        print(f"Triggering NVR camera name sync for {n.ip}...")
-        await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password)
+    if not nvrs:
+        return
+    print(f"Syncing camera names for {len(nvrs)} NVRs in parallel...")
+    results = await asyncio.gather(
+        *[asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password) for n in nvrs],
+        return_exceptions=True
+    )
+    for n, r in zip(nvrs, results):
+        if isinstance(r, Exception):
+            print(f"Camera name sync failed for {n.ip}: {r}")
 
 def get_substream_channel_id(chan_id_str: str) -> str:
     try:
@@ -837,32 +858,32 @@ async def task_capture_camera_snapshots():
         
     os.makedirs("data/snapshots", exist_ok=True)
     
-    for cam in cameras:
+    async def capture_one(cam):
         nvr = nvrs.get(cam.nvr_ip)
         if not nvr or not nvr.enabled:
-            continue
+            return
             
         password = decrypt_password(nvr.password)
         sub_chan = get_substream_channel_id(cam.channel_id)
         url = f"http://{nvr.ip}/ISAPI/Streaming/channels/{sub_chan}/picture"
         
+        def fetch():
+            s = requests.Session()
+            s.trust_env = False
+            r = s.get(url, auth=HTTPDigestAuth(nvr.user, password), timeout=8, proxies={})
+            if r.status_code == 200:
+                return r.content
+            try:
+                main_chan = f"{(int(sub_chan) // 10) * 10 + 1}"
+            except Exception:
+                main_chan = f"{cam.channel_id}01"
+            fallback_url = f"http://{nvr.ip}/ISAPI/Streaming/channels/{main_chan}/picture"
+            r = s.get(fallback_url, auth=HTTPDigestAuth(nvr.user, password), timeout=8, proxies={})
+            if r.status_code == 200:
+                return r.content
+            return None
+            
         try:
-            def fetch():
-                s = requests.Session()
-                s.trust_env = False
-                r = s.get(url, auth=HTTPDigestAuth(nvr.user, password), timeout=8, proxies={})
-                if r.status_code == 200:
-                    return r.content
-                try:
-                    main_chan = f"{(int(sub_chan) // 10) * 10 + 1}"
-                except Exception:
-                    main_chan = f"{cam.channel_id}01"
-                fallback_url = f"http://{nvr.ip}/ISAPI/Streaming/channels/{main_chan}/picture"
-                r = s.get(fallback_url, auth=HTTPDigestAuth(nvr.user, password), timeout=8, proxies={})
-                if r.status_code == 200:
-                    return r.content
-                return None
-                
             img_data = await asyncio.to_thread(fetch)
             if img_data:
                 file_path = f"data/snapshots/camera_{cam.id}.jpg"
@@ -873,6 +894,10 @@ async def task_capture_camera_snapshots():
                 print(f"Failed to capture snapshot for camera {cam.name} (id: {cam.id}) - NVR returned error status")
         except Exception as e:
             print(f"Failed to capture snapshot for camera {cam.name} (id: {cam.id}): {e}")
+
+    if cameras:
+        print(f"Capturing snapshots for {len(cameras)} cameras in parallel...")
+        await asyncio.gather(*[capture_one(cam) for cam in cameras])
 
 async def start_monitor_loop():
     print("Monitor loop started (via scheduler)...")

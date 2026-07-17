@@ -3205,72 +3205,125 @@ function displayPersianDateTime(isoStr) {
     }
 }
 
+function formatInterval(seconds) {
+    if (!seconds || seconds <= 0) return '-';
+    const units = [
+        { label: 'روز', value: 86400 },
+        { label: 'ساعت', value: 3600 },
+        { label: 'دقیقه', value: 60 },
+        { label: 'ثانیه', value: 1 }
+    ];
+    const parts = [];
+    let remaining = seconds;
+    for (const u of units) {
+        if (remaining >= u.value) {
+            const count = Math.floor(remaining / u.value);
+            remaining %= u.value;
+            const num = count.toLocaleString('fa-IR');
+            parts.push(`${num} ${u.label}`);
+        }
+    }
+    return parts.length ? parts.join(' و ') : '-';
+}
+
+function formatDuration(seconds) {
+    if (!seconds || seconds <= 0) return '-';
+    if (seconds < 60) return `${Math.round(seconds)} ثانیه`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)} دقیقه`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.round((seconds % 3600) / 60);
+    return m > 0 ? `${h} ساعت و ${m} دقیقه` : `${h} ساعت`;
+}
+
 function renderScheduledTasks() {
-    const tbody = document.getElementById('tasks-table-body');
-    if (!tbody) return;
+    const container = document.getElementById('tasks-container');
+    if (!container) return;
 
     if (scheduledTasksCache.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">هیچ وظیفه‌ای تعریف نشده است.</td></tr>`;
+        container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px 20px;">هیچ وظیفه‌ای تعریف نشده است.</div>`;
         return;
     }
 
-    tbody.innerHTML = scheduledTasksCache.map(t => {
-        const statusBadge = t.status === 'Running' 
-            ? `<span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; padding: 4px 8px; border-radius: 4px; font-size: 11px;">درحال اجرا</span>`
-            : `<span class="badge" style="background: rgba(148, 163, 184, 0.1); color: var(--text-secondary); padding: 4px 8px; border-radius: 4px; font-size: 11px;">بیکار</span>`;
+    container.innerHTML = scheduledTasksCache.map(t => {
+        const isRunning = t.status === 'Running';
+        const isEnabled = t.is_enabled;
+        const hasError = t.last_status === 'Failed' && t.last_error;
+
+        const statusBadge = isRunning
+            ? `<span class="task-badge task-badge-running">درحال اجرا</span>`
+            : `<span class="task-badge task-badge-idle">بیکار</span>`;
 
         const lastStatusBadge = t.last_status === 'Success'
-            ? `<span style="color: #22c55e;">موفق</span>`
+            ? `<span class="task-status-ok">موفق</span>`
             : t.last_status === 'Failed'
-            ? `<span style="color: #ef4444;">ناموفق</span>`
+            ? `<span class="task-status-fail">ناموفق</span>`
             : t.last_status === 'Cancelled'
-            ? `<span style="color: var(--warning);">لغو شده</span>`
+            ? `<span class="task-status-cancel">لغو شده</span>`
             : `<span style="color: var(--text-muted);">-</span>`;
 
-        const lastRunStr = t.last_run 
-            ? `${displayPersianDateTime(t.last_run)} (${t.last_duration} ثانیه) - ${lastStatusBadge}`
-            : 'هرگز';
+        const errorHtml = hasError
+            ? `<div class="task-error">${t.last_error}</div>`
+            : '';
 
-        const runBtn = t.status === 'Running'
-            ? `<button class="btn btn-ghost btn-sm" disabled style="opacity: 0.5; padding: 4px 8px; font-size: 12px;">اجرا ▶️</button>`
-            : `<button class="btn btn-ghost btn-sm" onclick="runTask('${t.id}')" style="color: #22c55e; padding: 4px 8px; font-size: 12px;">اجرا ▶️</button>`;
+        const runBtn = isRunning
+            ? `<button class="btn btn-ghost" disabled style="opacity: 0.5; padding: 4px 10px; font-size: 12px;">اجرا</button>`
+            : `<button class="btn btn-ghost" onclick="confirmRunTask('${t.id}', '${t.name}')" style="color: #22c55e; padding: 4px 10px; font-size: 12px;">اجرا</button>`;
 
-        const stopBtn = t.status === 'Running'
-            ? `<button class="btn btn-ghost btn-sm" onclick="stopTask('${t.id}')" style="color: #ef4444; padding: 4px 8px; font-size: 12px;">توقف ⏹️</button>`
-            : `<button class="btn btn-ghost btn-sm" disabled style="opacity: 0.5; padding: 4px 8px; font-size: 12px;">توقف ⏹️</button>`;
+        const stopBtn = isRunning
+            ? `<button class="btn btn-ghost" onclick="stopTask('${t.id}')" style="color: #ef4444; padding: 4px 10px; font-size: 12px;">توقف</button>`
+            : `<button class="btn btn-ghost" disabled style="opacity: 0.5; padding: 4px 10px; font-size: 12px;">توقف</button>`;
 
-        const isChecked = t.is_enabled ? 'checked' : '';
+        const isChecked = isEnabled ? 'checked' : '';
 
         return `
-            <tr id="task-row-${t.id}">
-                <td>
-                    <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">${t.name}</strong>
-                    <span style="font-size: 11px; color: var(--text-secondary); display: block;">${t.description}</span>
-                </td>
-                <td>${statusBadge}</td>
-                <td style="font-size: 12px; font-family: monospace; direction: ltr; text-align: right;">${lastRunStr}</td>
-                <td style="font-size: 12px; font-family: monospace; direction: ltr; text-align: right;">${displayPersianDateTime(t.next_run)}</td>
-                <td>
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                        <input type="number" id="interval-input-${t.id}" class="form-input" style="width: 80px; padding: 4px 8px; font-size: 12px; text-align: center;" value="${t.interval}">
-                        <button class="btn btn-sm" onclick="saveTaskInterval('${t.id}')" style="padding: 4px 8px; font-size: 11px; background: var(--surface-3); border: 1px solid var(--border);">ذخیره</button>
+            <div class="task-card ${!isEnabled ? 'task-card-disabled' : ''}" id="task-row-${t.id}">
+                <div class="task-card-header">
+                    <div class="task-card-title">
+                        <strong>${t.name}</strong>
+                        <span class="task-card-desc">${t.description}</span>
                     </div>
-                </td>
-                <td>
-                    <label class="toggle" style="transform: scale(0.85); transform-origin: right;">
-                        <input type="checkbox" ${isChecked} onchange="toggleTask('${t.id}', this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </td>
-                <td>
-                    <div style="display: flex; gap: 4px;">
-                        ${runBtn}
-                        ${stopBtn}
+                    <div class="task-card-controls">
+                        ${statusBadge}
+                        <label class="toggle" style="transform: scale(0.85); transform-origin: right; margin: 0;">
+                            <input type="checkbox" ${isChecked} onchange="toggleTask('${t.id}', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
-                </td>
-            </tr>
+                </div>
+                <div class="task-card-body">
+                    <div class="task-card-row">
+                        <span class="task-card-label">آخرین اجرا:</span>
+                        <span class="task-card-value">${t.last_run ? displayPersianDateTime(t.last_run) : 'هرگز'} ${t.last_duration ? '(' + formatDuration(t.last_duration) + ')' : ''} - ${lastStatusBadge}</span>
+                    </div>
+                    ${errorHtml}
+                    <div class="task-card-row">
+                        <span class="task-card-label">اجرای بعدی:</span>
+                        <span class="task-card-value">${displayPersianDateTime(t.next_run)}</span>
+                    </div>
+                    <div class="task-card-row">
+                        <span class="task-card-label">دوره تکرار:</span>
+                        <div class="task-card-interval">
+                            <span class="task-card-value">${formatInterval(t.interval)}</span>
+                            <div class="task-card-interval-edit">
+                                <input type="number" id="interval-input-${t.id}" class="form-input" style="width: 80px; padding: 4px 8px; font-size: 12px; text-align: center;" value="${t.interval}">
+                                <button class="btn btn-sm" onclick="saveTaskInterval('${t.id}')" style="padding: 4px 10px; font-size: 11px; background: var(--surface-3); border: 1px solid var(--border);">ذخیره</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="task-card-footer">
+                    ${runBtn}
+                    ${stopBtn}
+                </div>
+            </div>
         `;
     }).join('');
+}
+
+function confirmRunTask(id, name) {
+    if (confirm(`آیا از اجرای دستی «${name}» اطمینان دارید؟`)) {
+        runTask(id);
+    }
 }
 
 async function runTask(id) {
