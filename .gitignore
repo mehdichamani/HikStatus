@@ -20,3 +20,6 @@ init_config.json
 monitor_state.json
 monitor_events.csv
 *.log
+
+# obsidian files
+.agents/.obsidian/

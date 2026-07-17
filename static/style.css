@@ -2157,3 +2157,59 @@ body {
     margin-top: 8px;
 }
 
+/* --- JALALI DATEPICKER DARK THEME OVERRIDES --- */
+jdp-container {
+    --jdp-color-0: var(--surface-2) !important; /* Picker container bg */
+    --jdp-color-1: var(--surface-3) !important; /* Header bg / select bg */
+    --jdp-color-2: var(--surface) !important;   /* Borders and hover bg */
+    --jdp-color-3: var(--border-light) !important; /* Today border */
+    --jdp-color-4: var(--text-muted) !important; /* Disabled text */
+    --jdp-color-5: var(--text) !important;       /* Normal text */
+    --jdp-primary: var(--primary) !important;    /* Primary highlight (selected day/today button) */
+    --jdp-red: var(--danger) !important;         /* Holidays */
+    
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+jdp-container .jdp-day:not(.disabled-day):not(.selected):hover {
+    background: var(--surface-3) !important;
+}
+
+/* Fix dropdown styling inside the datepicker */
+jdp-container select {
+    background-color: var(--surface-3) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: 14px !important;
+    padding: 4px 8px !important;
+}
+
+jdp-container select option {
+    background-color: var(--surface-2) !important;
+    color: var(--text) !important;
+}
+
+/* Align and format hours and minutes selects */
+jdp-container .jdp-time-container .jdp-time select {
+    background: var(--surface-3) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    padding: 6px 12px !important;
+}
+
+jdp-container .jdp-btn-today,
+jdp-container .jdp-btn-empty,
+jdp-container .jdp-btn-close {
+    background: var(--primary) !important;
+    color: #fff !important;
+    transition: var(--transition) !important;
+}
+
+jdp-container .jdp-btn-today:hover,
+jdp-container .jdp-btn-empty:hover,
+jdp-container .jdp-btn-close:hover {
+    background: var(--primary-hover) !important;
+}
+
