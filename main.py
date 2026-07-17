@@ -1220,7 +1220,7 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
     
     from urllib.parse import quote
     encoded_pass = quote(decrypted_pass, safe='')
-    rtsp_url = f"rtsp://{nvr.user}:{encoded_pass}@{rtsp_host}/Streaming/channels/{rtsp_chan}"
+    rtsp_url = f"rtsp://{nvr.user}:{encoded_pass}@{rtsp_host}/Streaming/Channels/{rtsp_chan}"
     
     import subprocess
     from fastapi.responses import StreamingResponse

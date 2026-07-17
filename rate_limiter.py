@@ -178,15 +178,16 @@ def max_connections(max_conn: int, key: str = None):
                 raise
 
             if isinstance(result, StreamingResponse):
-                original_close = result.close
+                body_iter = result.body_iterator
 
-                async def wrapped_close():
+                async def wrapped_body():
                     try:
-                        await original_close()
+                        async for chunk in body_iter:
+                            yield chunk
                     finally:
                         limiter.release(conn_key)
 
-                result.close = wrapped_close
+                result.body_iterator = wrapped_body()
                 return result
 
             limiter.release(conn_key)
@@ -210,15 +211,16 @@ def max_connections(max_conn: int, key: str = None):
                 raise
 
             if isinstance(result, StreamingResponse):
-                original_close = result.close
+                body_iter = result.body_iterator
 
-                async def wrapped_close():
+                async def wrapped_body():
                     try:
-                        await original_close()
+                        async for chunk in body_iter:
+                            yield chunk
                     finally:
                         limiter.release(conn_key)
 
-                result.close = wrapped_close
+                result.body_iterator = wrapped_body()
                 return result
 
             limiter.release(conn_key)
