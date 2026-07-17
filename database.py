@@ -225,7 +225,11 @@ def create_performance_indexes(dbapi_connection, connection_record):
         ("ix_nvr_enabled", "nvr", "enabled"),
     ]
     for idx_name, table, column in indexes:
-        cursor.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})")
+        try:
+            cursor.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})")
+        except Exception:
+            # Table might not exist yet during initial SQLModel metadata creation
+            pass
     cursor.close()
 
 
