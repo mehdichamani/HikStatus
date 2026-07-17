@@ -1779,6 +1779,12 @@ function sendTestNotification() {
     
     playSynthesizedSound('recovery');
     showToast("اعلان آزمایشی ارسال شد");
+    
+    notification.onclick = () => {
+        window.focus();
+        nav('logs');
+        notification.close();
+    };
 }
 
 function handleIncomingAlert(msg) {
@@ -1800,6 +1806,7 @@ function handleIncomingAlert(msg) {
         });
         notification.onclick = () => {
             window.focus();
+            nav('logs');
             notification.close();
         };
     }

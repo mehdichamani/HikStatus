@@ -137,13 +137,16 @@ def get_email_body(subject, lines, alert_type):
 
 def send_email_batch(subject, lines, alert_type="warning", group_id=None):
     conf = get_config_dict()
+    sent_status = True
     
     # 1. Send to admin
     if conf.get("MAIL_ENABLED") == "true" and lines:
         body = get_email_body(subject, lines, alert_type)
         recipients = [r.strip() for r in conf.get("MAIL_RECIPIENTS", "").split(",") if r.strip()]
         if recipients:
-            send_email_raw(conf, subject, body, recipients)
+            res = send_email_raw(conf, subject, body, recipients)
+            if res is not True:
+                sent_status = res
             
     # 2. Send to group control users
     if group_id is not None and lines:
@@ -155,9 +158,11 @@ def send_email_batch(subject, lines, alert_type="warning", group_id=None):
                     recipients = [r.strip() for r in alert_settings.mail_recipients.split(",") if r.strip()]
                     if recipients:
                         body = get_email_body(subject, lines, alert_type)
-                        send_email_raw(conf, subject, body, recipients)
+                        res = send_email_raw(conf, subject, body, recipients)
+                        if res is not True:
+                            sent_status = res
                         
-    return True
+    return sent_status
 
 def send_email_raw(conf, subject, body, recipients):
     try:
@@ -201,13 +206,16 @@ def get_telegram_message(header, lines, alert_type):
 
 def send_telegram_batch(header, lines, alert_type="warning", group_id=None):
     conf = get_config_dict()
+    sent_status = True
     
     # 1. Send to admin
     if conf.get("TELEGRAM_ENABLED") == "true" and lines:
         msg = get_telegram_message(header, lines, alert_type)
         chat_ids = [c.strip() for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()]
         if chat_ids:
-            send_telegram_raw(conf, msg, chat_ids)
+            res = send_telegram_raw(conf, msg, chat_ids)
+            if res is not True:
+                sent_status = res
             
     # 2. Send to group control users
     if group_id is not None and lines:
@@ -219,9 +227,11 @@ def send_telegram_batch(header, lines, alert_type="warning", group_id=None):
                     chat_ids = [c.strip() for c in alert_settings.telegram_chat_ids.split(",") if c.strip()]
                     if chat_ids:
                         msg = get_telegram_message(header, lines, alert_type)
-                        send_telegram_raw(conf, msg, chat_ids)
+                        res = send_telegram_raw(conf, msg, chat_ids)
+                        if res is not True:
+                            sent_status = res
                         
-    return True
+    return sent_status
 
 def send_telegram_raw(conf, message, chat_ids):
     token = conf.get("TELEGRAM_BOT_TOKEN")

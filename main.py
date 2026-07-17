@@ -641,17 +641,23 @@ async def restore_database(request: Request, file: UploadFile = File(...)):
 @rate_limit(3, 60)
 def test_mail(request: Request):
     conf = get_config_dict()
-    res = send_email_raw(conf, "تست سامانه مانیتورینگ", "<div style='text-align:center;padding:20px;'><h3 style='color:#28a745;'>ایمیل به درستی کار میکنه!</h3><p>تاریخ: " + get_persian_datetime() + "</p></div>")
+    recipients = [r.strip() for r in conf.get("MAIL_RECIPIENTS", "").split(",") if r.strip()]
+    if not recipients:
+        raise HTTPException(status_code=400, detail="گیرنده‌ای تعریف نشده است.")
+    res = send_email_raw(conf, "تست سامانه مانیتورینگ", "<div style='text-align:center;padding:20px;'><h3 style='color:#28a745;'>ایمیل به درستی کار میکنه!</h3><p>تاریخ: " + get_persian_datetime() + "</p></div>", recipients)
     if res is True: return {"status": "ok"}
-    raise HTTPException(status_code=400, detail="خطا در ارسال ایمیل. تنظیمات را بررسی کنید.")
+    raise HTTPException(status_code=400, detail=f"خطا در ارسال ایمیل: {res}")
 
 @app.post("/api/test/telegram", dependencies=[Depends(require_auth)])
 @rate_limit(3, 60)
 def test_telegram(request: Request):
     conf = get_config_dict()
-    res = send_telegram_raw(conf, "✅ <b>تست سامانه مانیتورینگ</b>\nاعلان‌های تلگرام درسته!\n📅 " + get_persian_datetime())
+    chat_ids = [c.strip() for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()]
+    if not chat_ids:
+        raise HTTPException(status_code=400, detail="شناسه چت تلگرام تعریف نشده است.")
+    res = send_telegram_raw(conf, "✅ <b>تست سامانه مانیتورینگ</b>\nاعلان‌های تلگرام درسته!\n📅 " + get_persian_datetime(), chat_ids)
     if res is True: return {"status": "ok"}
-    raise HTTPException(status_code=400, detail="خطا در ارسال تلگرام. تنظیمات را بررسی کنید.")
+    raise HTTPException(status_code=400, detail=f"خطا در ارسال تلگرام: {res}")
 
 # --- API ---
 @app.get("/api/nvrs", response_model=list[NVR], response_model_exclude={"password"})
