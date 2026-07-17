@@ -32,6 +32,7 @@ class NVR(SQLModel, table=True):
     telegram_alert_count: int = 0
     telegram_last_alert: Optional[datetime] = None
     group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
+    rtsp_port: int = Field(default=554)
 
 class Camera(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -291,7 +292,12 @@ def init_db():
             if col_name not in group_cols:
                 cursor.execute(f"ALTER TABLE nvrgroup ADD COLUMN {col_name} {col_type}")
                 print(f"Added column {col_name} to nvrgroup table.")
-
+        # nvr table migrations
+        cursor.execute("PRAGMA table_info(nvr)")
+        nvr_cols = [row[1] for row in cursor.fetchall()]
+        if "rtsp_port" not in nvr_cols:
+            cursor.execute("ALTER TABLE nvr ADD COLUMN rtsp_port INTEGER DEFAULT 554")
+            print("Added column rtsp_port to nvr table.")
         # mapplan table
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mapplan'")
         if not cursor.fetchone():

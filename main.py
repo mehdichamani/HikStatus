@@ -658,6 +658,8 @@ def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: 
             n.password = encrypt_password(p["password"])
     if "group_id" in p and user["role"] == "admin":
         n.group_id = p["group_id"] if p["group_id"] is not None else None
+    if "rtsp_port" in p:
+        n.rtsp_port = int(p["rtsp_port"])
     session.add(n)
     session.commit()
     return n
@@ -937,8 +939,58 @@ def get_camera_live_page(id: int, session: Session = Depends(get_session), user:
             <span class="info">{camera.ip} (NVR: {camera.nvr_ip})</span>
         </div>
         <div class="video-container">
-            <img class="video-frame" src="/api/cameras/{id}/stream" alt="Live Stream">
+            <img class="video-frame" id="liveImg" src="/api/cameras/{id}/stream" alt="Live Stream">
+            <div id="errorBox" style="display: none; padding: 25px; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 8px; max-width: 500px; text-align: center; direction: rtl;">
+                <h3 style="color: #ef4444; margin-top: 0;">عدم برقراری ارتباط با جریان ویدئویی (RTSP)</h3>
+                <p style="font-size: 14px; line-height: 1.6; color: #cbd5e1; margin-bottom: 20px;">
+                    امکان اتصال به دوربین از طریق پورت RTSP وجود ندارد. این مشکل معمولاً به دلیل بسته بودن پورت یا عدم فوروارد پورت RTSP رخ می‌دهد.
+                </p>
+                <button onclick="toggleDoc()" style="background: #3b82f6; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 13px; cursor: pointer; font-weight: 600;">
+                    راهنمای تنظیم پورت RTSP ({nvr.rtsp_port or 554})
+                </button>
+            </div>
         </div>
+        <div id="docModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; max-width: 600px; width: 100%; padding: 20px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; direction: rtl;">
+                <h3 style="margin-top: 0; color: #3b82f6; border-bottom: 1px solid #334155; padding-bottom: 10px;">راهنمای پیکربندی پورت RTSP ({nvr.rtsp_port or 554})</h3>
+                
+                <h4 style="color: #cbd5e1;">وضعیت ۱: دسترسی از شبکه داخلی (LAN)</h4>
+                <p style="font-size: 13px; line-height: 1.6; color: #94a3b8;">
+                    اگر سرور مانیتورینگ و NVR در یک شبکه محلی هستند، مطمئن شوید فایروال سیستم یا آنتی‌ویروس پورت {nvr.rtsp_port or 554} را مسدود نکرده باشد. همچنین در تنظیمات محلی NVR بررسی کنید پورت RTSP فعال باشد.
+                </p>
+                
+                <h4 style="color: #cbd5e1;">وضعیت ۲: دسترسی از راه دور (آی‌پی استاتیک / اینترنت)</h4>
+                <p style="font-size: 13px; line-height: 1.6; color: #94a3b8;">
+                    اگر از طریق اینترنت و IP استاتیک به NVR متصل می‌شوید (مانند سناریوی شما با پورت‌های فوروارد شده ۸۰۰۲ و غیره)، باید پورت RTSP (پیش‌فرض ۵۵۴) نیز در مودم یا میکروتیک کارخانه مبدا به سمت IP داخلی NVR فوروارد (Dst-Nat) شود.
+                </p>
+                <div style="background: #0f172a; padding: 12px; border-radius: 6px; font-size: 12px; color: #22c55e; font-family: monospace; direction: ltr; margin: 10px 0;">
+                    # Example Mikrotik Dst-Nat Rule:<br>
+                    /ip firewall nat<br>
+                    add action=dst-nat chain=dstnat dst-port={nvr.rtsp_port or 554} protocol=tcp to-addresses=[NVR_LOCAL_IP] to-ports=554
+                </div>
+                <p style="font-size: 13px; line-height: 1.6; color: #94a3b8;">
+                    <strong>نکته مهم:</strong> اگر چندین NVR دارید، برای هر کدام یک پورت RTSP مجزا (مثلاً ۵۵۴۱، ۵۵۴۲ و...) تعریف کرده، آن را در میکروتیک به پورت ۵۵۴ داخلی همان NVR فوروارد کنید و شماره پورت جدید را در بخش ویرایش NVR همین سامانه ذخیره نمایید.
+                </p>
+                
+                <div style="text-align: left; margin-top: 20px; border-top: 1px solid #334155; padding-top: 15px;">
+                    <button onclick="toggleDoc()" style="background: #475569; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; font-size: 13px; cursor: pointer;">بستن</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            const img = document.getElementById('liveImg');
+            const errorBox = document.getElementById('errorBox');
+            
+            img.onerror = () => {
+                img.style.display = 'none';
+                errorBox.style.display = 'block';
+            };
+            
+            function toggleDoc() {
+                const modal = document.getElementById('docModal');
+                modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+            }
+        </script>
     </body>
     </html>
     """
@@ -960,39 +1012,64 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
     decrypted_pass = decrypt_password(nvr.password)
     try:
         chan_int = int(camera.channel_id)
-        stream_chan = str(chan_int * 100 + 1) if chan_int < 100 else camera.channel_id
+        rtsp_chan = str(chan_int * 100 + 1) if chan_int < 100 else camera.channel_id
     except ValueError:
-        stream_chan = camera.channel_id
+        rtsp_chan = camera.channel_id
     
-    preview_url = f"http://{nvr.ip}/ISAPI/Streaming/channels/{stream_chan}/httpPreview"
+    nvr_host = nvr.ip
+    if ":" in nvr_host:
+        nvr_ip_only = nvr_host.split(":")[0]
+    else:
+        nvr_ip_only = nvr_host
+        
+    rtsp_port = nvr.rtsp_port if nvr.rtsp_port else 554
+    rtsp_host = f"{nvr_ip_only}:{rtsp_port}"
     
+    from urllib.parse import quote
+    encoded_pass = quote(decrypted_pass, safe='')
+    rtsp_url = f"rtsp://{nvr.user}:{encoded_pass}@{rtsp_host}/Streaming/channels/{rtsp_chan}"
+    
+    import subprocess
     from fastapi.responses import StreamingResponse
     
-    def proxy_stream():
-        req_sess = requests.Session()
-        req_sess.trust_env = False
+    def gen_frames():
+        cmd = [
+            "ffmpeg",
+            "-rtsp_transport", "tcp",
+            "-i", rtsp_url,
+            "-f", "mjpeg",
+            "-q:v", "5",
+            "-r", "15",
+            "-"
+        ]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        buffer = b""
         try:
-            resp = req_sess.get(
-                preview_url,
-                auth=HTTPDigestAuth(nvr.user, decrypted_pass),
-                stream=True,
-                timeout=15,
-                proxies={}
-            )
-            if resp.status_code != 200:
-                print(f"ISAPI httpPreview failed for camera {camera.name}: HTTP {resp.status_code}")
-                return
-            for chunk in resp.iter_content(chunk_size=8192):
-                if chunk:
-                    yield chunk
+            while True:
+                chunk = process.stdout.read(8192)
+                if not chunk:
+                    break
+                buffer += chunk
+                while True:
+                    a = buffer.find(b'\xff\xd8')
+                    b = buffer.find(b'\xff\xd9')
+                    if a != -1 and b != -1 and a < b:
+                        frame = buffer[a:b+2]
+                        buffer = buffer[b+2:]
+                        yield (b'--frame\r\n'
+                               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                    else:
+                        break
         except GeneratorExit:
             pass
-        except Exception as e:
-            print(f"Stream error for camera {camera.name}: {e}")
         finally:
-            req_sess.close()
-    
-    return StreamingResponse(proxy_stream(), media_type="multipart/x-mixed-replace; boundary=boundary")
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except Exception:
+                process.kill()
+            
+    return StreamingResponse(gen_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 @app.post("/api/map/upload")
 async def upload_map(file: UploadFile = File(...), user: dict = Depends(require_admin)):

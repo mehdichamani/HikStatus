@@ -593,17 +593,19 @@ async function addNVR() {
     const ip = document.getElementById('nvrIp').value.trim();
     const u = document.getElementById('nvrUser').value.trim();
     const p = document.getElementById('nvrPass').value;
+    const rtspPort = parseInt(document.getElementById('nvrRtspPort').value) || 554;
     if (!ip || !u) return showToast('IP و نام کاربری الزامی است', 'error');
 
     await apiFetch(`${API}/nvrs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name || null, ip, user: u, password: p || null, enabled: true })
+        body: JSON.stringify({ name: name || null, ip, user: u, password: p || null, enabled: true, rtsp_port: rtspPort })
     });
     document.getElementById('nvrName').value = '';
     document.getElementById('nvrIp').value = '';
     document.getElementById('nvrUser').value = '';
     document.getElementById('nvrPass').value = '';
+    document.getElementById('nvrRtspPort').value = '554';
     loadSettings();
 }
 
@@ -672,6 +674,7 @@ function renderNVRRow(n, deleted = false) {
             ${n.name ? `<strong style="margin-left: 8px; color: var(--text-primary);">${n.name}</strong>` : ''}
             <span class="list-item-ip">${n.ip}</span>
             <span class="list-item-user">(${n.user})</span>
+            <span class="badge" style="font-size: 11px; margin-right: 6px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 2px 6px; border-radius: 4px;">RTSP: ${n.rtsp_port || 554}</span>
             ${groupSelectOrLabel}
         </div>
         ${actionBtns}
@@ -792,6 +795,7 @@ function startEditNVR(ip) {
             <input class="form-input form-input-sm" id="edit-nvr-name-${escaped}" value="${n.name || ''}" placeholder="نام دلخواه" style="width: 140px; height: 28px; font-size: 12px; padding: 2px 8px;">
             <input class="form-input form-input-sm" id="edit-nvr-user-${escaped}" value="${n.user || ''}" placeholder="نام کاربری" style="width: 100px; height: 28px; font-size: 12px; padding: 2px 8px;">
             <input class="form-input form-input-sm" id="edit-nvr-pass-${escaped}" type="password" placeholder="رمز عبور جدید" style="width: 120px; height: 28px; font-size: 12px; padding: 2px 8px;">
+            <input class="form-input form-input-sm" id="edit-nvr-rtsp-port-${escaped}" type="number" value="${n.rtsp_port || 554}" placeholder="پورت RTSP" style="width: 80px; height: 28px; font-size: 12px; padding: 2px 8px;">
             <button class="btn btn-primary" onclick="saveNVRRow('${n.ip}')" style="padding: 4px 10px; font-size: 12px; height: 28px;">ذخیره</button>
             <button class="btn" style="padding: 4px 10px; font-size: 12px; height: 28px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);" onclick="cancelEditNVR('${n.ip}')">انصراف</button>
         </div>
@@ -813,6 +817,7 @@ async function saveNVRRow(ip) {
     const nameEl = document.getElementById(`edit-nvr-name-${escaped}`);
     const userEl = document.getElementById(`edit-nvr-user-${escaped}`);
     const passEl = document.getElementById(`edit-nvr-pass-${escaped}`);
+    const rtspPortEl = document.getElementById(`edit-nvr-rtsp-port-${escaped}`);
     
     if (!userEl.value.trim()) {
         return showToast('نام کاربری الزامی است', 'error');
@@ -821,6 +826,7 @@ async function saveNVRRow(ip) {
     const payload = {
         name: nameEl.value.trim() || null,
         user: userEl.value.trim(),
+        rtsp_port: parseInt(rtspPortEl.value) || 554
     };
     
     if (passEl.value) {
