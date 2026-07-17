@@ -5,14 +5,15 @@ import time
 from typing import Optional
 from sqlmodel import Session, select
 from database import engine, ScheduledTask
-from monitor import task_ping_cameras, task_sync_camera_names, task_sync_nvr_configs, task_sync_nvr_stats, task_cleanup_database, broadcast
+from monitor import task_ping_cameras, task_sync_camera_names, task_sync_nvr_configs, task_sync_nvr_stats, task_cleanup_database, task_capture_camera_snapshots, broadcast
 
 TASK_FUNCTIONS = {
     "ping_cameras": task_ping_cameras,
     "sync_camera_names": task_sync_camera_names,
     "sync_nvr_configs": task_sync_nvr_configs,
     "sync_nvr_stats": task_sync_nvr_stats,
-    "cleanup_database": task_cleanup_database
+    "cleanup_database": task_cleanup_database,
+    "capture_camera_snapshots": task_capture_camera_snapshots
 }
 
 class TaskScheduler:
@@ -34,6 +35,9 @@ class TaskScheduler:
                 # Run sync/pings immediately on startup (instead of waiting for first interval)
                 if t.id in ["ping_cameras", "sync_camera_names", "sync_nvr_configs", "sync_nvr_stats"]:
                     t.next_run = now
+                elif t.id == "capture_camera_snapshots":
+                    # Start with a 5 minutes delay on startup
+                    t.next_run = now + timedelta(minutes=5)
                 elif not t.next_run:
                     t.next_run = now + timedelta(seconds=t.interval)
                 session.add(t)

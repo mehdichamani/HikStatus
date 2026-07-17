@@ -819,6 +819,61 @@ async def task_sync_camera_names():
         print(f"Triggering NVR camera name sync for {n.ip}...")
         await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password)
 
+def get_substream_channel_id(chan_id_str: str) -> str:
+    try:
+        val = int(chan_id_str)
+        if val >= 100:
+            return f"{(val // 10) * 10 + 2}"
+        else:
+            return f"{val * 100 + 2}"
+    except Exception:
+        return f"{chan_id_str}02"
+
+async def task_capture_camera_snapshots():
+    from database import decrypt_password
+    with Session(engine) as session:
+        cameras = session.exec(select(Camera).where(Camera.status == "Online")).all()
+        nvrs = {n.ip: n for n in session.exec(select(NVR)).all()}
+        
+    os.makedirs("data/snapshots", exist_ok=True)
+    
+    for cam in cameras:
+        nvr = nvrs.get(cam.nvr_ip)
+        if not nvr or not nvr.enabled:
+            continue
+            
+        password = decrypt_password(nvr.password)
+        sub_chan = get_substream_channel_id(cam.channel_id)
+        url = f"http://{nvr.ip}/ISAPI/Streaming/channels/{sub_chan}/picture"
+        
+        try:
+            def fetch():
+                s = requests.Session()
+                s.trust_env = False
+                r = s.get(url, auth=HTTPDigestAuth(nvr.user, password), timeout=8, proxies={})
+                if r.status_code == 200:
+                    return r.content
+                try:
+                    main_chan = f"{(int(sub_chan) // 10) * 10 + 1}"
+                except Exception:
+                    main_chan = f"{cam.channel_id}01"
+                fallback_url = f"http://{nvr.ip}/ISAPI/Streaming/channels/{main_chan}/picture"
+                r = s.get(fallback_url, auth=HTTPDigestAuth(nvr.user, password), timeout=8, proxies={})
+                if r.status_code == 200:
+                    return r.content
+                return None
+                
+            img_data = await asyncio.to_thread(fetch)
+            if img_data:
+                file_path = f"data/snapshots/camera_{cam.id}.jpg"
+                with open(file_path, "wb") as f:
+                    f.write(img_data)
+                print(f"Captured snapshot for camera {cam.name} (id: {cam.id})")
+            else:
+                print(f"Failed to capture snapshot for camera {cam.name} (id: {cam.id}) - NVR returned error status")
+        except Exception as e:
+            print(f"Failed to capture snapshot for camera {cam.name} (id: {cam.id}): {e}")
+
 async def start_monitor_loop():
     print("Monitor loop started (via scheduler)...")
     with Session(engine) as session:

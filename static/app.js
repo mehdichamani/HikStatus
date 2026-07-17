@@ -250,9 +250,18 @@ async function showCam(data) {
     currentCamId = c.id;
     currentImp = c.importance;
 
-    // Reset snapshot UI
-    document.getElementById('m-snap-container').style.display = 'none';
-    document.getElementById('m-snap-img').src = '';
+    // Load cached snapshot
+    const snapContainer = document.getElementById('m-snap-container');
+    const snapImg = document.getElementById('m-snap-img');
+    const snapLoader = document.getElementById('m-snap-loader');
+    
+    snapContainer.style.display = 'block';
+    snapLoader.style.display = 'none';
+    snapImg.style.display = 'block';
+    snapImg.src = `/static/snapshots/camera_${c.id}.jpg?t=${new Date().getTime()}`;
+    snapImg.onerror = () => {
+        snapContainer.style.display = 'none';
+    };
 
     document.getElementById('m-name').textContent = c.name;
     document.getElementById('m-nvr').textContent = c.nvr_ip;
@@ -315,38 +324,8 @@ async function showCam(data) {
     document.getElementById('m-d24').textContent = s.down_24h + ' دقیقه';
 }
 
-async function takeSnapshot() {
-    const container = document.getElementById('m-snap-container');
-    const img = document.getElementById('m-snap-img');
-    const loader = document.getElementById('m-snap-loader');
-    const btn = document.getElementById('m-snap-btn');
-    
-    container.style.display = 'block';
-    loader.style.display = 'flex';
-    img.style.display = 'none';
-    btn.disabled = true;
-    
-    try {
-        const res = await fetch(`${API}/cameras/${currentCamId}/snapshot`);
-        if (res.status === 401) {
-            window.location.href = '/login';
-            return;
-        }
-        if (!res.ok) {
-            throw new Error('دریافت تصویر با خطا مواجه شد');
-        }
-        
-        const blob = await res.blob();
-        const objectURL = URL.createObjectURL(blob);
-        img.src = objectURL;
-        img.style.display = 'block';
-        loader.style.display = 'none';
-    } catch (e) {
-        alert(e.message);
-        container.style.display = 'none';
-    } finally {
-        btn.disabled = false;
-    }
+function playLiveStream() {
+    window.open(`/api/cameras/${currentCamId}/stream`, '_blank');
 }
 
 async function cycleImpModal() {

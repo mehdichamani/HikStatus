@@ -202,6 +202,12 @@ def seed_scheduled_tasks():
                 interval=86400
             ),
             ScheduledTask(
+                id="capture_camera_snapshots",
+                name="گرفتن پیش‌نمایش دوربین‌ها (Snapshot)",
+                description="دریافت تصویر لحظه‌ای از روی جریان sub-stream دوربین‌ها و ذخیره برای پیش‌نمایش در پنل وب",
+                interval=28800
+            ),
+            ScheduledTask(
                 id="cleanup_database",
                 name="پاک‌سازی خودکار لاگ‌های قدیمی",
                 description="حذف لاگ‌های مانیتورینگ قدیمی‌تر از ۹۰ روز برای بهینه‌سازی دیتابیس",
@@ -431,7 +437,9 @@ def logout(request: Request, response: Response, db: Session = Depends(get_sessi
     return {"status": "ok"}
 # Serve Static Assets (CSS, JS)
 os.makedirs("data/plans", exist_ok=True)
+os.makedirs("data/snapshots", exist_ok=True)
 app.mount("/static/plans", StaticFiles(directory="data/plans"), name="plans")
+app.mount("/static/snapshots", StaticFiles(directory="data/snapshots"), name="snapshots")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/login")
@@ -858,6 +866,67 @@ async def get_camera_snapshot(id: int, session: Session = Depends(get_session), 
             raise HTTPException(status_code=400, detail=f"NVR returned HTTP {mime_or_status}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch snapshot: {str(e)}")
+
+@app.get("/api/cameras/{id}/stream")
+async def stream_camera(id: int, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    camera = session.get(Camera, id)
+    if not camera:
+        raise HTTPException(status_code=404, detail="Camera not found")
+        
+    nvr = session.exec(select(NVR).where(NVR.ip == camera.nvr_ip)).first()
+    if not nvr:
+        raise HTTPException(status_code=404, detail="NVR not found")
+        
+    if user["role"] != "admin" and nvr.group_id != user["group_id"]:
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
+        
+    decrypted_pass = decrypt_password(nvr.password)
+    try:
+        chan_int = int(camera.channel_id)
+        rtsp_chan = str(chan_int * 100 + 1) if chan_int < 100 else camera.channel_id
+    except ValueError:
+        rtsp_chan = camera.channel_id
+        
+    rtsp_url = f"rtsp://{nvr.user}:{decrypted_pass}@{nvr.ip}:554/Streaming/channels/{rtsp_chan}"
+    
+    import subprocess
+    from fastapi.responses import StreamingResponse
+    
+    def gen_frames():
+        cmd = [
+            "ffmpeg",
+            "-rtsp_transport", "tcp",
+            "-i", rtsp_url,
+            "-f", "image2pipe",
+            "-vcodec", "mjpeg",
+            "-q:v", "5",
+            "-"
+        ]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        buffer = b""
+        try:
+            while True:
+                chunk = process.stdout.read(4096)
+                if not chunk:
+                    break
+                buffer += chunk
+                while True:
+                    a = buffer.find(b'\xff\xd8')
+                    b = buffer.find(b'\xff\xd9')
+                    if a != -1 and b != -1 and a < b:
+                        frame = buffer[a:b+2]
+                        buffer = buffer[b+2:]
+                        yield (b'--frame\r\n'
+                               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                    else:
+                        break
+        except GeneratorExit:
+            pass
+        finally:
+            process.terminate()
+            process.wait()
+            
+    return StreamingResponse(gen_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 @app.post("/api/map/upload")
 async def upload_map(file: UploadFile = File(...), user: dict = Depends(require_admin)):
