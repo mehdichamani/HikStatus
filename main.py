@@ -22,6 +22,7 @@ from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings,
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
 from scheduler import scheduler
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
+from rate_limiter import rate_limit, max_connections, limiter
 
 class ConnectionManager:
     def __init__(self):
@@ -295,21 +296,30 @@ def health_check():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    if not limiter.acquire("global:ws", 5):
+        await websocket.close(code=429)
+        return
+
     token = websocket.cookies.get("session_token")
     if not token:
+        limiter.release("global:ws")
         await websocket.close(code=4001)
         return
     with Session(engine) as db:
         session_record = db.exec(select(UserSession).where(UserSession.token == token)).first()
         if not session_record or session_record.expires_at < datetime.now():
+            limiter.release("global:ws")
             await websocket.close(code=4001)
             return
-    await ws_manager.connect(websocket)
     try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        ws_manager.disconnect(websocket)
+        await ws_manager.connect(websocket)
+        try:
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            ws_manager.disconnect(websocket)
+    finally:
+        limiter.release("global:ws")
 
 def require_auth(request: Request, response: Response, db: Session = Depends(get_session)) -> dict:
     """Returns {username, role, group_id, user_id} or raises 401."""
@@ -565,7 +575,8 @@ def backup_database():
 
 
 @app.post("/api/data/restore", dependencies=[Depends(require_auth)])
-async def restore_database(file: UploadFile = File(...)):
+@rate_limit(1, 300)
+async def restore_database(request: Request, file: UploadFile = File(...)):
     if not file.filename or not file.filename.endswith(".db"):
         raise HTTPException(status_code=400, detail="فایل باید با پسوند .db باشد")
     
@@ -600,14 +611,16 @@ async def restore_database(file: UploadFile = File(...)):
 
 # --- TEST ENDPOINTS ---
 @app.post("/api/test/email", dependencies=[Depends(require_auth)])
-def test_mail():
+@rate_limit(3, 60)
+def test_mail(request: Request):
     conf = get_config_dict()
     res = send_email_raw(conf, "تست سامانه مانیتورینگ", "<div style='text-align:center;padding:20px;'><h3 style='color:#28a745;'>ایمیل به درستی کار میکنه!</h3><p>تاریخ: " + get_persian_datetime() + "</p></div>")
     if res is True: return {"status": "ok"}
     raise HTTPException(status_code=400, detail="خطا در ارسال ایمیل. تنظیمات را بررسی کنید.")
 
 @app.post("/api/test/telegram", dependencies=[Depends(require_auth)])
-def test_telegram():
+@rate_limit(3, 60)
+def test_telegram(request: Request):
     conf = get_config_dict()
     res = send_telegram_raw(conf, "✅ <b>تست سامانه مانیتورینگ</b>\nاعلان‌های تلگرام درسته!\n📅 " + get_persian_datetime())
     if res is True: return {"status": "ok"}
@@ -1000,6 +1013,7 @@ def get_camera_live_page(id: int, session: Session = Depends(get_session), user:
     return HTMLResponse(content=html_content)
 
 @app.get("/api/cameras/{id}/stream")
+@max_connections(3, key="global:stream")
 async def stream_camera(id: int, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     camera = session.get(Camera, id)
     if not camera:
