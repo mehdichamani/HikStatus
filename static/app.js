@@ -1658,8 +1658,19 @@ async function initOrRefreshMap() {
     document.getElementById('upload-plan-section').style.display = mapType === 'floor' ? 'block' : 'none';
 
     try {
+        const nRes = await apiFetch(`${API}/nvrs`);
+        nvrCache = await nRes.json();
+    } catch (e) {
+        console.error('Failed to load NVRs:', e);
+    }
+
+    try {
         const camRes = await apiFetch(`${API}/cameras`);
         mapCamerasList = await camRes.json();
+        mapCamerasList.forEach(c => {
+            const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
+            c.group_id = nvr ? nvr.group_id : null;
+        });
     } catch (e) {
         console.error('Failed to load cameras:', e);
     }
@@ -2228,6 +2239,11 @@ function drawCameraMarkers(bounds = null, w = 1, h = 1) {
 function updateMapMarkersFromWS(cams) {
     if (!map || mapEditMode) return;
     mapCamerasList = cams;
+
+    mapCamerasList.forEach(c => {
+        const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
+        c.group_id = nvr ? nvr.group_id : null;
+    });
 
     cams.forEach(c => {
         const markerEl = document.getElementById(`marker-cam-${c.id}`);
