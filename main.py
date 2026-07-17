@@ -1462,22 +1462,6 @@ def update_setting(key: str, p: Settings, session: Session = Depends(get_session
     invalidate_config_cache()
     return s
 
-@app.post("/api/config/sync-names")
-async def sync_names(session: Session = Depends(get_session), user: dict = Depends(require_control)):
-    if user["role"] == "admin":
-        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
-    else:
-        nvrs = session.exec(select(NVR).where(NVR.enabled == True, NVR.group_id == user["group_id"])).all()
-    if not nvrs:
-        raise HTTPException(status_code=400, detail="No enabled NVRs found to sync")
-    
-    results = []
-    for n in nvrs:
-        decrypted_pass = decrypt_password(n.password)
-        success, msg = await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, decrypted_pass, session)
-        results.append({"nvr": n.ip, "success": success, "message": msg})
-        
-    return {"results": results}
 
 @app.get("/api/logs")
 def search_logs(q: str = None, limit: int = 50, offset: int = 0, session: Session = Depends(get_session), user: dict = Depends(require_admin)):

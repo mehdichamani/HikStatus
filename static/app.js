@@ -633,36 +633,6 @@ async function apply() {
     setTimeout(() => location.reload(), 500);
 }
 
-async function syncCameraNames() {
-    const btn = document.getElementById('btn-sync-names');
-    if (btn) btn.disabled = true;
-    showToast('در حال همگام‌سازی نام دوربین‌ها...');
-    try {
-        const res = await apiFetch(`/api/config/sync-names`, { method: 'POST' });
-        const data = await res.json();
-        
-        let successCount = 0;
-        let failCount = 0;
-        if (data.results) {
-            data.results.forEach(r => {
-                if (r.success) successCount++;
-                else failCount++;
-            });
-        }
-        
-        if (failCount === 0) {
-            showToast('همگام‌سازی نام‌ها با موفقیت انجام شد');
-        } else {
-            showToast(`همگام‌سازی پایان یافت (${successCount} موفق، ${failCount} ناموفق)`, 'warning');
-        }
-        
-        setTimeout(() => location.reload(), 1500);
-    } catch (e) {
-        showToast('خطا در همگام‌سازی: ' + e.message, 'error');
-    } finally {
-        if (btn) btn.disabled = false;
-    }
-}
 
 async function testConn(type) {
     try {
