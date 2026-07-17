@@ -6,7 +6,7 @@
 - [x] **timeout بالای عملیات‌های sync برای NVRهای قطع** - ✅ پردازش موازی NVRها با `asyncio.gather` در تمامی تسک‌ها پیاده‌سازی شد
 
 ### معماری و ساختار
-- [ ] ** فقدان migration سیستمی** - migration‌ها با ALTER TABLE مستقیم انجام می‌شود (ممکن است در نسخه‌های بعدی دچار مشکل شود)
+- [x] ** فقدان migration سیستمی** - ✅ با سیستم migration سفارشی با version tracking و rollback حل شد
 - [ ] رمز های nvr ها بجای init_config.json در .env
 - [x] **دکمه غیرفعال / فعال وجود نداره در حالی که init_config.json آیتم "enabled": true هست** - ✅ تاگل فعال/غیرفعال در UI پیاده‌سازی شد
 - [ ] **عدم log rotation** - دیتابیس لاگ‌ها به مرور زمان بزرگ می‌شود (cleanup هر ۹۰ روز یکبار)

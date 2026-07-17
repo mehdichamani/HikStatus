@@ -221,115 +221,338 @@ def init_db():
     
     try:
         conn = sqlite3.connect(sqlite_file_name)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(camera)")
-        existing_columns = [row[1] for row in cursor.fetchall()]
-        
-        new_cols = {
-            "latitude": "REAL",
-            "longitude": "REAL",
-            "x_pos": "REAL",
-            "y_pos": "REAL",
-            "fov_angle": "REAL",
-            "fov_radius": "REAL",
-            "fov_spread": "REAL",
-            "model": "TEXT",
-            "recording_scheduled": "BOOLEAN",
-            "recording_schedule_type": "TEXT",
-            "oldest_record": "TIMESTAMP",
-            "total_record_size_gb": "REAL",
-            "total_record_duration_hours": "REAL",
-            "recording_hours_24h": "REAL",
-            "stats_last_updated": "TIMESTAMP"
-        }
-        
-        for col_name, col_type in new_cols.items():
-            if col_name not in existing_columns:
-                cursor.execute(f"ALTER TABLE camera ADD COLUMN {col_name} {col_type}")
-                print(f"Added column {col_name} to camera table.")
-        
-        cursor.execute("PRAGMA table_info(nvr)")
-        existing_nvr_columns = [row[1] for row in cursor.fetchall()]
-        if "name" not in existing_nvr_columns:
-            cursor.execute("ALTER TABLE nvr ADD COLUMN name TEXT")
-            print("Added column name to nvr table.")
+        run_migrations(conn)
+        conn.close()
+    except Exception as e:
+        print(f"Database init error: {e}")
 
-        nvr_new_cols = {
-            "status": "TEXT DEFAULT 'Unknown'",
-            "last_online": "TIMESTAMP",
-            "mail_alert_count": "INTEGER DEFAULT 0",
-            "mail_last_alert": "TIMESTAMP",
-            "telegram_alert_count": "INTEGER DEFAULT 0",
-            "telegram_last_alert": "TIMESTAMP",
-            "group_id": "INTEGER"
-        }
 
-        for col_name, col_type in nvr_new_cols.items():
-            if col_name not in existing_nvr_columns:
-                cursor.execute(f"ALTER TABLE nvr ADD COLUMN {col_name} {col_type}")
-                print(f"Added column {col_name} to nvr table.")
-        
-        # user table migrations
-        cursor.execute("PRAGMA table_info(user)")
-        user_cols = [row[1] for row in cursor.fetchall()]
-        user_new_cols = {
-            "is_active": "BOOLEAN DEFAULT 1",
-            "group_id": "INTEGER",
-        }
-        for col_name, col_type in user_new_cols.items():
-            if col_name not in user_cols:
-                cursor.execute(f"ALTER TABLE user ADD COLUMN {col_name} {col_type}")
-                print(f"Added column {col_name} to user table.")
+# ---------------------------------------------------------------------------
+# Migration System
+# ---------------------------------------------------------------------------
 
-        # nvrgroup table migrations
-        cursor.execute("PRAGMA table_info(nvrgroup)")
-        group_cols = [row[1] for row in cursor.fetchall()]
-        group_new_cols = {
-            "map_center_lat": "REAL",
-            "map_center_lng": "REAL",
-            "map_zoom": "INTEGER",
-        }
-        for col_name, col_type in group_new_cols.items():
-            if col_name not in group_cols:
-                cursor.execute(f"ALTER TABLE nvrgroup ADD COLUMN {col_name} {col_type}")
-                print(f"Added column {col_name} to nvrgroup table.")
-        # nvr table migrations
-        cursor.execute("PRAGMA table_info(nvr)")
-        nvr_cols = [row[1] for row in cursor.fetchall()]
-        if "rtsp_port" not in nvr_cols:
-            cursor.execute("ALTER TABLE nvr ADD COLUMN rtsp_port INTEGER DEFAULT 554")
-            print("Added column rtsp_port to nvr table.")
-        # mapplan table
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mapplan'")
-        if not cursor.fetchone():
-            cursor.execute("""CREATE TABLE mapplan (
+CURRENT_MIGRATION_VERSION = 10
+
+
+def _ensure_schema_version_table(conn: sqlite3.Connection):
+    """Create schema_version table if it does not exist."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS schema_version (
+            version INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+
+
+def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        (table_name,),
+    )
+    return cursor.fetchone() is not None
+
+
+def _get_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    cursor = conn.execute(f"PRAGMA table_info({table_name})")
+    return {row[1] for row in cursor.fetchall()}
+
+
+def _column_exists(conn: sqlite3.Connection, table_name: str, col_name: str) -> bool:
+    return col_name in _get_columns(conn, table_name)
+
+
+# ---------------------------------------------------------------------------
+# Migration 001 – Camera geo & FOV fields
+# ---------------------------------------------------------------------------
+
+def migration_001_add_camera_geo_fields(conn: sqlite3.Connection):
+    """Add latitude, longitude, x_pos, y_pos, fov_angle, fov_radius, fov_spread to camera."""
+    cols = _get_columns(conn, "camera")
+    additions = {
+        "latitude": "REAL",
+        "longitude": "REAL",
+        "x_pos": "REAL",
+        "y_pos": "REAL",
+        "fov_angle": "REAL",
+        "fov_radius": "REAL",
+        "fov_spread": "REAL",
+    }
+    for name, dtype in additions.items():
+        if name not in cols:
+            conn.execute(f"ALTER TABLE camera ADD COLUMN {name} {dtype}")
+            print(f"[migration 001] Added column {name} to camera")
+
+
+def rollback_001_add_camera_geo_fields(conn: sqlite3.Connection):
+    """Rollback is no-op – SQLite does not support DROP COLUMN."""
+    print("[rollback 001] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
+# Migration 002 – Camera model & recording fields
+# ---------------------------------------------------------------------------
+
+def migration_002_add_camera_recording_fields(conn: sqlite3.Connection):
+    """Add model, recording_scheduled, recording_schedule_type, oldest_record, etc. to camera."""
+    cols = _get_columns(conn, "camera")
+    additions = {
+        "model": "TEXT",
+        "recording_scheduled": "BOOLEAN",
+        "recording_schedule_type": "TEXT",
+        "oldest_record": "TIMESTAMP",
+        "total_record_size_gb": "REAL",
+        "total_record_duration_hours": "REAL",
+        "recording_hours_24h": "REAL",
+        "stats_last_updated": "TIMESTAMP",
+    }
+    for name, dtype in additions.items():
+        if name not in cols:
+            conn.execute(f"ALTER TABLE camera ADD COLUMN {name} {dtype}")
+            print(f"[migration 002] Added column {name} to camera")
+
+
+def rollback_002_add_camera_recording_fields(conn: sqlite3.Connection):
+    print("[rollback 002] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
+# Migration 003 – NVR name field
+# ---------------------------------------------------------------------------
+
+def migration_003_add_nvr_name(conn: sqlite3.Connection):
+    """Add 'name' column to nvr."""
+    if not _column_exists(conn, "nvr", "name"):
+        conn.execute("ALTER TABLE nvr ADD COLUMN name TEXT")
+        print("[migration 003] Added column name to nvr")
+
+
+def rollback_003_add_nvr_name(conn: sqlite3.Connection):
+    print("[rollback 003] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
+# Migration 004 – NVR status & alert fields
+# ---------------------------------------------------------------------------
+
+def migration_004_add_nvr_status_fields(conn: sqlite3.Connection):
+    """Add status, last_online, mail/telegram alert columns, group_id to nvr."""
+    cols = _get_columns(conn, "nvr")
+    additions = {
+        "status": "TEXT DEFAULT 'Unknown'",
+        "last_online": "TIMESTAMP",
+        "mail_alert_count": "INTEGER DEFAULT 0",
+        "mail_last_alert": "TIMESTAMP",
+        "telegram_alert_count": "INTEGER DEFAULT 0",
+        "telegram_last_alert": "TIMESTAMP",
+        "group_id": "INTEGER",
+    }
+    for name, dtype in additions.items():
+        if name not in cols:
+            conn.execute(f"ALTER TABLE nvr ADD COLUMN {name} {dtype}")
+            print(f"[migration 004] Added column {name} to nvr")
+
+
+def rollback_004_add_nvr_status_fields(conn: sqlite3.Connection):
+    print("[rollback 004] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
+# Migration 005 – User is_active & group_id
+# ---------------------------------------------------------------------------
+
+def migration_005_add_user_group_and_active(conn: sqlite3.Connection):
+    """Add is_active and group_id to user."""
+    cols = _get_columns(conn, "user")
+    additions = {
+        "is_active": "BOOLEAN DEFAULT 1",
+        "group_id": "INTEGER",
+    }
+    for name, dtype in additions.items():
+        if name not in cols:
+            conn.execute(f"ALTER TABLE user ADD COLUMN {name} {dtype}")
+            print(f"[migration 005] Added column {name} to user")
+
+
+def rollback_005_add_user_group_and_active(conn: sqlite3.Connection):
+    print("[rollback 005] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
+# Migration 006 – NVRGroup map fields
+# ---------------------------------------------------------------------------
+
+def migration_006_add_nvrgroup_map_fields(conn: sqlite3.Connection):
+    """Add map_center_lat, map_center_lng, map_zoom to nvrgroup."""
+    cols = _get_columns(conn, "nvrgroup")
+    additions = {
+        "map_center_lat": "REAL",
+        "map_center_lng": "REAL",
+        "map_zoom": "INTEGER",
+    }
+    for name, dtype in additions.items():
+        if name not in cols:
+            conn.execute(f"ALTER TABLE nvrgroup ADD COLUMN {name} {dtype}")
+            print(f"[migration 006] Added column {name} to nvrgroup")
+
+
+def rollback_006_add_nvrgroup_map_fields(conn: sqlite3.Connection):
+    print("[rollback 006] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
+# Migration 007 – NVR rtsp_port
+# ---------------------------------------------------------------------------
+
+def migration_007_add_nvr_rtsp_port(conn: sqlite3.Connection):
+    """Add rtsp_port to nvr."""
+    if not _column_exists(conn, "nvr", "rtsp_port"):
+        conn.execute("ALTER TABLE nvr ADD COLUMN rtsp_port INTEGER DEFAULT 554")
+        print("[migration 007] Added column rtsp_port to nvr")
+
+
+def rollback_007_add_nvr_rtsp_port(conn: sqlite3.Connection):
+    print("[rollback 007] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
+# Migration 008 – MapPlan table
+# ---------------------------------------------------------------------------
+
+def migration_008_create_mapplan(conn: sqlite3.Connection):
+    """Create the mapplan table."""
+    if not _table_exists(conn, "mapplan"):
+        conn.execute("""
+            CREATE TABLE mapplan (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 group_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 image_url TEXT NOT NULL,
                 sort_order INTEGER DEFAULT 0,
                 FOREIGN KEY(group_id) REFERENCES nvrgroup(id)
-            )""")
-            print("Created mapplan table.")
+            )
+        """)
+        print("[migration 008] Created mapplan table")
 
-        # camera table migrations
-        cursor.execute("PRAGMA table_info(camera)")
-        camera_cols = [row[1] for row in cursor.fetchall()]
-        if "plan_id" not in camera_cols:
-            cursor.execute("ALTER TABLE camera ADD COLUMN plan_id INTEGER")
-            print("Added column plan_id to camera table.")
 
-        # scheduledtask table migrations
-        cursor.execute("PRAGMA table_info(scheduledtask)")
-        task_cols = [row[1] for row in cursor.fetchall()]
-        if "last_error" not in task_cols:
-            cursor.execute("ALTER TABLE scheduledtask ADD COLUMN last_error TEXT")
-            print("Added column last_error to scheduledtask table.")
+def rollback_008_create_mapplan(conn: sqlite3.Connection):
+    if _table_exists(conn, "mapplan"):
+        conn.execute("DROP TABLE mapplan")
+        print("[rollback 008] Dropped mapplan table")
 
+
+# ---------------------------------------------------------------------------
+# Migration 009 – Camera plan_id
+# ---------------------------------------------------------------------------
+
+def migration_009_add_camera_plan_id(conn: sqlite3.Connection):
+    """Add plan_id to camera."""
+    if not _column_exists(conn, "camera", "plan_id"):
+        conn.execute("ALTER TABLE camera ADD COLUMN plan_id INTEGER")
+        print("[migration 009] Added column plan_id to camera")
+
+
+def rollback_009_add_camera_plan_id(conn: sqlite3.Connection):
+    print("[rollback 009] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
+# Migration 010 – ScheduledTask last_error
+# ---------------------------------------------------------------------------
+
+def migration_010_add_scheduledtask_last_error(conn: sqlite3.Connection):
+    """Add last_error to scheduledtask."""
+    if not _column_exists(conn, "scheduledtask", "last_error"):
+        conn.execute("ALTER TABLE scheduledtask ADD COLUMN last_error TEXT")
+        print("[migration 010] Added column last_error to scheduledtask")
+
+
+def rollback_010_add_scheduledtask_last_error(conn: sqlite3.Connection):
+    print("[rollback 010] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
+# Migration registry
+# ---------------------------------------------------------------------------
+
+MIGRATIONS = {
+    1: ("add_camera_geo_fields", migration_001_add_camera_geo_fields),
+    2: ("add_camera_recording_fields", migration_002_add_camera_recording_fields),
+    3: ("add_nvr_name", migration_003_add_nvr_name),
+    4: ("add_nvr_status_fields", migration_004_add_nvr_status_fields),
+    5: ("add_user_group_and_active", migration_005_add_user_group_and_active),
+    6: ("add_nvrgroup_map_fields", migration_006_add_nvrgroup_map_fields),
+    7: ("add_nvr_rtsp_port", migration_007_add_nvr_rtsp_port),
+    8: ("create_mapplan", migration_008_create_mapplan),
+    9: ("add_camera_plan_id", migration_009_add_camera_plan_id),
+    10: ("add_scheduledtask_last_error", migration_010_add_scheduledtask_last_error),
+}
+
+ROLLBACKS = {
+    1: rollback_001_add_camera_geo_fields,
+    2: rollback_002_add_camera_recording_fields,
+    3: rollback_003_add_nvr_name,
+    4: rollback_004_add_nvr_status_fields,
+    5: rollback_005_add_user_group_and_active,
+    6: rollback_006_add_nvrgroup_map_fields,
+    7: rollback_007_add_nvr_rtsp_port,
+    8: rollback_008_create_mapplan,
+    9: rollback_009_add_camera_plan_id,
+    10: rollback_010_add_scheduledtask_last_error,
+}
+
+
+def get_current_version(conn: sqlite3.Connection) -> int:
+    """Return the current schema version. 0 if no migrations have been applied."""
+    _ensure_schema_version_table(conn)
+    cursor = conn.execute("SELECT MAX(version) FROM schema_version")
+    row = cursor.fetchone()
+    return row[0] if row and row[0] is not None else 0
+
+
+def run_migrations(conn: sqlite3.Connection):
+    """Run all pending migrations in order."""
+    _ensure_schema_version_table(conn)
+    current = get_current_version(conn)
+
+    for ver in sorted(MIGRATIONS.keys()):
+        if ver <= current:
+            continue
+        name, func = MIGRATIONS[ver]
+        print(f"[migration] Running v{ver:03d}: {name}")
+        func(conn)
+        conn.execute(
+            "INSERT INTO schema_version (version, name) VALUES (?, ?)",
+            (ver, name),
+        )
         conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"Database migration error: {e}")
+        print(f"[migration] v{ver:03d} applied successfully")
+
+    print(f"[migration] Database is at version {CURRENT_MIGRATION_VERSION}")
+
+
+def rollback_migration(conn: sqlite3.Connection, target_version: int):
+    """Rollback migrations down to (but not including) target_version."""
+    _ensure_schema_version_table(conn)
+    current = get_current_version(conn)
+
+    if target_version >= current:
+        print(f"[rollback] Already at or below version {target_version}, nothing to do")
+        return
+
+    for ver in range(current, target_version, -1):
+        if ver not in ROLLBACKS:
+            print(f"[rollback] No rollback function for version {ver}, skipping")
+            continue
+        name = MIGRATIONS[ver][0]
+        print(f"[rollback] Rolling back v{ver:03d}: {name}")
+        ROLLBACKS[ver](conn)
+        conn.execute("DELETE FROM schema_version WHERE version = ?", (ver,))
+        conn.commit()
+        print(f"[rollback] v{ver:03d} rolled back successfully")
+
+    print(f"[rollback] Database rolled back to version {target_version}")
 
 def get_session():
     with Session(engine) as session:
