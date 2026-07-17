@@ -1,0 +1,13 @@
+.venv/
+data/
+.git/
+__pycache__/
+*.db
+.mimocode/
+.playwright-mcp/
+*.log
+Dockerfile
+docker-compose.yml
+.env
+.env.example
+*.md

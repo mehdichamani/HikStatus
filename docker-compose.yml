@@ -11,6 +11,7 @@ services:
       - ADMIN_PASS=${ADMIN_PASS:-admin}
     volumes:
       - ./data:/app/data
+      - ./static:/app/static
 
 # شبکه پیش‌فرض داکر. در صورت عدم نیاز به شبکه خارجی vpn، کل بخش زیر را کامنت یا حذف کنید تا شبکه پیش‌فرض (bridge) استفاده شود.
 # Optional external network. Comment out or delete this block to use the default bridge network.

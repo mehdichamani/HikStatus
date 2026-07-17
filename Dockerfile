@@ -13,9 +13,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 RUN useradd -m -s /bin/bash appuser
 
-COPY . .
+COPY --chown=appuser:appuser . .
 
-RUN mkdir -p data && chown -R appuser:appuser /app
+RUN mkdir -p data && chown -R appuser:appuser data
 
 USER appuser
 
