@@ -960,63 +960,39 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
     decrypted_pass = decrypt_password(nvr.password)
     try:
         chan_int = int(camera.channel_id)
-        rtsp_chan = str(chan_int * 100 + 1) if chan_int < 100 else camera.channel_id
+        stream_chan = str(chan_int * 100 + 1) if chan_int < 100 else camera.channel_id
     except ValueError:
-        rtsp_chan = camera.channel_id
+        stream_chan = camera.channel_id
     
-    # Handle NVR IP that may contain a custom port (e.g. "1.2.3.4:8002")
-    from urllib.parse import quote
-    nvr_host = nvr.ip
-    if ":" in nvr_host:
-        # NVR already has a custom port, use it for RTSP too
-        rtsp_host = nvr_host
-    else:
-        rtsp_host = f"{nvr_host}:554"
+    preview_url = f"http://{nvr.ip}/ISAPI/Streaming/channels/{stream_chan}/httpPreview"
     
-    encoded_pass = quote(decrypted_pass, safe='')
-    rtsp_url = f"rtsp://{nvr.user}:{encoded_pass}@{rtsp_host}/Streaming/channels/{rtsp_chan}"
-    
-    import subprocess
     from fastapi.responses import StreamingResponse
     
-    def gen_frames():
-        cmd = [
-            "ffmpeg",
-            "-rtsp_transport", "tcp",
-            "-i", rtsp_url,
-            "-f", "mjpeg",
-            "-q:v", "5",
-            "-r", "15",
-            "-"
-        ]
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        buffer = b""
+    def proxy_stream():
+        req_sess = requests.Session()
+        req_sess.trust_env = False
         try:
-            while True:
-                chunk = process.stdout.read(8192)
-                if not chunk:
-                    break
-                buffer += chunk
-                while True:
-                    a = buffer.find(b'\xff\xd8')
-                    b = buffer.find(b'\xff\xd9')
-                    if a != -1 and b != -1 and a < b:
-                        frame = buffer[a:b+2]
-                        buffer = buffer[b+2:]
-                        yield (b'--frame\r\n'
-                               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-                    else:
-                        break
+            resp = req_sess.get(
+                preview_url,
+                auth=HTTPDigestAuth(nvr.user, decrypted_pass),
+                stream=True,
+                timeout=15,
+                proxies={}
+            )
+            if resp.status_code != 200:
+                print(f"ISAPI httpPreview failed for camera {camera.name}: HTTP {resp.status_code}")
+                return
+            for chunk in resp.iter_content(chunk_size=8192):
+                if chunk:
+                    yield chunk
         except GeneratorExit:
             pass
+        except Exception as e:
+            print(f"Stream error for camera {camera.name}: {e}")
         finally:
-            process.terminate()
-            try:
-                process.wait(timeout=3)
-            except Exception:
-                process.kill()
-            
-    return StreamingResponse(gen_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+            req_sess.close()
+    
+    return StreamingResponse(proxy_stream(), media_type="multipart/x-mixed-replace; boundary=boundary")
 
 @app.post("/api/map/upload")
 async def upload_map(file: UploadFile = File(...), user: dict = Depends(require_admin)):
