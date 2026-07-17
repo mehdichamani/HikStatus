@@ -38,6 +38,66 @@
       "enabled": true,
       "group_id": 1,
       "rtsp_port": 554
+    },
+    {
+      "ip": "192.168.1.100",
+      "name": "NVR خط تولید",
+      "user": "admin",
+      "password": "your-nvr-password",
+      "enabled": true,
+      "group_id": 1,
+      "rtsp_port": 554
+    },
+    {
+      "ip": "192.168.1.100",
+      "name": "NVR خط تولید",
+      "user": "admin",
+      "password": "your-nvr-password",
+      "enabled": true,
+      "group_id": 1,
+      "rtsp_port": 554
+    },
+    {
+      "ip": "192.168.1.100",
+      "name": "NVR خط تولید",
+      "user": "admin",
+      "password": "your-nvr-password",
+      "enabled": true,
+      "group_id": 1,
+      "rtsp_port": 554
+    },            
+    {
+      "ip": "192.168.1.100",
+      "name": "NVR خط تولید",
+      "user": "admin",
+      "password": "your-nvr-password",
+      "enabled": true,
+      "group_id": 1,
+      "rtsp_port": 554
+    },
+    {
+      "ip": "192.168.1.100",
+      "name": "NVR خط تولید",
+      "user": "admin",
+      "password": "your-nvr-password",
+      "enabled": true,
+      "group_id": 1,
+      "rtsp_port": 554
+    }        
+  ],
+  "users": [
+    {
+      "username": "operator_sachi",
+      "password": "your-user-password",
+      "role": "group_control",
+      "group_id": 1,
+      "is_active": true,
+      "alert_settings": {
+        "mail_enabled": true,
+        "mail_recipients": "operator@example.com",
+        "telegram_enabled": true,
+        "telegram_chat_ids": "98765432"
+      }
     }
   ]
 }

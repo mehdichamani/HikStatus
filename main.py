@@ -82,11 +82,13 @@ def seed_database(session: Session, init_from_json: bool):
     # Delete all records from all tables
     session.query(DowntimeEvent).delete()
     session.query(Camera).delete()
-    session.query(NVR).delete()
-    session.query(Log).delete()
-    session.query(Settings).delete()
+    session.query(UserSession).delete()
     session.query(UserAlertSettings).delete()
     session.query(User).delete()
+    session.query(NVR).delete()
+    session.query(NVRGroup).delete()
+    session.query(Settings).delete()
+    session.query(Log).delete()
     session.commit()
 
     init_data = {}
@@ -128,6 +130,31 @@ def seed_database(session: Session, init_from_json: bool):
                 group_id=nvr_data.get("group_id"),
                 rtsp_port=nvr_data.get("rtsp_port", 554)
             ))
+    session.commit()
+
+    # Seed Users
+    json_users = init_data.get("users", [])
+    for u_data in json_users:
+        pass_hash = hash_password(u_data["password"])
+        db_user = User(
+            username=u_data["username"],
+            password_hash=pass_hash,
+            role=u_data.get("role", "group_view"),
+            group_id=u_data.get("group_id"),
+            is_active=u_data.get("is_active", True)
+        )
+        session.add(db_user)
+        session.flush()
+
+        a_settings = u_data.get("alert_settings", {})
+        db_alert = UserAlertSettings(
+            user_id=db_user.id,
+            mail_enabled=a_settings.get("mail_enabled", True),
+            mail_recipients=a_settings.get("mail_recipients", ""),
+            telegram_enabled=a_settings.get("telegram_enabled", True),
+            telegram_chat_ids=a_settings.get("telegram_chat_ids", "")
+        )
+        session.add(db_alert)
     session.commit()
 
 def seed_defaults():
@@ -201,6 +228,33 @@ def seed_defaults():
                     group_id=nvr_data.get("group_id"),
                     rtsp_port=nvr_data.get("rtsp_port", 554)
                 ))
+        session.commit()
+
+        # Seed Users
+        json_users = init_data.get("users", [])
+        for u_data in json_users:
+            existing = session.exec(select(User).where(User.username == u_data["username"])).first()
+            if not existing:
+                pass_hash = hash_password(u_data["password"])
+                db_user = User(
+                    username=u_data["username"],
+                    password_hash=pass_hash,
+                    role=u_data.get("role", "group_view"),
+                    group_id=u_data.get("group_id"),
+                    is_active=u_data.get("is_active", True)
+                )
+                session.add(db_user)
+                session.flush()
+
+                a_settings = u_data.get("alert_settings", {})
+                db_alert = UserAlertSettings(
+                    user_id=db_user.id,
+                    mail_enabled=a_settings.get("mail_enabled", True),
+                    mail_recipients=a_settings.get("mail_recipients", ""),
+                    telegram_enabled=a_settings.get("telegram_enabled", True),
+                    telegram_chat_ids=a_settings.get("telegram_chat_ids", "")
+                )
+                session.add(db_alert)
         session.commit()
 
 def seed_scheduled_tasks():
@@ -631,6 +685,192 @@ async def restore_database(request: Request, file: UploadFile = File(...)):
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
         raise HTTPException(status_code=500, detail=f"خطا در بازیابی: {e}")
+    invalidate_config_cache()
+    await restart_monitor()
+    return {"status": "ok"}
+
+
+@app.get("/api/config/export", dependencies=[Depends(require_admin)])
+def export_config_json(session: Session = Depends(get_session)):
+    # 1. Settings
+    settings = session.exec(select(Settings)).all()
+    settings_dict = {s.key: s.value for s in settings}
+
+    # 2. Groups
+    groups = session.exec(select(NVRGroup)).all()
+    groups_list = []
+    for g in groups:
+        groups_list.append({
+            "id": g.id,
+            "name": g.name,
+            "description": g.description,
+            "image_url": g.image_url,
+            "sort_order": g.sort_order
+        })
+
+    # 3. NVRs
+    nvrs = session.exec(select(NVR)).all()
+    nvrs_list = []
+    for n in nvrs:
+        decrypted_pass = ""
+        if n.password:
+            try:
+                decrypted_pass = decrypt_password(n.password)
+            except Exception:
+                decrypted_pass = n.password
+        nvrs_list.append({
+            "ip": n.ip,
+            "name": n.name,
+            "user": n.user,
+            "password": decrypted_pass,
+            "enabled": n.enabled,
+            "group_id": n.group_id,
+            "rtsp_port": n.rtsp_port
+        })
+
+    # 4. Users
+    users = session.exec(select(User)).all()
+    users_list = []
+    for u in users:
+        alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
+        alert_dict = {}
+        if alert_settings:
+            alert_dict = {
+                "mail_enabled": alert_settings.mail_enabled,
+                "mail_recipients": alert_settings.mail_recipients,
+                "telegram_enabled": alert_settings.telegram_enabled,
+                "telegram_chat_ids": alert_settings.telegram_chat_ids
+            }
+        users_list.append({
+            "username": u.username,
+            "password_hash": u.password_hash,
+            "role": u.role,
+            "group_id": u.group_id,
+            "is_active": u.is_active,
+            "alert_settings": alert_dict
+        })
+
+    config_data = {
+        "settings": settings_dict,
+        "groups": groups_list,
+        "nvrs": nvrs_list,
+        "users": users_list
+    }
+    
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        content=config_data,
+        headers={"Content-Disposition": "attachment; filename=hikstatus_config.json"}
+    )
+
+
+@app.post("/api/config/import", dependencies=[Depends(require_admin)])
+async def import_config_json(request: Request, session: Session = Depends(get_session)):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="فایل ارسالی فرمت JSON معتبر ندارد")
+        
+    session.query(DowntimeEvent).delete()
+    session.query(Camera).delete()
+    session.query(UserSession).delete()
+    session.query(UserAlertSettings).delete()
+    session.query(User).delete()
+    session.query(NVR).delete()
+    session.query(NVRGroup).delete()
+    session.query(Settings).delete()
+    session.commit()
+
+    # 1. Import Settings
+    json_settings = body.get("settings", {})
+    defaults = {
+        "MAIL_ENABLED": "false",
+        "MAIL_SERVER": "smtp.gmail.com",
+        "MAIL_PORT": "587",
+        "MAIL_USER": "email@gmail.com",
+        "MAIL_PASS": "password",
+        "MAIL_RECIPIENTS": "admin@example.com",
+        "MAIL_FIRST_ALERT_DELAY_MINUTES": "1",
+        "MAIL_LOW_IMPORTANCE_DELAY_MINUTES": "30",
+        "MAIL_ALERT_FREQUENCY_MINUTES": "60",
+        "MAIL_MUTE_AFTER_N_ALERTS": "3",
+        "TELEGRAM_ENABLED": "false",
+        "TELEGRAM_BOT_TOKEN": "",
+        "TELEGRAM_CHAT_IDS": "",
+        "TELEGRAM_PROXY": "",
+        "TELEGRAM_FIRST_ALERT_DELAY_MINUTES": "1",
+        "TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES": "15",
+        "TELEGRAM_ALERT_FREQUENCY_MINUTES": "30",
+        "TELEGRAM_MUTE_AFTER_N_ALERTS": "3",
+        "MAP_TYPE": "floor",
+        "MAP_IMAGE": "",
+        "MAP_START_LAT": "37.796067",
+        "MAP_START_LNG": "45.062508",
+    }
+    for key, def_val in defaults.items():
+        val = json_settings.get(key, def_val)
+        session.add(Settings(key=key, value=str(val)))
+    session.commit()
+
+    # 2. Import Groups
+    json_groups = body.get("groups", [])
+    for g_data in json_groups:
+        session.add(NVRGroup(
+            id=g_data.get("id"),
+            name=g_data["name"],
+            description=g_data.get("description"),
+            image_url=g_data.get("image_url", ""),
+            sort_order=g_data.get("sort_order", 0)
+        ))
+    session.commit()
+
+    # 3. Import NVRs
+    json_nvrs = body.get("nvrs", [])
+    for n_data in json_nvrs:
+        enc_pass = ""
+        if n_data.get("password"):
+            enc_pass = encrypt_password(n_data["password"])
+        session.add(NVR(
+            ip=n_data["ip"],
+            name=n_data.get("name"),
+            user=n_data["user"],
+            password=enc_pass,
+            enabled=n_data.get("enabled", True),
+            group_id=n_data.get("group_id"),
+            rtsp_port=n_data.get("rtsp_port", 554)
+        ))
+    session.commit()
+
+    # 4. Import Users
+    json_users = body.get("users", [])
+    for u_data in json_users:
+        pass_hash = u_data.get("password_hash")
+        if not pass_hash and "password" in u_data:
+            pass_hash = hash_password(u_data["password"])
+        if not pass_hash:
+            pass_hash = hash_password("123456")
+            
+        db_user = User(
+            username=u_data["username"],
+            password_hash=pass_hash,
+            role=u_data.get("role", "group_view"),
+            group_id=u_data.get("group_id"),
+            is_active=u_data.get("is_active", True)
+        )
+        session.add(db_user)
+        session.flush()
+
+        a_settings = u_data.get("alert_settings", {})
+        db_alert = UserAlertSettings(
+            user_id=db_user.id,
+            mail_enabled=a_settings.get("mail_enabled", True),
+            mail_recipients=a_settings.get("mail_recipients", ""),
+            telegram_enabled=a_settings.get("telegram_enabled", True),
+            telegram_chat_ids=a_settings.get("telegram_chat_ids", "")
+        )
+        session.add(db_alert)
+    session.commit()
+
     invalidate_config_cache()
     await restart_monitor()
     return {"status": "ok"}

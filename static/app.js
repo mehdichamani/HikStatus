@@ -1023,6 +1023,47 @@ async function restoreDatabase(input) {
     }
 }
 
+async function importJsonConfig(input) {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+    if (!file.name.endsWith('.json')) {
+        showToast('فایل باید با پسوند .json باشد', 'error');
+        return;
+    }
+    if (!confirm(`توجه: با بارگذاری این فایل، تمامی تنظیمات فعلی، لیست NVRها، گروه‌ها و کاربران کاملاً حذف شده و با اطلاعات فایل "${file.name}" جایگزین خواهند شد. آیا ادامه می‌دهید؟`)) return;
+    const statusEl = document.getElementById('import-json-status');
+    if (statusEl) statusEl.textContent = 'در حال بارگذاری...';
+    try {
+        const text = await file.text();
+        let jsonData;
+        try {
+            jsonData = JSON.parse(text);
+        } catch (err) {
+            throw new Error('فرمت فایل JSON معتبر نیست');
+        }
+        
+        const res = await fetch(`${API}/config/import`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonData),
+            credentials: 'include',
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: 'خطای نامشخص' }));
+            throw new Error(err.detail || 'خطا در بارگذاری تنظیمات');
+        }
+        if (statusEl) statusEl.textContent = '';
+        showToast('پیکربندی JSON با موفقیت بارگذاری شد. در حال بازنشانی مانیتور...');
+        setTimeout(() => location.reload(), 1500);
+    } catch (e) {
+        if (statusEl) statusEl.textContent = '';
+        showToast('خطا: ' + e.message, 'error');
+    }
+}
+
 function showToast(msg, type = 'success') {
     const toast = document.createElement('div');
     toast.style.cssText = `
