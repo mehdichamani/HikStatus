@@ -660,6 +660,8 @@ def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: 
         n.group_id = p["group_id"] if p["group_id"] is not None else None
     if "rtsp_port" in p:
         n.rtsp_port = int(p["rtsp_port"])
+    if "enabled" in p:
+        n.enabled = bool(p["enabled"])
     session.add(n)
     session.commit()
     return n

@@ -669,16 +669,44 @@ function renderNVRRow(n, deleted = false) {
         actionBtns += `</div>`;
     }
 
-    return `<div class="list-item" id="nvr-row-${escaped}" data-ip="${n.ip}">
+    const disabledStyle = n.enabled === false ? 'opacity: 0.5;' : '';
+    const enabledBadge = n.enabled === false
+        ? `<span class="badge" style="font-size: 11px; margin-right: 6px; background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 2px 6px; border-radius: 4px;">غیرفعال</span>`
+        : '';
+
+    return `<div class="list-item" id="nvr-row-${escaped}" data-ip="${n.ip}" style="${disabledStyle}">
         <div class="list-item-info">
             ${n.name ? `<strong style="margin-left: 8px; color: var(--text-primary);">${n.name}</strong>` : ''}
             <span class="list-item-ip">${n.ip}</span>
             <span class="list-item-user">(${n.user})</span>
             <span class="badge" style="font-size: 11px; margin-right: 6px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 2px 6px; border-radius: 4px;">RTSP: ${n.rtsp_port || 554}</span>
+            ${enabledBadge}
             ${groupSelectOrLabel}
         </div>
-        ${actionBtns}
+        <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+            <label class="toggle" style="transform: scale(0.85); transform-origin: right; margin: 0;">
+                <input type="checkbox" ${n.enabled !== false ? 'checked' : ''} onchange="toggleNVRenabled('${n.ip}', this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+            ${actionBtns}
+        </div>
     </div>`;
+}
+
+async function toggleNVRenabled(ip, enabled) {
+    try {
+        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+        const nRes = await apiFetch(`${API}/nvrs`);
+        nvrCache = await nRes.json();
+        document.getElementById('nvr-list').innerHTML = nvrCache.map(n => renderNVRRow(n)).join('');
+        showToast(enabled ? 'NVR فعال شد' : 'NVR غیرفعال شد');
+    } catch (e) {
+        showToast('خطا در تغییر وضعیت NVR: ' + e.message, 'error');
+    }
 }
 
 function renderGroupsList() {
