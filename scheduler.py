@@ -5,10 +5,11 @@ import time
 from typing import Optional
 from sqlmodel import Session, select
 from database import engine, ScheduledTask
-from monitor import task_ping_cameras, task_sync_nvr_configs, task_sync_nvr_stats, task_cleanup_database, broadcast
+from monitor import task_ping_cameras, task_sync_camera_names, task_sync_nvr_configs, task_sync_nvr_stats, task_cleanup_database, broadcast
 
 TASK_FUNCTIONS = {
     "ping_cameras": task_ping_cameras,
+    "sync_camera_names": task_sync_camera_names,
     "sync_nvr_configs": task_sync_nvr_configs,
     "sync_nvr_stats": task_sync_nvr_stats,
     "cleanup_database": task_cleanup_database
@@ -30,7 +31,10 @@ class TaskScheduler:
             now = datetime.now()
             for t in tasks:
                 t.status = "Idle"  # Reset status on startup
-                if not t.next_run:
+                # Run sync/pings immediately on startup (instead of waiting for first interval)
+                if t.id in ["ping_cameras", "sync_camera_names", "sync_nvr_configs", "sync_nvr_stats"]:
+                    t.next_run = now
+                elif not t.next_run:
                     t.next_run = now + timedelta(seconds=t.interval)
                 session.add(t)
             session.commit()

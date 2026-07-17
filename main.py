@@ -196,6 +196,12 @@ def seed_scheduled_tasks():
                 interval=7200
             ),
             ScheduledTask(
+                id="sync_camera_names",
+                name="همگام‌سازی نام دوربین‌ها",
+                description="دریافت نام جدید دوربین‌ها از روی دستگاه‌های NVR و به‌روزرسانی در دیتابیس",
+                interval=86400
+            ),
+            ScheduledTask(
                 id="cleanup_database",
                 name="پاک‌سازی خودکار لاگ‌های قدیمی",
                 description="حذف لاگ‌های مانیتورینگ قدیمی‌تر از ۹۰ روز برای بهینه‌سازی دیتابیس",

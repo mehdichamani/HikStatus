@@ -812,6 +812,13 @@ async def task_cleanup_database():
         cleanup_old_data(session)
         session.commit()
 
+async def task_sync_camera_names():
+    with Session(engine) as session:
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+    for n in nvrs:
+        print(f"Triggering NVR camera name sync for {n.ip}...")
+        await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password)
+
 async def start_monitor_loop():
     print("Monitor loop started (via scheduler)...")
     with Session(engine) as session:
