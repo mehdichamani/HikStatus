@@ -668,6 +668,17 @@ async def task_ping_cameras():
                 nvr_label = f"{nvr_obj.name} ({nvr_obj.ip})" if nvr_obj.name else f"NVR {nvr_obj.ip}"
                 error_message = f"{nvr_label} Failed: {payload}"
                 await process_nvr_alerts(session, nvr_obj, True, error_message)
+                # Mark all cameras of this offline NVR as Offline and include in broadcast
+                offline_cams = session.exec(select(Camera).where(Camera.nvr_ip == nvr_obj.ip)).all()
+                for cam in offline_cams:
+                    if cam.status != "Offline":
+                        log_event(session, "Camera", "Offline", f"{cam.name} ({cam.ip}) - NVR offline")
+                        cam.status = "Offline"
+                        open_evt = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id, DowntimeEvent.end_time == None)).first()
+                        if not open_evt:
+                            session.add(DowntimeEvent(camera_id=cam.id, start_time=datetime.now()))
+                        session.add(cam)
+                    cams_processed.append(cam)
                 continue
             else:
                 await process_nvr_alerts(session, nvr_obj, False)

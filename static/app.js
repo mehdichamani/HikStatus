@@ -89,6 +89,50 @@ async function fetchDash() {
     if (onEl) onEl.textContent = on;
     if (offEl) offEl.textContent = off.length;
 
+    // NVR status
+    const activeNvrs = nvrCache.filter(n => n.enabled !== false);
+    const nvrOn = activeNvrs.filter(n => n.status === 'Online').length;
+    const nvrOff = activeNvrs.filter(n => n.status !== 'Online').length;
+    const sNvrTot = document.getElementById('s-nvr-tot');
+    const sNvrOn = document.getElementById('s-nvr-on');
+    const sNvrOff = document.getElementById('s-nvr-off');
+    if (sNvrTot) sNvrTot.textContent = activeNvrs.length;
+    if (sNvrOn) sNvrOn.textContent = nvrOn;
+    if (sNvrOff) sNvrOff.textContent = nvrOff;
+
+    // Factory summary
+    const factoryCountEl = document.getElementById('s-factory-count');
+    if (factoryCountEl) factoryCountEl.textContent = groupCache.length;
+
+    const factorySummaryContent = document.getElementById('factory-summary-content');
+    if (factorySummaryContent && groupCache.length > 0) {
+        let summaryHtml = '';
+        groupCache.forEach(g => {
+            const groupNvrs = nvrCache.filter(n => n.group_id === g.id);
+            const activeGroupNvrs = groupNvrs.filter(n => n.enabled !== false);
+            const offlineGroupNvrs = activeGroupNvrs.filter(n => n.status !== 'Online');
+
+            const groupCamCount = cams.filter(c => {
+                const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
+                return nvr && nvr.group_id === g.id;
+            });
+            const offlineGroupCams = groupCamCount.filter(c => c.status !== 'Online');
+
+            let camText = `${groupCamCount.length} دوربین`;
+            if (offlineGroupCams.length > 0) {
+                camText += ` <span class="text-danger" style="font-weight: bold;">(${offlineGroupCams.length} قطع)</span>`;
+            }
+
+            let nvrText = `${activeGroupNvrs.length} NVR`;
+            if (offlineGroupNvrs.length > 0) {
+                nvrText += ` <span class="text-danger" style="font-weight: bold;">(${offlineGroupNvrs.length} قطع)</span>`;
+            }
+
+            summaryHtml += `<div class="stat-row"><span class="stat-label">${g.name}</span><span class="stat-value" style="font-size:13px; color: var(--text-secondary);">${camText} · ${nvrText}</span></div>`;
+        });
+        factorySummaryContent.innerHTML = summaryHtml;
+    }
+
     if (off.length > 0) {
         document.getElementById('offline-section').classList.remove('hidden');
         document.getElementById('all-ok').classList.add('hidden');
@@ -114,9 +158,10 @@ async function fetchDash() {
     });
     const unassignedNvrIps = [];
 
-    Object.keys(groups).sort((a, b) => parseInt(getNvrNum(a)) - parseInt(getNvrNum(b))).forEach(ip => {
-        const nvrObj = nvrCache.find(n => n.ip === ip);
-        const groupId = nvrObj ? nvrObj.group_id : null;
+    // Iterate all known NVRs (from nvrCache) so offline NVRs without cameras still appear
+    nvrCache.filter(n => n.enabled !== false).sort((a, b) => parseInt(getNvrNum(a.ip)) - parseInt(getNvrNum(b.ip))).forEach(nvrObj => {
+        const ip = nvrObj.ip;
+        const groupId = nvrObj.group_id;
         if (groupId && groupMap[groupId]) {
             if (!groupNVRs[groupId]) groupNVRs[groupId] = [];
             groupNVRs[groupId].push(ip);
@@ -125,29 +170,43 @@ async function fetchDash() {
         }
     });
 
-    // Render grouped factories
+    // Render grouped factories with collapse support
     groupCache.forEach(g => {
         const ips = groupNVRs[g.id] || [];
         if (ips.length === 0) return;
 
-        let factoryHtml = `<div class="factory-group-section" style="margin-bottom: 30px;">
-            <div style="font-size: 16px; font-weight: bold; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); display: flex; align-items: center; gap: 8px; color: var(--text-primary);">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                ${g.name}
-                ${g.description ? `<span style="font-size: 12px; font-weight: normal; color: var(--text-secondary); margin-right: 8px;">(${g.description})</span>` : ''}
+        let totalCams = 0;
+        ips.forEach(ip => { totalCams += (groups[ip] || []).length; });
+
+        let factoryHtml = `<div class="factory-section open" id="factory-${g.id}">
+            <div class="factory-header" onclick="toggleFactory(${g.id})">
+                <div class="factory-header-left">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/></svg>
+                    <span class="factory-name">${g.name}</span>
+                    ${g.description ? `<span class="factory-desc">(${g.description})</span>` : ''}
+                    <div class="factory-stats">
+                        <span>${totalCams} دوربین</span>
+                        <span>·</span>
+                        <span>${ips.length} NVR</span>
+                    </div>
+                </div>
+                <svg class="factory-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">`;
+            <div class="factory-body">`;
 
         ips.forEach(ip => {
-            const list = groups[ip];
+            const nvrObj = nvrCache.find(n => n.ip === ip);
+            const isNvrOffline = nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online';
+            const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
             const cards = sorted.map(c => createCard(c)).join('');
             factoryHtml += `
-                <div class="nvr-block open">
+                <div class="nvr-block open ${isNvrOffline ? 'offline' : ''}">
                     <div class="nvr-header" onclick="toggleNvr(this)">
                         <div class="nvr-header-left">
-                            <span class="nvr-badge">${getNvrDisplayName(ip)}</span>
+                            <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
+                            ${isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : ''}
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
@@ -161,23 +220,37 @@ async function fetchDash() {
 
     // Render unassigned NVRs
     if (unassignedNvrIps.length > 0) {
-        let unassignedHtml = `<div class="factory-group-section" style="margin-bottom: 30px;">
-            <div style="font-size: 16px; font-weight: bold; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 8px; color: var(--text-secondary);">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-secondary);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                سایر NVRها (بدون دسته‌بندی کارخانه‌ای)
+        let totalUnassigned = 0;
+        unassignedNvrIps.forEach(ip => { totalUnassigned += (groups[ip] || []).length; });
+
+        let unassignedHtml = `<div class="factory-section open" id="factory-unassigned">
+            <div class="factory-header" onclick="toggleFactory('unassigned')">
+                <div class="factory-header-left">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-secondary);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span class="factory-name" style="color: var(--text-secondary);">سایر NVRها (بدون دسته‌بندی کارخانه‌ای)</span>
+                    <div class="factory-stats">
+                        <span>${totalUnassigned} دوربین</span>
+                        <span>·</span>
+                        <span>${unassignedNvrIps.length} NVR</span>
+                    </div>
+                </div>
+                <svg class="factory-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">`;
+            <div class="factory-body">`;
 
         unassignedNvrIps.forEach(ip => {
-            const list = groups[ip];
+            const nvrObj = nvrCache.find(n => n.ip === ip);
+            const isNvrOffline = nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online';
+            const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
             const cards = sorted.map(c => createCard(c)).join('');
             unassignedHtml += `
-                <div class="nvr-block open">
+                <div class="nvr-block open ${isNvrOffline ? 'offline' : ''}">
                     <div class="nvr-header" onclick="toggleNvr(this)">
                         <div class="nvr-header-left">
-                            <span class="nvr-badge">${getNvrDisplayName(ip)}</span>
+                            <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
+                            ${isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : ''}
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
@@ -197,15 +270,25 @@ function toggleNvr(header) {
     grid.style.display = block.classList.contains('open') ? 'grid' : 'none';
 }
 
+function toggleFactory(id) {
+    const el = document.getElementById('factory-' + id);
+    if (el) el.classList.toggle('open');
+}
+
 function createCard(c) {
     const stClass = c.status === 'Online' ? 'status-online' : 'status-offline';
     const meta = encodeURIComponent(JSON.stringify(c));
     const star = c.importance === 3 ? '<span class="cam-card-star">★</span>' : '';
     const ipShort = c.ip ? c.ip.split('.').pop() : '';
+    const isRecording = c.recording_scheduled === true;
+    const recDotClass = isRecording ? 'cam-record-dot recording' : 'cam-record-dot not-recording';
 
     return `<div class="cam-card ${stClass}" onclick="showCam('${meta}')">
         <div class="cam-card-inner">
-            <span class="cam-status-dot"></span>
+            <div class="cam-status-dots">
+                <span class="cam-status-dot"></span>
+                <span class="${recDotClass}" title="${isRecording ? 'در حال ضبط' : 'ضبط غیرفعال'}"></span>
+            </div>
             <div class="cam-card-info">
                 <div class="cam-card-name">${c.name}</div>
                 <div class="cam-card-meta">CH ${c.channel_id}</div>
@@ -1300,6 +1383,35 @@ function updateDashFromWS(cams) {
     if (onEl) onEl.textContent = on;
     if (offEl) offEl.textContent = off.length;
 
+    // NVR status
+    const activeNvrs = nvrCache.filter(n => n.enabled !== false);
+    const nvrOn = activeNvrs.filter(n => n.status === 'Online').length;
+    const nvrOff = activeNvrs.filter(n => n.status !== 'Online').length;
+    const sNvrTot = document.getElementById('s-nvr-tot');
+    const sNvrOn = document.getElementById('s-nvr-on');
+    const sNvrOff = document.getElementById('s-nvr-off');
+    if (sNvrTot) sNvrTot.textContent = activeNvrs.length;
+    if (sNvrOn) sNvrOn.textContent = nvrOn;
+    if (sNvrOff) sNvrOff.textContent = nvrOff;
+
+    // Factory summary
+    const factoryCountEl = document.getElementById('s-factory-count');
+    if (factoryCountEl) factoryCountEl.textContent = groupCache.length;
+
+    const factorySummaryContent = document.getElementById('factory-summary-content');
+    if (factorySummaryContent && groupCache.length > 0) {
+        let summaryHtml = '';
+        groupCache.forEach(g => {
+            const groupNvrs = nvrCache.filter(n => n.group_id === g.id);
+            const groupCamCount = cams.filter(c => {
+                const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
+                return nvr && nvr.group_id === g.id;
+            }).length;
+            summaryHtml += `<div class="stat-row"><span class="stat-label">${g.name}</span><span class="stat-value" style="font-size:13px; color: var(--text-secondary);">${groupCamCount} دوربین · ${groupNvrs.length} NVR</span></div>`;
+        });
+        factorySummaryContent.innerHTML = summaryHtml;
+    }
+
     if (off.length > 0) {
         document.getElementById('offline-section').classList.remove('hidden');
         document.getElementById('all-ok').classList.add('hidden');
@@ -1317,22 +1429,143 @@ function updateDashFromWS(cams) {
     if (!con) return;
     con.innerHTML = '';
 
-    Object.keys(groups).sort((a, b) => parseInt(getNvrNum(a)) - parseInt(getNvrNum(b))).forEach(ip => {
-        const list = groups[ip];
-        const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
-        const cards = sorted.map(c => createCard(c)).join('');
-        con.innerHTML += `
-            <div class="nvr-block open">
-                <div class="nvr-header" onclick="toggleNvr(this)">
-                    <div class="nvr-header-left">
-                        <span class="nvr-badge">${getNvrDisplayName(ip)}</span>
-                        <span class="nvr-ip">${ip}</span>
-                    </div>
-                    <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="nvr-grid">${cards}</div>
-            </div>`;
+    // Map of group_id to list of NVR IPs
+    const groupNVRs = {};
+    const groupMap = {};
+    groupCache.forEach(g => {
+        groupMap[g.id] = g.name;
+        groupNVRs[g.id] = [];
     });
+    const unassignedNvrIps = [];
+
+    // Iterate all known NVRs (from nvrCache) so offline NVRs without cameras still appear
+    nvrCache.filter(n => n.enabled !== false).sort((a, b) => parseInt(getNvrNum(a.ip)) - parseInt(getNvrNum(b.ip))).forEach(nvrObj => {
+        const ip = nvrObj.ip;
+        const groupId = nvrObj.group_id;
+        if (groupId && groupMap[groupId]) {
+            if (!groupNVRs[groupId]) groupNVRs[groupId] = [];
+            groupNVRs[groupId].push(ip);
+        } else {
+            unassignedNvrIps.push(ip);
+        }
+    });
+
+    // Render grouped factories with collapse
+    groupCache.forEach(g => {
+        const ips = groupNVRs[g.id] || [];
+        if (ips.length === 0) return;
+
+        let totalCams = 0;
+        let offlineCams = 0;
+        let offlineNvrs = 0;
+
+        ips.forEach(ip => {
+            const list = groups[ip] || [];
+            totalCams += list.length;
+            offlineCams += list.filter(c => c.status !== 'Online').length;
+
+            const nvrObj = nvrCache.find(n => n.ip === ip);
+            if (nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online') {
+                offlineNvrs++;
+            }
+        });
+
+        let factoryHtml = `<div class="factory-section open" id="factory-${g.id}">
+            <div class="factory-header" onclick="toggleFactory(${g.id})">
+                <div class="factory-header-left">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/></svg>
+                    <span class="factory-name">${g.name}</span>
+                    ${g.description ? `<span class="factory-desc">(${g.description})</span>` : ''}
+                    <div class="factory-stats">
+                        <span>${totalCams} دوربین ${offlineCams > 0 ? `<strong class="text-danger" style="margin-right:4px;">(${offlineCams} قطع)</strong>` : ''}</span>
+                        <span>·</span>
+                        <span>${ips.length} NVR ${offlineNvrs > 0 ? `<strong class="text-danger" style="margin-right:4px;">(${offlineNvrs} قطع)</strong>` : ''}</span>
+                    </div>
+                </div>
+                <svg class="factory-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="factory-body">`;
+
+        ips.forEach(ip => {
+            const nvrObj = nvrCache.find(n => n.ip === ip);
+            const isNvrOffline = nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online';
+            const list = groups[ip];
+            const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
+            const cards = sorted.map(c => createCard(c)).join('');
+            factoryHtml += `
+                <div class="nvr-block open ${isNvrOffline ? 'offline' : ''}">
+                    <div class="nvr-header" onclick="toggleNvr(this)">
+                        <div class="nvr-header-left">
+                            <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
+                            <span class="nvr-ip">${ip}</span>
+                            ${isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : ''}
+                        </div>
+                        <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="nvr-grid">${cards}</div>
+                </div>`;
+        });
+
+        factoryHtml += `</div></div>`;
+        con.innerHTML += factoryHtml;
+    });
+
+    // Render unassigned NVRs
+    if (unassignedNvrIps.length > 0) {
+        let totalUnassigned = 0;
+        let offlineUnassignedCams = 0;
+        let offlineUnassignedNvrs = 0;
+
+        unassignedNvrIps.forEach(ip => {
+            const list = groups[ip] || [];
+            totalUnassigned += list.length;
+            offlineUnassignedCams += list.filter(c => c.status !== 'Online').length;
+
+            const nvrObj = nvrCache.find(n => n.ip === ip);
+            if (nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online') {
+                offlineUnassignedNvrs++;
+            }
+        });
+
+        let unassignedHtml = `<div class="factory-section open" id="factory-unassigned">
+            <div class="factory-header" onclick="toggleFactory('unassigned')">
+                <div class="factory-header-left">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-secondary);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span class="factory-name" style="color: var(--text-secondary);">سایر NVRها (بدون دسته‌بندی کارخانه‌ای)</span>
+                    <div class="factory-stats">
+                        <span>${totalUnassigned} دوربین ${offlineUnassignedCams > 0 ? `<strong class="text-danger" style="margin-right:4px;">(${offlineUnassignedCams} قطع)</strong>` : ''}</span>
+                        <span>·</span>
+                        <span>${unassignedNvrIps.length} NVR ${offlineUnassignedNvrs > 0 ? `<strong class="text-danger" style="margin-right:4px;">(${offlineUnassignedNvrs} قطع)</strong>` : ''}</span>
+                    </div>
+                </div>
+                <svg class="factory-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="factory-body">`;
+
+        unassignedNvrIps.forEach(ip => {
+            const nvrObj = nvrCache.find(n => n.ip === ip);
+            const isNvrOffline = nvrObj && nvrObj.enabled !== false && nvrObj.status !== 'Online';
+            const list = groups[ip];
+            const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
+            const cards = sorted.map(c => createCard(c)).join('');
+            unassignedHtml += `
+                <div class="nvr-block open ${isNvrOffline ? 'offline' : ''}">
+                    <div class="nvr-header" onclick="toggleNvr(this)">
+                        <div class="nvr-header-left">
+                            <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
+                            <span class="nvr-ip">${ip}</span>
+                            ${isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : ''}
+                        </div>
+                        <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="nvr-grid">${cards}</div>
+                </div>`;
+        });
+
+        unassignedHtml += `</div></div>`;
+        con.innerHTML += unassignedHtml;
+    }
+
     if (map) updateMapMarkersFromWS(cams);
 }
 

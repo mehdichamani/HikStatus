@@ -296,6 +296,184 @@ body {
 .stat-chip-online .stat-chip-val { color: var(--success); }
 .stat-chip-offline .stat-chip-val { color: var(--danger); }
 
+/* ===== COMBINED STAT CARD ===== */
+.stat-card-combined {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    flex: 1;
+    min-width: 180px;
+    transition: var(--transition);
+}
+
+.stat-card-combined:hover {
+    border-color: var(--border-light);
+    box-shadow: var(--shadow);
+}
+
+.stat-combined-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--primary);
+}
+
+.stat-combined-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.stat-row .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 0;
+    font-weight: 500;
+}
+
+.stat-row .stat-value {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.text-success { color: var(--success) !important; }
+.text-danger { color: var(--danger) !important; }
+
+/* ===== FACTORY DASHBOARD SECTION ===== */
+.factory-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.factory-header {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: var(--transition);
+    user-select: none;
+}
+
+.factory-header:hover {
+    background: var(--surface-2);
+}
+
+.factory-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.factory-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.factory-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-right: 8px;
+}
+
+.factory-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.factory-stats span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.factory-chevron {
+    color: var(--text-muted);
+    transition: transform 0.3s;
+    flex-shrink: 0;
+}
+
+.factory-section.open .factory-chevron {
+    transform: rotate(180deg);
+}
+
+.factory-body {
+    display: none;
+    background: var(--surface-2);
+    border-top: 1px solid var(--border);
+    padding: 12px;
+}
+
+.factory-section.open .factory-body {
+    display: block;
+}
+
+/* ===== RECORDING STATUS DOT ===== */
+.cam-card-inner {
+    position: relative;
+}
+
+.cam-status-dots {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.cam-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.cam-record-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+}
+
+.cam-record-dot.recording {
+    background: var(--success);
+    box-shadow: 0 0 4px var(--success);
+}
+
+.cam-record-dot.not-recording {
+    background: #64748b;
+}
+
+@media (max-width: 767px) {
+    .stat-card-combined {
+        min-width: 140px;
+        padding: 12px;
+    }
+    .stat-row .stat-value {
+        font-size: 18px;
+    }
+    .factory-stats {
+        display: none;
+    }
+}
+
 /* ===== SECTION HEADERS ===== */
 .section-header {
     display: flex;
@@ -487,6 +665,15 @@ body {
     border-radius: 6px;
     font-size: 12px;
     font-weight: 700;
+}
+
+.nvr-badge.offline {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+.nvr-block.offline {
+    border-color: rgba(239, 68, 68, 0.4);
 }
 
 .nvr-ip {
@@ -1439,6 +1626,14 @@ body {
 
     .stat-label {
         font-size: 11px;
+    }
+
+    .stats-row-combined {
+        flex-direction: column !important;
+    }
+
+    .stat-card-combined {
+        min-width: 100%;
     }
 
     .cam-grid {
