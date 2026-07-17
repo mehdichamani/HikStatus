@@ -963,8 +963,18 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
         rtsp_chan = str(chan_int * 100 + 1) if chan_int < 100 else camera.channel_id
     except ValueError:
         rtsp_chan = camera.channel_id
-        
-    rtsp_url = f"rtsp://{nvr.user}:{decrypted_pass}@{nvr.ip}:554/Streaming/channels/{rtsp_chan}"
+    
+    # Handle NVR IP that may contain a custom port (e.g. "1.2.3.4:8002")
+    from urllib.parse import quote
+    nvr_host = nvr.ip
+    if ":" in nvr_host:
+        # NVR already has a custom port, use it for RTSP too
+        rtsp_host = nvr_host
+    else:
+        rtsp_host = f"{nvr_host}:554"
+    
+    encoded_pass = quote(decrypted_pass, safe='')
+    rtsp_url = f"rtsp://{nvr.user}:{encoded_pass}@{rtsp_host}/Streaming/channels/{rtsp_chan}"
     
     import subprocess
     from fastapi.responses import StreamingResponse
@@ -974,16 +984,16 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
             "ffmpeg",
             "-rtsp_transport", "tcp",
             "-i", rtsp_url,
-            "-f", "image2pipe",
-            "-vcodec", "mjpeg",
+            "-f", "mjpeg",
             "-q:v", "5",
+            "-r", "15",
             "-"
         ]
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         buffer = b""
         try:
             while True:
-                chunk = process.stdout.read(4096)
+                chunk = process.stdout.read(8192)
                 if not chunk:
                     break
                 buffer += chunk
@@ -1001,7 +1011,10 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
             pass
         finally:
             process.terminate()
-            process.wait()
+            try:
+                process.wait(timeout=3)
+            except Exception:
+                process.kill()
             
     return StreamingResponse(gen_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
 
