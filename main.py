@@ -384,6 +384,8 @@ def logout(request: Request, response: Response, db: Session = Depends(get_sessi
     response.delete_cookie("session_token")
     return {"status": "ok"}
 # Serve Static Assets (CSS, JS)
+os.makedirs("data/plans", exist_ok=True)
+app.mount("/static/plans", StaticFiles(directory="data/plans"), name="plans")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/login")
@@ -578,7 +580,7 @@ def delete_group(id: int, session: Session = Depends(get_session), user: dict = 
     plans = session.exec(select(MapPlan).where(MapPlan.group_id == id)).all()
     for plan in plans:
         try:
-            old_path = plan.image_url.lstrip("/")
+            old_path = plan.image_url.replace("/static/plans/", "data/plans/")
             if os.path.exists(old_path):
                 os.remove(old_path)
         except Exception:
@@ -602,7 +604,7 @@ async def upload_group_plan(id: int, file: UploadFile = File(...), name: str = "
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    os.makedirs("static/plans", exist_ok=True)
+    os.makedirs("data/plans", exist_ok=True)
     ext = file.filename.split(".")[-1].lower()
     if ext not in ["png", "jpg", "jpeg", "svg"]:
         raise HTTPException(status_code=400, detail="فرمت فایل باید JPG، PNG یا SVG باشد")
@@ -610,7 +612,7 @@ async def upload_group_plan(id: int, file: UploadFile = File(...), name: str = "
     import time
     plan_name = name.strip() if name.strip() else file.filename.rsplit(".", 1)[0]
     filename = f"plan_{id}_{int(time.time())}.{ext}"
-    filepath = os.path.join("static/plans", filename)
+    filepath = os.path.join("data/plans", filename)
     
     with open(filepath, "wb") as f:
         f.write(await file.read())
@@ -646,7 +648,7 @@ def delete_group_plan(gid: int, pid: int, session: Session = Depends(get_session
     if not plan or plan.group_id != gid:
         raise HTTPException(status_code=404, detail="Plan not found")
     try:
-        old_path = plan.image_url.lstrip("/")
+        old_path = plan.image_url.replace("/static/plans/", "data/plans/")
         if os.path.exists(old_path):
             os.remove(old_path)
     except Exception:
