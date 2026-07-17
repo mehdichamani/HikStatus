@@ -12,7 +12,7 @@ load_dotenv()
 
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, HTMLResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -866,6 +866,83 @@ async def get_camera_snapshot(id: int, session: Session = Depends(get_session), 
             raise HTTPException(status_code=400, detail=f"NVR returned HTTP {mime_or_status}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch snapshot: {str(e)}")
+
+@app.get("/api/cameras/{id}/live", response_class=HTMLResponse)
+def get_camera_live_page(id: int, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    camera = session.get(Camera, id)
+    if not camera:
+        raise HTTPException(status_code=404, detail="Camera not found")
+        
+    nvr = session.exec(select(NVR).where(NVR.ip == camera.nvr_ip)).first()
+    if not nvr:
+        raise HTTPException(status_code=404, detail="NVR not found")
+        
+    if user["role"] != "admin" and nvr.group_id != user["group_id"]:
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
+        
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="fa" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <title>پخش زنده - {camera.name}</title>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                background-color: #0f172a;
+                color: #f1f5f9;
+                font-family: system-ui, -apple-system, sans-serif;
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+                overflow: hidden;
+            }}
+            .header {{
+                background-color: #1e293b;
+                padding: 12px 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid #334155;
+            }}
+            .title {{
+                margin: 0;
+                font-size: 16px;
+                font-weight: 600;
+            }}
+            .info {{
+                font-size: 13px;
+                color: #94a3b8;
+            }}
+            .video-container {{
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                background: #020617;
+            }}
+            .video-frame {{
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+                display: block;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1 class="title">پخش زنده: {camera.name}</h1>
+            <span class="info">{camera.ip} (NVR: {camera.nvr_ip})</span>
+        </div>
+        <div class="video-container">
+            <img class="video-frame" src="/api/cameras/{id}/stream" alt="Live Stream">
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
 @app.get("/api/cameras/{id}/stream")
 async def stream_camera(id: int, session: Session = Depends(get_session), user: dict = Depends(require_auth)):

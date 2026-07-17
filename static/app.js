@@ -325,7 +325,7 @@ async function showCam(data) {
 }
 
 function playLiveStream() {
-    window.open(`/api/cameras/${currentCamId}/stream`, '_blank');
+    window.open(`/api/cameras/${currentCamId}/live`, '_blank');
 }
 
 async function cycleImpModal() {
