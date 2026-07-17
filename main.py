@@ -981,15 +981,15 @@ def get_camera_live_page(id: int, session: Session = Depends(get_session), user:
             const img = document.getElementById('liveImg');
             const errorBox = document.getElementById('errorBox');
             
-            img.onerror = () => {
+            img.onerror = () => {{
                 img.style.display = 'none';
                 errorBox.style.display = 'block';
-            };
+            }};
             
-            function toggleDoc() {
+            function toggleDoc() {{
                 const modal = document.getElementById('docModal');
                 modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
-            }
+            }}
         </script>
     </body>
     </html>
