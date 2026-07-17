@@ -297,6 +297,13 @@
             <div class="panel-row">
                 <aside class="panel-side">
                     <div class="side-section">
+                        <label class="form-label">کارخانه / گروه</label>
+                        <select id="map-group-select" class="form-input" style="font-size:13px; padding:8px 10px;" onchange="onMapGroupChange(this.value)">
+                            <option value="">همه دوربین‌ها</option>
+                        </select>
+                    </div>
+
+                    <div class="side-section">
                         <label class="form-label">نوع نقشه</label>
                         <div class="preset-btns">
                             <button id="btn-map-floor" class="chip active" onclick="setMapType('floor')">پلان
@@ -306,11 +313,13 @@
                     </div>
 
                     <div class="side-section" id="upload-plan-section">
-                        <label class="form-label">آپلود پلان ساختمان</label>
+                        <label class="form-label">پلان‌های ساختمان</label>
+                        <div id="map-plan-tabs" style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px;"></div>
                         <input type="file" id="mapUploadInput" style="display:none" accept="image/*"
-                            onchange="uploadMapImage(this)">
+                            onchange="uploadGroupPlan(this)">
                         <button class="btn btn-ghost w-100"
-                            style="display:flex; align-items:center; justify-content:center"
+                            id="btn-upload-plan"
+                            style="display:none; align-items:center; justify-content:center"
                             onclick="document.getElementById('mapUploadInput').click()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" style="margin-left:8px">
@@ -318,7 +327,7 @@
                                 <polyline points="17 8 12 3 7 8" />
                                 <line x1="12" y1="3" x2="12" y2="15" />
                             </svg>
-                            آپلود تصویر پلان
+                            آپلود پلان جدید
                         </button>
                     </div>
 

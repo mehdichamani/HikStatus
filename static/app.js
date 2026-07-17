@@ -1434,6 +1434,183 @@ let mapImage = '';
 let mapCamerasList = [];
 let mapStartLat = 37.796067;
 let mapStartLng = 45.062508;
+let currentGroupId = null;
+let mapPlans = [];
+let activePlanId = null;
+let groupsCache = [];
+
+async function loadGroupsCache() {
+    try {
+        const res = await apiFetch(`${API}/groups`);
+        groupsCache = await res.json();
+    } catch (e) {
+        groupsCache = [];
+    }
+}
+
+function populateMapGroupSelect() {
+    const sel = document.getElementById('map-group-select');
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">همه دوربین‌ها</option>';
+    groupsCache.forEach(g => {
+        sel.innerHTML += `<option value="${g.id}">${g.name}</option>`;
+    });
+    if (prev) sel.value = prev;
+}
+
+async function onMapGroupChange(groupId) {
+    currentGroupId = groupId ? parseInt(groupId) : null;
+    mapPlans = [];
+    activePlanId = null;
+
+    const floorBtn = document.getElementById('btn-map-floor');
+
+    if (currentGroupId) {
+        if (floorBtn) floorBtn.style.display = 'inline-block';
+        const group = groupsCache.find(g => g.id === currentGroupId);
+        if (group) {
+            if (group.map_center_lat !== null && group.map_center_lng !== null) {
+                mapStartLat = group.map_center_lat;
+                mapStartLng = group.map_center_lng;
+            }
+            if (group.map_zoom !== null) {
+                localStorage.setItem('map_zoom_geo', group.map_zoom);
+            }
+        }
+        await loadGroupPlans(currentGroupId);
+    } else {
+        if (floorBtn) floorBtn.style.display = 'none';
+        if (mapType === 'floor') {
+            mapType = 'geo';
+            document.getElementById('btn-map-floor')?.classList.remove('active');
+            document.getElementById('btn-map-geo')?.classList.add('active');
+            document.getElementById('upload-plan-section').style.display = 'none';
+        }
+        const latSet = settingsCache.find(s => s.key === 'MAP_START_LAT');
+        const lngSet = settingsCache.find(s => s.key === 'MAP_START_LNG');
+        mapStartLat = latSet ? parseFloat(latSet.value) : 37.796067;
+        mapStartLng = lngSet ? parseFloat(lngSet.value) : 45.062508;
+    }
+
+    renderPlanTabs();
+    setupLeafletMap(true);
+    renderMapCameraList();
+}
+
+async function loadGroupPlans(groupId) {
+    try {
+        const res = await apiFetch(`${API}/groups/${groupId}/plans`);
+        mapPlans = await res.json();
+        if (mapPlans.length > 0 && !activePlanId) {
+            activePlanId = mapPlans[0].id;
+            mapImage = mapPlans[0].image_url;
+        } else if (mapPlans.length === 0) {
+            activePlanId = null;
+            mapImage = '';
+        }
+    } catch (e) {
+        mapPlans = [];
+        activePlanId = null;
+        mapImage = '';
+    }
+}
+
+function renderPlanTabs() {
+    const container = document.getElementById('map-plan-tabs');
+    const uploadBtn = document.getElementById('btn-upload-plan');
+    if (!container) return;
+
+    if (!currentGroupId || mapType !== 'floor') {
+        container.innerHTML = '';
+        if (uploadBtn) uploadBtn.style.display = 'none';
+        return;
+    }
+
+    if (uploadBtn) uploadBtn.style.display = 'flex';
+
+    if (mapPlans.length === 0) {
+        container.innerHTML = '<span style="font-size:11px; color:var(--text-muted);">پلانی آپلود نشده</span>';
+        return;
+    }
+
+    container.innerHTML = mapPlans.map(p => {
+        const isActive = p.id === activePlanId;
+        return `<div style="display:inline-flex;align-items:center;gap:4px;background:${isActive ? 'var(--primary)' : 'var(--bg-tertiary)'};color:${isActive ? '#fff' : 'var(--text-secondary)'};border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;white-space:nowrap;" onclick="switchPlan(${p.id})">
+            <span>${p.name}</span>
+            <span onclick="deletePlan(${p.id});event.stopPropagation();" style="cursor:pointer;opacity:0.7;font-size:14px;line-height:1;" title="حذف">&times;</span>
+        </div>`;
+    }).join('');
+}
+
+function switchPlan(planId) {
+    const plan = mapPlans.find(p => p.id === planId);
+    if (!plan) return;
+    activePlanId = planId;
+    mapImage = plan.image_url;
+    renderPlanTabs();
+    setupLeafletMap(true);
+    renderMapCameraList();
+}
+
+async function uploadGroupPlan(input) {
+    if (!input.files || !input.files[0] || !currentGroupId) return;
+
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+    const planName = input.files[0].name.replace(/\.[^.]+$/, '');
+    formData.append('name', planName);
+
+    showToast('در حال آپلود...');
+    try {
+        const res = await fetch(`${API}/groups/${currentGroupId}/plans`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: res.statusText }));
+            throw new Error(err.detail || 'Upload failed');
+        }
+
+        const data = await res.json();
+        showToast('پلان با موفقیت آپلود شد');
+        await loadGroupPlans(currentGroupId);
+        activePlanId = data.id;
+        mapImage = data.image_url;
+        renderPlanTabs();
+        setupLeafletMap(true);
+        renderMapCameraList();
+    } catch (e) {
+        showToast('خطا در آپلود پلان: ' + e.message, 'error');
+    }
+    input.value = '';
+}
+
+async function deletePlan(planId) {
+    if (!currentGroupId) return;
+    if (!confirm('آیا از حذف این پлан مطمئن هستید؟')) return;
+
+    try {
+        const res = await apiFetch(`${API}/groups/${currentGroupId}/plans/${planId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        showToast('پлан حذف شد');
+        await loadGroupPlans(currentGroupId);
+        if (activePlanId === planId) {
+            activePlanId = mapPlans.length > 0 ? mapPlans[0].id : null;
+            mapImage = activePlanId ? mapPlans[0].image_url : '';
+        }
+        renderPlanTabs();
+        setupLeafletMap(true);
+        renderMapCameraList();
+    } catch (e) {
+        showToast('خطا در حذف پلان', 'error');
+    }
+}
 
 async function initOrRefreshMap() {
     if (settingsCache.length === 0) {
@@ -1445,32 +1622,54 @@ async function initOrRefreshMap() {
         }
     }
 
-    const typeSet = settingsCache.find(s => s.key === 'MAP_TYPE');
-    const imageSet = settingsCache.find(s => s.key === 'MAP_IMAGE');
-    const latSet = settingsCache.find(s => s.key === 'MAP_START_LAT');
-    const lngSet = settingsCache.find(s => s.key === 'MAP_START_LNG');
+    await loadGroupsCache();
+    populateMapGroupSelect();
 
+    const typeSet = settingsCache.find(s => s.key === 'MAP_TYPE');
     mapType = typeSet ? typeSet.value : 'floor';
-    mapImage = imageSet ? imageSet.value : '';
-    mapStartLat = latSet ? parseFloat(latSet.value) : 37.796067;
-    mapStartLng = lngSet ? parseFloat(lngSet.value) : 45.062508;
+
+    const floorBtn = document.getElementById('btn-map-floor');
+
+    if (!currentGroupId) {
+        if (floorBtn) floorBtn.style.display = 'none';
+        if (mapType === 'floor') {
+            mapType = 'geo';
+        }
+        const imageSet = settingsCache.find(s => s.key === 'MAP_IMAGE');
+        const latSet = settingsCache.find(s => s.key === 'MAP_START_LAT');
+        const lngSet = settingsCache.find(s => s.key === 'MAP_START_LNG');
+        mapImage = imageSet ? imageSet.value : '';
+        mapStartLat = latSet ? parseFloat(latSet.value) : 37.796067;
+        mapStartLng = lngSet ? parseFloat(lngSet.value) : 45.062508;
+    } else {
+        if (floorBtn) floorBtn.style.display = 'inline-block';
+        const group = groupsCache.find(g => g.id === currentGroupId);
+        if (group) {
+            if (group.map_center_lat !== null && group.map_center_lng !== null) {
+                mapStartLat = group.map_center_lat;
+                mapStartLng = group.map_center_lng;
+            }
+        }
+        await loadGroupPlans(currentGroupId);
+    }
 
     document.getElementById('btn-map-floor').classList.toggle('active', mapType === 'floor');
     document.getElementById('btn-map-geo').classList.toggle('active', mapType === 'geo');
     document.getElementById('upload-plan-section').style.display = mapType === 'floor' ? 'block' : 'none';
 
     try {
-        const res = await apiFetch(`${API}/cameras`);
-        mapCamerasList = await res.json();
+        const camRes = await apiFetch(`${API}/cameras`);
+        mapCamerasList = await camRes.json();
     } catch (e) {
         console.error('Failed to load cameras:', e);
     }
 
+    renderPlanTabs();
     setupLeafletMap();
     renderMapCameraList();
 }
 
-function setupLeafletMap() {
+function setupLeafletMap(ignoreRestored = false) {
     let restoredCenter = null;
     let restoredZoom = null;
 
@@ -1480,17 +1679,20 @@ function setupLeafletMap() {
 
     // 1. Save state before removing old map
     if (map) {
-        const currentCenter = map.getCenter();
-        restoredCenter = [currentCenter.lat, currentCenter.lng];
-        restoredZoom = map.getZoom();
+        if (!ignoreRestored) {
+            const currentCenter = map.getCenter();
+            restoredCenter = [currentCenter.lat, currentCenter.lng];
+            restoredZoom = map.getZoom();
 
-        localStorage.setItem(centerKeyLat, currentCenter.lat);
-        localStorage.setItem(centerKeyLng, currentCenter.lng);
-        localStorage.setItem(zoomKey, restoredZoom);
-
+            localStorage.setItem(centerKeyLat, currentCenter.lat);
+            localStorage.setItem(centerKeyLng, currentCenter.lng);
+            localStorage.setItem(zoomKey, restoredZoom);
+        }
         map.remove();
         map = null;
-    } else {
+    }
+
+    if (!ignoreRestored) {
         // 2. Load from localStorage
         const localLat = localStorage.getItem(centerKeyLat);
         const localLng = localStorage.getItem(centerKeyLng);
@@ -1565,26 +1767,35 @@ function setupLeafletMap() {
         img.src = mapImage;
 
     } else {
-        let center = [mapStartLat, mapStartLng];
-        let zoom = 16;
-
         if (restoredCenter !== null && restoredZoom !== null) {
-            center = restoredCenter;
-            zoom = restoredZoom;
+            map = L.map('map-canvas', {
+                center: restoredCenter,
+                zoom: restoredZoom,
+                attributionControl: false
+            });
         } else {
-            const validCams = mapCamerasList.filter(c => c.latitude !== null && c.longitude !== null);
-            if (validCams.length > 0) {
-                const latSum = validCams.reduce((sum, c) => sum + c.latitude, 0);
-                const lngSum = validCams.reduce((sum, c) => sum + c.longitude, 0);
-                center = [latSum / validCams.length, lngSum / validCams.length];
+            const groupCams = currentGroupId
+                ? mapCamerasList.filter(c => c.group_id === currentGroupId && c.latitude !== null && c.longitude !== null)
+                : mapCamerasList.filter(c => c.latitude !== null && c.longitude !== null);
+
+            map = L.map('map-canvas', {
+                attributionControl: false
+            });
+
+            if (groupCams.length > 0) {
+                if (groupCams.length === 1) {
+                    map.setView([groupCams[0].latitude, groupCams[0].longitude], 16);
+                } else {
+                    const latMin = Math.min(...groupCams.map(c => c.latitude));
+                    const latMax = Math.max(...groupCams.map(c => c.latitude));
+                    const lngMin = Math.min(...groupCams.map(c => c.longitude));
+                    const lngMax = Math.max(...groupCams.map(c => c.longitude));
+                    map.fitBounds([[latMin, lngMin], [latMax, lngMax]]);
+                }
+            } else {
+                map.setView([35.6892, 51.3890], 12); // Tehran
             }
         }
-
-        map = L.map('map-canvas', {
-            center: center,
-            zoom: zoom,
-            attributionControl: false
-        });
 
         L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
             maxZoom: 20
@@ -1859,6 +2070,7 @@ async function removeCameraFromMap(id) {
 
     c.x_pos = null;
     c.y_pos = null;
+    c.plan_id = null;
     c.latitude = null;
     c.longitude = null;
     c.fov_angle = null;
@@ -1882,6 +2094,7 @@ async function removeCameraFromMap(id) {
             body: JSON.stringify({
                 x_pos: null,
                 y_pos: null,
+                plan_id: null,
                 latitude: null,
                 longitude: null,
                 fov_angle: null,
@@ -1952,10 +2165,12 @@ function createMarkerForMap(c, latlng) {
             const yPct = 100 - ((position.lat / h) * 100);
             payload = {
                 x_pos: Math.max(0, Math.min(100, xPct)),
-                y_pos: Math.max(0, Math.min(100, yPct))
+                y_pos: Math.max(0, Math.min(100, yPct)),
+                plan_id: activePlanId
             };
             c.x_pos = payload.x_pos;
             c.y_pos = payload.y_pos;
+            c.plan_id = activePlanId;
         } else {
             payload = {
                 latitude: position.lat,
@@ -1989,11 +2204,15 @@ function drawCameraMarkers(bounds = null, w = 1, h = 1) {
     });
     mapMarkers = [];
 
-    mapCamerasList.forEach(c => {
+    const cams = currentGroupId
+        ? mapCamerasList.filter(c => c.group_id === currentGroupId)
+        : mapCamerasList;
+
+    cams.forEach(c => {
         let latlng = null;
 
         if (mapType === 'floor') {
-            if (c.x_pos === null || c.y_pos === null) return;
+            if (c.x_pos === null || c.y_pos === null || c.plan_id !== activePlanId) return;
             const x = (c.x_pos * w) / 100;
             const y = ((100 - c.y_pos) * h) / 100;
             latlng = [y, x];
@@ -2033,7 +2252,13 @@ async function setMapType(type) {
     const s = settingsCache.find(sett => sett.key === 'MAP_TYPE');
     if (s) s.value = type;
 
-    initOrRefreshMap();
+    document.getElementById('upload-plan-section').style.display = mapType === 'floor' ? 'block' : 'none';
+    document.getElementById('btn-map-floor').classList.toggle('active', mapType === 'floor');
+    document.getElementById('btn-map-geo').classList.toggle('active', mapType === 'geo');
+
+    renderPlanTabs();
+    setupLeafletMap();
+    renderMapCameraList();
 }
 
 function toggleMapEditMode() {
@@ -2161,10 +2386,13 @@ function renderMapCameraList() {
 
     const searchVal = (document.getElementById('mapCameraSearch')?.value || '').toLowerCase();
 
-    // Sort alphabetically by name
-    const sorted = [...mapCamerasList].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+    let pool = mapCamerasList;
+    if (currentGroupId) {
+        pool = pool.filter(c => c.group_id === currentGroupId);
+    }
 
-    // Filter by search query
+    const sorted = [...pool].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+
     const filtered = sorted.filter(c =>
         c.name.toLowerCase().includes(searchVal) ||
         c.ip.includes(searchVal) ||
@@ -2177,7 +2405,7 @@ function renderMapCameraList() {
     }
 
     container.innerHTML = filtered.map(c => {
-        const hasLoc = mapType === 'floor' ? (c.x_pos !== null && c.y_pos !== null) : (c.latitude !== null && c.longitude !== null);
+        const hasLoc = mapType === 'floor' ? (c.x_pos !== null && c.y_pos !== null && c.plan_id === activePlanId) : (c.latitude !== null && c.longitude !== null);
         const dotClass = c.status === 'Online' ? 'online' : (c.status === 'Offline' ? 'offline' : 'unknown');
 
         if (hasLoc) {
@@ -2276,10 +2504,12 @@ async function addCameraToCenter(id, hasFov) {
 
         payload = {
             x_pos: Math.max(0, Math.min(100, xPct)),
-            y_pos: Math.max(0, Math.min(100, yPct))
+            y_pos: Math.max(0, Math.min(100, yPct)),
+            plan_id: activePlanId
         };
         c.x_pos = payload.x_pos;
         c.y_pos = payload.y_pos;
+        c.plan_id = activePlanId;
         latlng = [center.lat, center.lng];
     } else {
         payload = {

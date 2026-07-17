@@ -8,6 +8,16 @@ class NVRGroup(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
     description: Optional[str] = None
+    map_center_lat: Optional[float] = None
+    map_center_lng: Optional[float] = None
+    map_zoom: Optional[int] = None
+
+class MapPlan(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    group_id: int = Field(foreign_key="nvrgroup.id", index=True)
+    name: str
+    image_url: str
+    sort_order: int = 0
 
 class NVR(SQLModel, table=True):
     ip: str = Field(primary_key=True)
@@ -46,6 +56,7 @@ class Camera(SQLModel, table=True):
     fov_angle: Optional[float] = None
     fov_radius: Optional[float] = None
     fov_spread: Optional[float] = None
+    plan_id: Optional[int] = Field(default=None, foreign_key="mapplan.id")
 
     model: Optional[str] = None
     recording_scheduled: Optional[bool] = None
@@ -255,6 +266,39 @@ def init_db():
             if col_name not in user_cols:
                 cursor.execute(f"ALTER TABLE user ADD COLUMN {col_name} {col_type}")
                 print(f"Added column {col_name} to user table.")
+
+        # nvrgroup table migrations
+        cursor.execute("PRAGMA table_info(nvrgroup)")
+        group_cols = [row[1] for row in cursor.fetchall()]
+        group_new_cols = {
+            "map_center_lat": "REAL",
+            "map_center_lng": "REAL",
+            "map_zoom": "INTEGER",
+        }
+        for col_name, col_type in group_new_cols.items():
+            if col_name not in group_cols:
+                cursor.execute(f"ALTER TABLE nvrgroup ADD COLUMN {col_name} {col_type}")
+                print(f"Added column {col_name} to nvrgroup table.")
+
+        # mapplan table
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mapplan'")
+        if not cursor.fetchone():
+            cursor.execute("""CREATE TABLE mapplan (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                image_url TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0,
+                FOREIGN KEY(group_id) REFERENCES nvrgroup(id)
+            )""")
+            print("Created mapplan table.")
+
+        # camera table migrations
+        cursor.execute("PRAGMA table_info(camera)")
+        camera_cols = [row[1] for row in cursor.fetchall()]
+        if "plan_id" not in camera_cols:
+            cursor.execute("ALTER TABLE camera ADD COLUMN plan_id INTEGER")
+            print("Added column plan_id to camera table.")
 
         conn.commit()
         conn.close()

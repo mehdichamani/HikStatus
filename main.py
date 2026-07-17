@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from sqlmodel import Session, select, col
-from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, UserSession, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
+from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, UserSession, MapPlan, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
 
@@ -556,6 +556,12 @@ def update_group(id: int, p: dict, session: Session = Depends(get_session), user
         g.name = p["name"]
     if "description" in p:
         g.description = p["description"]
+    if "map_center_lat" in p:
+        g.map_center_lat = float(p["map_center_lat"]) if p["map_center_lat"] is not None else None
+    if "map_center_lng" in p:
+        g.map_center_lng = float(p["map_center_lng"]) if p["map_center_lng"] is not None else None
+    if "map_zoom" in p:
+        g.map_zoom = int(p["map_zoom"]) if p["map_zoom"] is not None else None
     session.add(g)
     session.commit()
     return g
@@ -569,7 +575,83 @@ def delete_group(id: int, session: Session = Depends(get_session), user: dict = 
     for n in nvrs:
         n.group_id = None
         session.add(n)
+    plans = session.exec(select(MapPlan).where(MapPlan.group_id == id)).all()
+    for plan in plans:
+        try:
+            old_path = plan.image_url.lstrip("/")
+            if os.path.exists(old_path):
+                os.remove(old_path)
+        except Exception:
+            pass
+        session.delete(plan)
     session.delete(g)
+    session.commit()
+    return {"ok": True}
+
+@app.get("/api/groups/{id}/plans")
+def get_group_plans(id: int, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    g = session.get(NVRGroup, id)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    plans = session.exec(select(MapPlan).where(MapPlan.group_id == id).order_by(MapPlan.sort_order)).all()
+    return [{"id": p.id, "name": p.name, "image_url": p.image_url, "sort_order": p.sort_order} for p in plans]
+
+@app.post("/api/groups/{id}/plans")
+async def upload_group_plan(id: int, file: UploadFile = File(...), name: str = "", session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    g = session.get(NVRGroup, id)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    os.makedirs("static/plans", exist_ok=True)
+    ext = file.filename.split(".")[-1].lower()
+    if ext not in ["png", "jpg", "jpeg", "svg"]:
+        raise HTTPException(status_code=400, detail="فرمت فایل باید JPG، PNG یا SVG باشد")
+    
+    import time
+    plan_name = name.strip() if name.strip() else file.filename.rsplit(".", 1)[0]
+    filename = f"plan_{id}_{int(time.time())}.{ext}"
+    filepath = os.path.join("static/plans", filename)
+    
+    with open(filepath, "wb") as f:
+        f.write(await file.read())
+    
+    existing_count = session.exec(select(MapPlan).where(MapPlan.group_id == id)).all()
+    plan = MapPlan(
+        group_id=id,
+        name=plan_name,
+        image_url=f"/static/plans/{filename}",
+        sort_order=len(existing_count)
+    )
+    session.add(plan)
+    session.commit()
+    session.refresh(plan)
+    return {"id": plan.id, "name": plan.name, "image_url": plan.image_url, "sort_order": plan.sort_order}
+
+@app.put("/api/groups/{gid}/plans/{pid}")
+def update_group_plan(gid: int, pid: int, p: dict, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    plan = session.get(MapPlan, pid)
+    if not plan or plan.group_id != gid:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    if "name" in p:
+        plan.name = p["name"]
+    if "sort_order" in p:
+        plan.sort_order = int(p["sort_order"])
+    session.add(plan)
+    session.commit()
+    return {"id": plan.id, "name": plan.name, "image_url": plan.image_url, "sort_order": plan.sort_order}
+
+@app.delete("/api/groups/{gid}/plans/{pid}")
+def delete_group_plan(gid: int, pid: int, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    plan = session.get(MapPlan, pid)
+    if not plan or plan.group_id != gid:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    try:
+        old_path = plan.image_url.lstrip("/")
+        if os.path.exists(old_path):
+            os.remove(old_path)
+    except Exception:
+        pass
+    session.delete(plan)
     session.commit()
     return {"ok": True}
 
@@ -605,6 +687,8 @@ def update_cam(id: int, p: dict, session: Session = Depends(get_session), user: 
         c.x_pos = float(p["x_pos"]) if p["x_pos"] is not None else None
     if "y_pos" in p:
         c.y_pos = float(p["y_pos"]) if p["y_pos"] is not None else None
+    if "plan_id" in p:
+        c.plan_id = int(p["plan_id"]) if p["plan_id"] is not None else None
     if "fov_angle" in p:
         c.fov_angle = float(p["fov_angle"]) if p["fov_angle"] is not None else None
     if "fov_radius" in p:
