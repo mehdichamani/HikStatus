@@ -105,7 +105,7 @@ async function fetchDash() {
     if (factoryCountEl) factoryCountEl.textContent = groupCache.length;
 
     const factorySummaryContent = document.getElementById('factory-summary-content');
-    if (factorySummaryContent && groupCache.length > 0) {
+    if (factorySummaryContent) {
         let summaryHtml = '';
         groupCache.forEach(g => {
             const groupNvrs = nvrCache.filter(n => n.group_id === g.id);
@@ -130,7 +130,35 @@ async function fetchDash() {
 
             summaryHtml += `<div class="stat-row"><span class="stat-label">${g.name}</span><span class="stat-value" style="font-size:13px; color: var(--text-secondary);">${camText} · ${nvrText}</span></div>`;
         });
-        factorySummaryContent.innerHTML = summaryHtml;
+
+        // Unassigned NVRs summary
+        const unassignedNvrs = nvrCache.filter(n => !n.group_id && n.enabled !== false);
+        const offlineUnassigned = unassignedNvrs.filter(n => n.status !== 'Online');
+        const unassignedCamCount = cams.filter(c => {
+            const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
+            return nvr && !nvr.group_id;
+        });
+        const offlineUnassignedCams = unassignedCamCount.filter(c => c.status !== 'Online');
+
+        if (unassignedNvrs.length > 0) {
+            let camText = `${unassignedCamCount.length} دوربین`;
+            if (offlineUnassignedCams.length > 0) {
+                camText += ` <span class="text-danger" style="font-weight: bold;">(${offlineUnassignedCams.length} قطع)</span>`;
+            }
+
+            let nvrText = `${unassignedNvrs.length} NVR`;
+            if (offlineUnassigned.length > 0) {
+                nvrText += ` <span class="text-danger" style="font-weight: bold;">(${offlineUnassigned.length} قطع)</span>`;
+            }
+
+            summaryHtml += `<div class="stat-row"><span class="stat-label" style="color: var(--text-secondary);">سایر NVRها</span><span class="stat-value" style="font-size:13px; color: var(--text-secondary);">${camText} · ${nvrText}</span></div>`;
+        }
+
+        if (summaryHtml) {
+            factorySummaryContent.innerHTML = summaryHtml;
+        } else {
+            factorySummaryContent.innerHTML = '<div class="stat-row"><span class="stat-label" style="color: var(--text-secondary);">بدون کارخانه</span></div>';
+        }
     }
 
     if (off.length > 0) {
