@@ -3,6 +3,7 @@ from sqlmodel import SQLModel, Field, create_engine, Session
 from datetime import datetime
 from typing import Optional
 import hashlib, secrets
+from loguru import logger
 
 class NVRGroup(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -167,10 +168,10 @@ def get_encryption_key() -> bytes:
         os.makedirs("data", exist_ok=True)
         with open(key_file, "w") as f:
             f.write(new_key)
-        print("Generated a new secure persistent ENCRYPTION_KEY in data/encryption.key")
+        logger.info("Generated a new secure persistent ENCRYPTION_KEY in data/encryption.key")
         return new_key.encode()
     except Exception as e:
-        print(f"Warning: Failed to generate persistent ENCRYPTION_KEY: {e}")
+        logger.warning(f"Failed to generate persistent ENCRYPTION_KEY: {e}")
         return b'z58G3Ww9P33n2jPz42n2jPz42n2jPz42n2jPz42n2jM='
 
 def encrypt_password(password: str) -> str:
@@ -181,7 +182,7 @@ def encrypt_password(password: str) -> str:
         f = Fernet(get_encryption_key())
         return f.encrypt(password.encode()).decode()
     except Exception as e:
-        print(f"Encryption error: {e}")
+        logger.error(f"Encryption error: {e}")
         return password
 
 def decrypt_password(encrypted_password: str) -> str:
@@ -224,7 +225,7 @@ def init_db():
         run_migrations(conn)
         conn.close()
     except Exception as e:
-        print(f"Database init error: {e}")
+        logger.error(f"Database init error: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -282,12 +283,12 @@ def migration_001_add_camera_geo_fields(conn: sqlite3.Connection):
     for name, dtype in additions.items():
         if name not in cols:
             conn.execute(f"ALTER TABLE camera ADD COLUMN {name} {dtype}")
-            print(f"[migration 001] Added column {name} to camera")
+            logger.info(f"[migration 001] Added column {name} to camera")
 
 
 def rollback_001_add_camera_geo_fields(conn: sqlite3.Connection):
     """Rollback is no-op – SQLite does not support DROP COLUMN."""
-    print("[rollback 001] Skipped (SQLite does not support DROP COLUMN)")
+    logger.info("[rollback 001] Skipped (SQLite does not support DROP COLUMN)")
 
 
 # ---------------------------------------------------------------------------
@@ -310,11 +311,11 @@ def migration_002_add_camera_recording_fields(conn: sqlite3.Connection):
     for name, dtype in additions.items():
         if name not in cols:
             conn.execute(f"ALTER TABLE camera ADD COLUMN {name} {dtype}")
-            print(f"[migration 002] Added column {name} to camera")
+            logger.info(f"[migration 002] Added column {name} to camera")
 
 
 def rollback_002_add_camera_recording_fields(conn: sqlite3.Connection):
-    print("[rollback 002] Skipped (SQLite does not support DROP COLUMN)")
+    logger.info("[rollback 002] Skipped (SQLite does not support DROP COLUMN)")
 
 
 # ---------------------------------------------------------------------------
@@ -325,11 +326,11 @@ def migration_003_add_nvr_name(conn: sqlite3.Connection):
     """Add 'name' column to nvr."""
     if not _column_exists(conn, "nvr", "name"):
         conn.execute("ALTER TABLE nvr ADD COLUMN name TEXT")
-        print("[migration 003] Added column name to nvr")
+        logger.info("[migration 003] Added column name to nvr")
 
 
 def rollback_003_add_nvr_name(conn: sqlite3.Connection):
-    print("[rollback 003] Skipped (SQLite does not support DROP COLUMN)")
+    logger.info("[rollback 003] Skipped (SQLite does not support DROP COLUMN)")
 
 
 # ---------------------------------------------------------------------------
@@ -351,11 +352,11 @@ def migration_004_add_nvr_status_fields(conn: sqlite3.Connection):
     for name, dtype in additions.items():
         if name not in cols:
             conn.execute(f"ALTER TABLE nvr ADD COLUMN {name} {dtype}")
-            print(f"[migration 004] Added column {name} to nvr")
+            logger.info(f"[migration 004] Added column {name} to nvr")
 
 
 def rollback_004_add_nvr_status_fields(conn: sqlite3.Connection):
-    print("[rollback 004] Skipped (SQLite does not support DROP COLUMN)")
+    logger.info("[rollback 004] Skipped (SQLite does not support DROP COLUMN)")
 
 
 # ---------------------------------------------------------------------------
@@ -372,11 +373,11 @@ def migration_005_add_user_group_and_active(conn: sqlite3.Connection):
     for name, dtype in additions.items():
         if name not in cols:
             conn.execute(f"ALTER TABLE user ADD COLUMN {name} {dtype}")
-            print(f"[migration 005] Added column {name} to user")
+            logger.info(f"[migration 005] Added column {name} to user")
 
 
 def rollback_005_add_user_group_and_active(conn: sqlite3.Connection):
-    print("[rollback 005] Skipped (SQLite does not support DROP COLUMN)")
+    logger.info("[rollback 005] Skipped (SQLite does not support DROP COLUMN)")
 
 
 # ---------------------------------------------------------------------------
@@ -394,11 +395,11 @@ def migration_006_add_nvrgroup_map_fields(conn: sqlite3.Connection):
     for name, dtype in additions.items():
         if name not in cols:
             conn.execute(f"ALTER TABLE nvrgroup ADD COLUMN {name} {dtype}")
-            print(f"[migration 006] Added column {name} to nvrgroup")
+            logger.info(f"[migration 006] Added column {name} to nvrgroup")
 
 
 def rollback_006_add_nvrgroup_map_fields(conn: sqlite3.Connection):
-    print("[rollback 006] Skipped (SQLite does not support DROP COLUMN)")
+    logger.info("[rollback 006] Skipped (SQLite does not support DROP COLUMN)")
 
 
 # ---------------------------------------------------------------------------
@@ -409,11 +410,11 @@ def migration_007_add_nvr_rtsp_port(conn: sqlite3.Connection):
     """Add rtsp_port to nvr."""
     if not _column_exists(conn, "nvr", "rtsp_port"):
         conn.execute("ALTER TABLE nvr ADD COLUMN rtsp_port INTEGER DEFAULT 554")
-        print("[migration 007] Added column rtsp_port to nvr")
+        logger.info("[migration 007] Added column rtsp_port to nvr")
 
 
 def rollback_007_add_nvr_rtsp_port(conn: sqlite3.Connection):
-    print("[rollback 007] Skipped (SQLite does not support DROP COLUMN)")
+    logger.info("[rollback 007] Skipped (SQLite does not support DROP COLUMN)")
 
 
 # ---------------------------------------------------------------------------
@@ -433,13 +434,13 @@ def migration_008_create_mapplan(conn: sqlite3.Connection):
                 FOREIGN KEY(group_id) REFERENCES nvrgroup(id)
             )
         """)
-        print("[migration 008] Created mapplan table")
+        logger.info("[migration 008] Created mapplan table")
 
 
 def rollback_008_create_mapplan(conn: sqlite3.Connection):
     if _table_exists(conn, "mapplan"):
         conn.execute("DROP TABLE mapplan")
-        print("[rollback 008] Dropped mapplan table")
+        logger.info("[rollback 008] Dropped mapplan table")
 
 
 # ---------------------------------------------------------------------------
@@ -450,11 +451,11 @@ def migration_009_add_camera_plan_id(conn: sqlite3.Connection):
     """Add plan_id to camera."""
     if not _column_exists(conn, "camera", "plan_id"):
         conn.execute("ALTER TABLE camera ADD COLUMN plan_id INTEGER")
-        print("[migration 009] Added column plan_id to camera")
+        logger.info("[migration 009] Added column plan_id to camera")
 
 
 def rollback_009_add_camera_plan_id(conn: sqlite3.Connection):
-    print("[rollback 009] Skipped (SQLite does not support DROP COLUMN)")
+    logger.info("[rollback 009] Skipped (SQLite does not support DROP COLUMN)")
 
 
 # ---------------------------------------------------------------------------
@@ -465,11 +466,11 @@ def migration_010_add_scheduledtask_last_error(conn: sqlite3.Connection):
     """Add last_error to scheduledtask."""
     if not _column_exists(conn, "scheduledtask", "last_error"):
         conn.execute("ALTER TABLE scheduledtask ADD COLUMN last_error TEXT")
-        print("[migration 010] Added column last_error to scheduledtask")
+        logger.info("[migration 010] Added column last_error to scheduledtask")
 
 
 def rollback_010_add_scheduledtask_last_error(conn: sqlite3.Connection):
-    print("[rollback 010] Skipped (SQLite does not support DROP COLUMN)")
+    logger.info("[rollback 010] Skipped (SQLite does not support DROP COLUMN)")
 
 
 # ---------------------------------------------------------------------------
@@ -520,16 +521,16 @@ def run_migrations(conn: sqlite3.Connection):
         if ver <= current:
             continue
         name, func = MIGRATIONS[ver]
-        print(f"[migration] Running v{ver:03d}: {name}")
+        logger.info(f"[migration] Running v{ver:03d}: {name}")
         func(conn)
         conn.execute(
             "INSERT INTO schema_version (version, name) VALUES (?, ?)",
             (ver, name),
         )
         conn.commit()
-        print(f"[migration] v{ver:03d} applied successfully")
+        logger.info(f"[migration] v{ver:03d} applied successfully")
 
-    print(f"[migration] Database is at version {CURRENT_MIGRATION_VERSION}")
+    logger.info(f"[migration] Database is at version {CURRENT_MIGRATION_VERSION}")
 
 
 def rollback_migration(conn: sqlite3.Connection, target_version: int):
@@ -538,21 +539,21 @@ def rollback_migration(conn: sqlite3.Connection, target_version: int):
     current = get_current_version(conn)
 
     if target_version >= current:
-        print(f"[rollback] Already at or below version {target_version}, nothing to do")
+        logger.info(f"[rollback] Already at or below version {target_version}, nothing to do")
         return
 
     for ver in range(current, target_version, -1):
         if ver not in ROLLBACKS:
-            print(f"[rollback] No rollback function for version {ver}, skipping")
+            logger.warning(f"[rollback] No rollback function for version {ver}, skipping")
             continue
         name = MIGRATIONS[ver][0]
-        print(f"[rollback] Rolling back v{ver:03d}: {name}")
+        logger.info(f"[rollback] Rolling back v{ver:03d}: {name}")
         ROLLBACKS[ver](conn)
         conn.execute("DELETE FROM schema_version WHERE version = ?", (ver,))
         conn.commit()
-        print(f"[rollback] v{ver:03d} rolled back successfully")
+        logger.info(f"[rollback] v{ver:03d} rolled back successfully")
 
-    print(f"[rollback] Database rolled back to version {target_version}")
+    logger.info(f"[rollback] Database rolled back to version {target_version}")
 
 def get_session():
     with Session(engine) as session:

@@ -6,6 +6,7 @@ from typing import Optional
 from sqlmodel import Session, select
 from database import engine, ScheduledTask
 from monitor import task_ping_cameras, task_sync_camera_names, task_sync_nvr_configs, task_sync_nvr_stats, task_cleanup_database, task_capture_camera_snapshots, broadcast
+from loguru import logger
 
 TASK_FUNCTIONS = {
     "ping_cameras": task_ping_cameras,
@@ -44,7 +45,7 @@ class TaskScheduler:
             session.commit()
             
         self.loop_task = asyncio.create_task(self._main_loop())
-        print("Scheduler engine started.")
+        logger.info("Scheduler engine started.")
         
     async def stop(self):
         self.running = False
@@ -57,7 +58,7 @@ class TaskScheduler:
         # Cancel any active running tasks
         for tid, t in list(self.active_tasks.items()):
             t.cancel()
-        print("Scheduler engine stopped.")
+        logger.info("Scheduler engine stopped.")
             
     async def _main_loop(self):
         while self.running:
@@ -88,7 +89,7 @@ class TaskScheduler:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                print(f"Scheduler main loop error: {e}")
+                logger.error(f"Scheduler main loop error: {e}")
                 
             await asyncio.sleep(2)  # Check every 2 seconds
             
@@ -115,7 +116,7 @@ class TaskScheduler:
             status_str = "Cancelled"
             raise
         except Exception as e:
-            print(f"Error running task {task_id}: {e}")
+            logger.error(f"Error running task {task_id}: {e}")
             status_str = "Failed"
             error_msg = str(e)
         finally:
@@ -173,6 +174,6 @@ class TaskScheduler:
                         }
                     })
         except Exception as e:
-            print(f"Failed to broadcast task status update: {e}")
+            logger.warning(f"Failed to broadcast task status update: {e}")
             
 scheduler = TaskScheduler()

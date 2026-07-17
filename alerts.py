@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from database import Session, engine, Settings, User, UserAlertSettings
 from sqlmodel import select
+from loguru import logger
 
 def format_shamsi_datetime(dt):
     if not dt:
@@ -177,7 +178,7 @@ def send_email_raw(conf, subject, body, recipients):
             s.sendmail(sender, recipients, msg.as_string())
         return True
     except Exception as e:
-        print(f"📧 خطای ایمیل: {e}")
+        logger.error(f"Email error: {e}")
         return str(e)
 
 def get_telegram_message(header, lines, alert_type):
@@ -237,7 +238,7 @@ def send_telegram_raw(conf, message, chat_ids):
             payload = {'chat_id': cid, 'text': message, 'parse_mode': 'HTML'}
             requests.post(url, data=payload, proxies=proxies, timeout=10)
         except Exception as e:
-            print(f"✈️ خطای تلگرام: {e}")
+            logger.error(f"Telegram error: {e}")
             errors.append(str(e))
             
     return errors[0] if errors else True

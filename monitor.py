@@ -7,6 +7,7 @@ from requests.auth import HTTPDigestAuth
 from sqlmodel import Session, select
 from database import engine, NVR, Camera, Log, Settings, DowntimeEvent, UserSession
 from alerts import send_email_batch, send_telegram_batch
+from loguru import logger
 
 _broadcast_callback = None
 
@@ -99,7 +100,7 @@ def log_event(session, l_type, state, details):
         session.add(Log(log_type=l_type, state=state, details=details))
         session.commit() 
     except Exception as e:
-        print(f"Warning: Failed to log event: {e}")
+        logger.warning(f"Failed to log event: {e}")
 
 def cleanup_old_data(session, days=90):
     try:
@@ -112,7 +113,7 @@ def cleanup_old_data(session, days=90):
         session.query(UserSession).filter(UserSession.expires_at < datetime.now()).delete()
         session.commit()
     except Exception as e:
-        print(f"Warning: Failed to cleanup old data: {e}")
+        logger.warning(f"Failed to cleanup old data: {e}")
 
 def poll_nvr_thread(nvr_data):
     from database import decrypt_password
@@ -384,7 +385,7 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                         if t_id is not None:
                             tracks_data[t_id] = {'enabled': enabled, 'type': sched_type}
         except Exception as e:
-            print(f"Warning: Failed to fetch all tracks config at once for {ip}: {e}")
+            logger.warning(f"Failed to fetch all tracks config at once for {ip}: {e}")
 
         for cam in cams:
             try:
@@ -441,7 +442,7 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                             if def_rec_elem is not None:
                                 sched_type = def_rec_elem.text
                 except Exception as e_single:
-                    print(f"Warning: Failed to fetch single track {track_id} for NVR {ip}: {e_single}")
+                    logger.warning(f"Failed to fetch single track {track_id} for NVR {ip}: {e_single}")
 
             cam.recording_scheduled = enabled
             if sched_type:
@@ -467,7 +468,7 @@ def sync_recording_schedule_config(ip, user, password, session=None):
             
         db_session.commit()
     except Exception as outer_err:
-        print(f"Warning: Error syncing recording schedule config for NVR {ip}: {outer_err}")
+        logger.warning(f"Error syncing recording schedule config for NVR {ip}: {outer_err}")
     finally:
         if is_local_session:
             db_session.close()
@@ -617,11 +618,11 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
                 db_session.add(cam)
                 
             except Exception as e:
-                print(f"Warning: Failed to update recording stats for cam {cam.name}: {e}")
+                logger.warning(f"Failed to update recording stats for cam {cam.name}: {e}")
             
         db_session.commit()
     except Exception as outer_err:
-        print(f"Warning: Recording stats update error: {outer_err}")
+        logger.warning(f"Recording stats update error: {outer_err}")
     finally:
         if is_local_session:
             db_session.close()
@@ -797,32 +798,32 @@ async def task_sync_nvr_configs():
         nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
     if not nvrs:
         return
-    print(f"Syncing recording config for {len(nvrs)} NVRs in parallel...")
+    logger.info(f"Syncing recording config for {len(nvrs)} NVRs in parallel...")
     results = await asyncio.gather(
         *[asyncio.to_thread(sync_recording_schedule_config, n.ip, n.user, n.password) for n in nvrs],
         return_exceptions=True
     )
     for n, r in zip(nvrs, results):
         if isinstance(r, Exception):
-            print(f"Config sync failed for {n.ip}: {r}")
+            logger.error(f"Config sync failed for {n.ip}: {r}")
 
 async def task_sync_nvr_stats():
     with Session(engine) as session:
         nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
     if not nvrs:
         return
-    print(f"Syncing recording stats for {len(nvrs)} NVRs in parallel...")
+    logger.info(f"Syncing recording stats for {len(nvrs)} NVRs in parallel...")
     results = await asyncio.gather(
         *[asyncio.to_thread(sync_recording_stats_from_nvr, n.ip, n.user, n.password) for n in nvrs],
         return_exceptions=True
     )
     for n, r in zip(nvrs, results):
         if isinstance(r, Exception):
-            print(f"Stats sync failed for {n.ip}: {r}")
+            logger.error(f"Stats sync failed for {n.ip}: {r}")
 
 async def task_cleanup_database():
     with Session(engine) as session:
-        print("Starting database logs cleanup...")
+        logger.info("Starting database logs cleanup...")
         cleanup_old_data(session)
         session.commit()
 
@@ -831,14 +832,14 @@ async def task_sync_camera_names():
         nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
     if not nvrs:
         return
-    print(f"Syncing camera names for {len(nvrs)} NVRs in parallel...")
+    logger.info(f"Syncing camera names for {len(nvrs)} NVRs in parallel...")
     results = await asyncio.gather(
         *[asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password) for n in nvrs],
         return_exceptions=True
     )
     for n, r in zip(nvrs, results):
         if isinstance(r, Exception):
-            print(f"Camera name sync failed for {n.ip}: {r}")
+            logger.error(f"Camera name sync failed for {n.ip}: {r}")
 
 def get_substream_channel_id(chan_id_str: str) -> str:
     try:
@@ -889,18 +890,18 @@ async def task_capture_camera_snapshots():
                 file_path = f"data/snapshots/camera_{cam.id}.jpg"
                 with open(file_path, "wb") as f:
                     f.write(img_data)
-                print(f"Captured snapshot for camera {cam.name} (id: {cam.id})")
+                logger.info(f"Captured snapshot for camera {cam.name} (id: {cam.id})")
             else:
-                print(f"Failed to capture snapshot for camera {cam.name} (id: {cam.id}) - NVR returned error status")
+                logger.warning(f"Failed to capture snapshot for camera {cam.name} (id: {cam.id}) - NVR returned error status")
         except Exception as e:
-            print(f"Failed to capture snapshot for camera {cam.name} (id: {cam.id}): {e}")
+            logger.error(f"Failed to capture snapshot for camera {cam.name} (id: {cam.id}): {e}")
 
     if cameras:
-        print(f"Capturing snapshots for {len(cameras)} cameras in parallel...")
+        logger.info(f"Capturing snapshots for {len(cameras)} cameras in parallel...")
         await asyncio.gather(*[capture_one(cam) for cam in cameras])
 
 async def start_monitor_loop():
-    print("Monitor loop started (via scheduler)...")
+    logger.info("Monitor loop started (via scheduler)...")
     with Session(engine) as session:
         log_event(session, "Service", "Started", "Monitor loop initialized (via scheduler)")
     from scheduler import scheduler

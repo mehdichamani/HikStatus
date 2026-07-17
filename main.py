@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 import secrets
 from dotenv import load_dotenv
+from loguru import logger
 load_dotenv()
 
 
@@ -94,7 +95,7 @@ def seed_database(session: Session, init_from_json: bool):
             with open("init_config.json", "r", encoding="utf-8") as f:
                 init_data = json.load(f)
         except Exception as e:
-            print(f"Error loading init_config.json: {e}")
+            logger.error(f"Error loading init_config.json: {e}")
 
     # Seed Settings
     json_settings = init_data.get("settings", {})
@@ -153,7 +154,7 @@ def seed_defaults():
                 with open("init_config.json", "r", encoding="utf-8") as f:
                     init_data = json.load(f)
             except Exception as e:
-                print(f"Error loading init_config.json: {e}")
+                logger.error(f"Error loading init_config.json: {e}")
 
         json_settings = init_data.get("settings", {})
         for key, (default_val, desc) in defaults.items():
@@ -379,7 +380,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
     password_ok, password_is_plain = verify_admin_password(payload.password, admin_pass)
     if payload.username == admin_user and password_ok:
         if password_is_plain:
-            print("⚠️ SECURITY WARNING: Admin password in .env is stored in plain text (not hashed). Please hash it and replace. Guide: static/admin-password-help.html")
+            logger.warning("SECURITY WARNING: Admin password in .env is stored in plain text (not hashed). Please hash it and replace. Guide: static/admin-password-help.html")
         token = create_session_token()
         
         expires_at = datetime.now() + timedelta(days=30)
