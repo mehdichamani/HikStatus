@@ -82,6 +82,7 @@ def seed_database(session: Session):
     # Delete all records from all tables
     session.query(DowntimeEvent).delete()
     session.query(Camera).delete()
+    session.query(MapPlan).delete()
     session.query(UserSession).delete()
     session.query(UserAlertSettings).delete()
     session.query(User).delete()
@@ -573,8 +574,21 @@ def export_config_json(session: Session = Depends(get_session)):
             "id": g.id,
             "name": g.name,
             "description": g.description,
-            "image_url": g.image_url,
-            "sort_order": g.sort_order
+            "map_center_lat": g.map_center_lat,
+            "map_center_lng": g.map_center_lng,
+            "map_zoom": g.map_zoom
+        })
+
+    # 2.1 Map Plans
+    plans = session.exec(select(MapPlan)).all()
+    plans_list = []
+    for p in plans:
+        plans_list.append({
+            "id": p.id,
+            "group_id": p.group_id,
+            "name": p.name,
+            "image_url": p.image_url,
+            "sort_order": p.sort_order
         })
 
     # 3. NVRs
@@ -622,6 +636,7 @@ def export_config_json(session: Session = Depends(get_session)):
     config_data = {
         "settings": settings_dict,
         "groups": groups_list,
+        "plans": plans_list,
         "nvrs": nvrs_list,
         "users": users_list
     }
@@ -643,6 +658,7 @@ async def import_config_json(request: Request, session: Session = Depends(get_se
         
     session.query(DowntimeEvent).delete()
     session.query(Camera).delete()
+    session.query(MapPlan).delete()
     session.query(UserSession).delete()
     session.query(UserAlertSettings).delete()
     session.query(User).delete()
@@ -689,8 +705,21 @@ async def import_config_json(request: Request, session: Session = Depends(get_se
             id=g_data.get("id"),
             name=g_data["name"],
             description=g_data.get("description"),
-            image_url=g_data.get("image_url", ""),
-            sort_order=g_data.get("sort_order", 0)
+            map_center_lat=g_data.get("map_center_lat"),
+            map_center_lng=g_data.get("map_center_lng"),
+            map_zoom=g_data.get("map_zoom")
+        ))
+    session.commit()
+
+    # 2.1 Import Map Plans
+    json_plans = body.get("plans", [])
+    for p_data in json_plans:
+        session.add(MapPlan(
+            id=p_data.get("id"),
+            group_id=p_data["group_id"],
+            name=p_data["name"],
+            image_url=p_data["image_url"],
+            sort_order=p_data.get("sort_order", 0)
         ))
     session.commit()
 
