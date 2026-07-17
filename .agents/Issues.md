@@ -9,7 +9,7 @@
 - [x] ** فقدان migration سیستمی** - ✅ با سیستم migration سفارشی با version tracking و rollback حل شد
 - [ ] رمز های nvr ها بجای init_config.json در .env
 - [x] **دکمه غیرفعال / فعال وجود نداره در حالی که init_config.json آیتم "enabled": true هست** - ✅ تاگل فعال/غیرفعال در UI پیاده‌سازی شد
-- [ ] **عدم log rotation** - دیتابیس لاگ‌ها به مرور زمان بزرگ می‌شود (cleanup هر ۹۰ روز یکبار)
+- [x] **عدم log rotation** - ✅ تسک `cleanup_database` هر ۲۴ ساعت لاگ‌های قدیمی‌تر از ۹۰ روز رو حذف می‌کند
 - [ ] **استفاده از وضعیت‌های سراسری تغییرپذیر (Global Mutable State)** - متغیرهایی مانند `_sessions` و `monitor_task` ممکن است در همزمانی شکننده باشند
 
 ### کیفیت کد
