@@ -629,216 +629,195 @@ def sync_recording_stats_from_nvr(ip, user, password, session=None):
 def run_stats_sync_in_thread(ip, user, password):
     sync_recording_stats_from_nvr(ip, user, password)
 
-async def start_monitor_loop():
-    print("Monitor loop started...")
-    last_summary_hour = -1
-    last_stats_update_time = None
-    last_config_update_time = None
-    
+last_summary_hour = -1
+
+async def task_ping_cameras():
+    global last_summary_hour
     with Session(engine) as session:
-        log_event(session, "Service", "Started", "Monitor loop initialized")
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+    if not nvrs:
+        return
         
-        # Run startup camera name sync and stats sync
-        try:
-            nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
-            for n in nvrs:
-                print(f"Syncing camera names for NVR {n.ip} on startup...")
-                await asyncio.to_thread(sync_camera_names_from_nvr, n.ip, n.user, n.password)
-                print(f"Syncing recording schedule configs for NVR {n.ip} on startup...")
-                await asyncio.to_thread(sync_recording_schedule_config, n.ip, n.user, n.password)
-                print(f"Syncing recording stats for NVR {n.ip} on startup...")
-                await asyncio.to_thread(sync_recording_stats_from_nvr, n.ip, n.user, n.password)
-            last_stats_update_time = datetime.now()
-            last_config_update_time = datetime.now()
-        except Exception as startup_sync_err:
-            print(f"Warning: Startup camera sync failed: {startup_sync_err}")
+    tasks = [asyncio.to_thread(poll_nvr_thread, (n.ip, n.user, n.password)) for n in nvrs]
+    results = await asyncio.gather(*tasks)
 
-    while True:
-        try:
-            with Session(engine) as session:
-                nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+    cams_processed = []
 
-            if not nvrs:
-                await asyncio.sleep(10)
+    with Session(engine) as session:
+        for nvr_obj, res in zip(nvrs, results):
+            status, payload = res
+            if status == "FAIL":
+                nvr_label = f"{nvr_obj.name} ({nvr_obj.ip})" if nvr_obj.name else f"NVR {nvr_obj.ip}"
+                error_message = f"{nvr_label} Failed: {payload}"
+                await process_nvr_alerts(session, nvr_obj, True, error_message)
                 continue
+            else:
+                await process_nvr_alerts(session, nvr_obj, False)
+                
+            for d in payload:
+                stmt = select(Camera).where(Camera.nvr_ip == nvr_obj.ip, Camera.channel_id == d['channel_id'])
+                db_cam = session.exec(stmt).first()
+                new_status = "Online" if d['online'] else "Offline"
+                
+                nvr_label = nvr_obj.name if nvr_obj.name else nvr_obj.ip
+                final_name = f"{nvr_label} CH {d['channel_id']}"
+
+                if not db_cam:
+                    db_cam = Camera(name=final_name, ip=d['ip'], nvr_ip=nvr_obj.ip, channel_id=d['channel_id'], status=new_status, last_online=datetime.now() if d['online'] else None)
+                    session.add(db_cam)
+                    session.flush() 
+                    session.refresh(db_cam)
+                    if new_status == "Offline":
+                        session.add(DowntimeEvent(camera_id=db_cam.id, start_time=datetime.now()))
+                else:
+                    if db_cam.ip != d['ip']: db_cam.ip = d['ip']
+                    
+                    if db_cam.status != new_status:
+                        log_event(session, "Camera", new_status, f"{db_cam.name} ({db_cam.ip})")
+                        await broadcast({
+                            "type": "alert",
+                            "title": f"تغییر وضعیت: {db_cam.name}",
+                            "body": f"دوربین {db_cam.name} ({db_cam.ip}) { 'متصل' if new_status == 'Online' else 'قطع' } شد",
+                            "alert_type": "success" if new_status == "Online" else "error"
+                        })
+                        db_cam.status = new_status
+                        if new_status == "Offline":
+                            session.add(DowntimeEvent(camera_id=db_cam.id, start_time=datetime.now()))
+                        elif new_status == "Online":
+                            open_evt = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == db_cam.id, DowntimeEvent.end_time == None)).first()
+                            if open_evt:
+                                open_evt.end_time = datetime.now()
+                                session.add(open_evt)
+                    
+                    if d['online']: db_cam.last_online = datetime.now()
+                    session.add(db_cam)
+                
+                cams_processed.append(db_cam)
+
+        nvr_list = session.exec(select(NVR)).all()
+        nvr_groups = {n.ip: n.group_id for n in nvr_list}
+        
+        groups_map = {}
+        for cam in cams_processed:
+            gid = nvr_groups.get(cam.nvr_ip)
+            if gid not in groups_map:
+                groups_map[gid] = []
+            groups_map[gid].append(cam)
             
-            tasks = [asyncio.to_thread(poll_nvr_thread, (n.ip, n.user, n.password)) for n in nvrs]
-            results = await asyncio.gather(*tasks)
-
-            cams_processed = []
-
-            with Session(engine) as session:
-                for nvr_obj, res in zip(nvrs, results):
-                    status, payload = res
-                    if status == "FAIL":
-                        nvr_label = f"{nvr_obj.name} ({nvr_obj.ip})" if nvr_obj.name else f"NVR {nvr_obj.ip}"
-                        error_message = f"{nvr_label} Failed: {payload}"
-                        await process_nvr_alerts(session, nvr_obj, True, error_message)
-                        continue
-                    else:
-                        await process_nvr_alerts(session, nvr_obj, False)
-                        
-                    for d in payload:
-                        stmt = select(Camera).where(Camera.nvr_ip == nvr_obj.ip, Camera.channel_id == d['channel_id'])
-                        db_cam = session.exec(stmt).first()
-                        new_status = "Online" if d['online'] else "Offline"
-                        
-                        nvr_label = nvr_obj.name if nvr_obj.name else nvr_obj.ip
-                        final_name = f"{nvr_label} CH {d['channel_id']}"
-
-                        if not db_cam:
-                            db_cam = Camera(name=final_name, ip=d['ip'], nvr_ip=nvr_obj.ip, channel_id=d['channel_id'], status=new_status, last_online=datetime.now() if d['online'] else None)
-                            session.add(db_cam)
-                            session.flush() 
-                            session.refresh(db_cam)
-                            if new_status == "Offline":
-                                session.add(DowntimeEvent(camera_id=db_cam.id, start_time=datetime.now()))
-                        else:
-                            if db_cam.ip != d['ip']: db_cam.ip = d['ip']
-                            
-                            if db_cam.status != new_status:
-                                log_event(session, "Camera", new_status, f"{db_cam.name} ({db_cam.ip})")
-                                # Broadcast status change for browser notifications
-                                await broadcast({
-                                    "type": "alert",
-                                    "title": f"تغییر وضعیت: {db_cam.name}",
-                                    "body": f"دوربین {db_cam.name} ({db_cam.ip}) { 'متصل' if new_status == 'Online' else 'قطع' } شد",
-                                    "alert_type": "success" if new_status == "Online" else "error"
-                                })
-                                db_cam.status = new_status
-                                if new_status == "Offline":
-                                    session.add(DowntimeEvent(camera_id=db_cam.id, start_time=datetime.now()))
-                                elif new_status == "Online":
-                                    open_evt = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == db_cam.id, DowntimeEvent.end_time == None)).first()
-                                    if open_evt:
-                                        open_evt.end_time = datetime.now()
-                                        session.add(open_evt)
-                            
-                            if d['online']: db_cam.last_online = datetime.now()
-                            session.add(db_cam)
-                        
-                        cams_processed.append(db_cam)
-
-                # Group processed cameras by their NVR's group_id to route alerts correctly
-                nvr_list = session.exec(select(NVR)).all()
-                nvr_groups = {n.ip: n.group_id for n in nvr_list}
-                
-                groups_map = {}
-                for cam in cams_processed:
-                    gid = nvr_groups.get(cam.nvr_ip)
-                    if gid not in groups_map:
-                        groups_map[gid] = []
-                    groups_map[gid].append(cam)
-                    
-                for gid, group_cams in groups_map.items():
-                    t_alerts, m_alerts, t_recov, m_recov = await process_batch_alerts(session, group_cams)
-                    
-                    if t_alerts:
-                        res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها قطع شدند", t_alerts, "warning", gid)
-                        is_ok = res is True
-                        log_event(session, "Telegram", "Sent" if is_ok else "Failed", f"Sent {len(t_alerts)} alerts for group {gid}")
-                        if not is_ok:
-                            await broadcast({
-                                "type": "alert",
-                                "title": "خطای ارسال تلگرام",
-                                "body": f"خطا در ارسال پیام تلگرام برای دوربین‌های قطع شده: {res}",
-                                "alert_type": "warning"
-                            })
-                    if t_recov:
-                        res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها برگشتند", t_recov, "success", gid)
-                        if res is not True:
-                            await broadcast({
-                                "type": "alert",
-                                "title": "خطای ارسال تلگرام",
-                                "body": f"خطا در ارسال پیام تلگرام برای دوربین‌های متصل شده: {res}",
-                                "alert_type": "warning"
-                            })
-                    if m_alerts:
-                        res = await asyncio.to_thread(send_email_batch, "دوربین‌ها قطع شدند", m_alerts, "warning", gid)
-                        is_ok = res is True
-                        log_event(session, "Mail", "Sent" if is_ok else "Failed", f"Sent {len(m_alerts)} alerts for group {gid}")
-                        if not is_ok:
-                            await broadcast({
-                                "type": "alert",
-                                "title": "خطای ارسال ایمیل",
-                                "body": f"خطا در ارسال ایمیل برای دوربین‌های قطع شده: {res}",
-                                "alert_type": "warning"
-                            })
-                    if m_recov:
-                        res = await asyncio.to_thread(send_email_batch, "دوربین‌ها برگشتند", m_recov, "success", gid)
-                        if res is not True:
-                            await broadcast({
-                                "type": "alert",
-                                "title": "خطای ارسال ایمیل",
-                                "body": f"خطا در ارسال ایمیل برای دوربین‌های متصل شده: {res}",
-                                "alert_type": "warning"
-                            })
-
-                now = datetime.now()
-                if now.minute == 0 and now.hour != last_summary_hour:
-                    hour_start = now.replace(minute=0, second=0, microsecond=0)
-                    summary_lines = []
-                    for c in cams_processed:
-                        if c.status == "Offline":
-                            offline_since = c.last_online or now
-                            overlap_start = max(hour_start, offline_since)
-                            minutes_down = int((now - overlap_start).total_seconds() / 60)
-                            if minutes_down > 0:
-                                summary_lines.append(f"{c.name}: {minutes_down}m")
-
-                    if summary_lines:
-                        header = f"📊 گزارش قطعی ساعتی ({now.strftime('%H:00')})"
-                        await asyncio.to_thread(send_telegram_batch, header, summary_lines, "info")
-                        log_event(session, "Telegram", "Sent", "Hourly Summary")
-                    last_summary_hour = now.hour
-
-                session.commit()
-                
-                cam_data = []
-                for c in cams_processed:
-                    cam_data.append({
-                        "id": c.id, "name": c.name, "ip": c.ip,
-                        "nvr_ip": c.nvr_ip, "channel_id": c.channel_id,
-                        "status": c.status, "importance": c.importance,
-                        "last_online": c.last_online.isoformat() if c.last_online else None,
-                        "latitude": c.latitude, "longitude": c.longitude,
-                        "x_pos": c.x_pos, "y_pos": c.y_pos,
-                        "fov_angle": c.fov_angle,
-                        "fov_radius": c.fov_radius,
-                        "fov_spread": c.fov_spread,
-                        "plan_id": c.plan_id,
-                        "model": c.model,
-                        "recording_scheduled": c.recording_scheduled,
-                        "recording_schedule_type": c.recording_schedule_type,
-                        "recording_hours_24h": c.recording_hours_24h,
-                        "oldest_record": c.oldest_record.isoformat() if c.oldest_record else None,
-                        "total_record_size_gb": c.total_record_size_gb,
-                        "total_record_duration_hours": c.total_record_duration_hours,
-                        "stats_last_updated": c.stats_last_updated.isoformat() if c.stats_last_updated else None
+        for gid, group_cams in groups_map.items():
+            t_alerts, m_alerts, t_recov, m_recov = await process_batch_alerts(session, group_cams)
+            
+            if t_alerts:
+                res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها قطع شدند", t_alerts, "warning", gid)
+                is_ok = res is True
+                log_event(session, "Telegram", "Sent" if is_ok else "Failed", f"Sent {len(t_alerts)} alerts for group {gid}")
+                if not is_ok:
+                    await broadcast({
+                        "type": "alert",
+                        "title": "خطای ارسال تلگرام",
+                        "body": f"خطا در ارسال پیام تلگرام برای دوربین‌های قطع شده: {res}",
+                        "alert_type": "warning"
                     })
-                await broadcast({"type": "cameras", "data": cam_data})
-                
-                # Trigger periodic camera config update in the background (every 1 hour)
-                # Trigger periodic camera stats update in the background (every 2 hours)
-                now_dt = datetime.now()
-                if last_config_update_time is None or (now_dt - last_config_update_time).total_seconds() > 3600:
-                    print("Triggering background camera recording config sync...")
-                    for n in nvrs:
-                        asyncio.create_task(asyncio.to_thread(run_config_sync_in_thread, n.ip, n.user, n.password))
-                    last_config_update_time = now_dt
+            if t_recov:
+                res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها برگشتند", t_recov, "success", gid)
+                if res is not True:
+                    await broadcast({
+                        "type": "alert",
+                        "title": "خطای ارسال تلگرام",
+                        "body": f"خطا در ارسال پیام تلگرام برای دوربین‌های متصل شده: {res}",
+                        "alert_type": "warning"
+                    })
+            if m_alerts:
+                res = await asyncio.to_thread(send_email_batch, "دوربین‌ها قطع شدند", m_alerts, "warning", gid)
+                is_ok = res is True
+                log_event(session, "Mail", "Sent" if is_ok else "Failed", f"Sent {len(m_alerts)} alerts for group {gid}")
+                if not is_ok:
+                    await broadcast({
+                        "type": "alert",
+                        "title": "خطای ارسال ایمیل",
+                        "body": f"خطا در ارسال ایمیل برای دوربین‌های قطع شده: {res}",
+                        "alert_type": "warning"
+                    })
+            if m_recov:
+                res = await asyncio.to_thread(send_email_batch, "دوربین‌ها برگشتند", m_recov, "success", gid)
+                if res is not True:
+                    await broadcast({
+                        "type": "alert",
+                        "title": "خطای ارسال ایمیل",
+                        "body": f"خطا در ارسال ایمیل برای دوربین‌های متصل شده: {res}",
+                        "alert_type": "warning"
+                    })
 
-                if last_stats_update_time is None or (now_dt - last_stats_update_time).total_seconds() > 7200:
-                    print("Triggering background camera recording stats sync...")
-                    for n in nvrs:
-                        asyncio.create_task(asyncio.to_thread(run_stats_sync_in_thread, n.ip, n.user, n.password))
-                    last_stats_update_time = now_dt
-                
-                if now.hour == 2 and now.minute == 0:
-                    cleanup_old_data(session)
-            await asyncio.sleep(60) 
+        now = datetime.now()
+        if now.minute == 0 and now.hour != last_summary_hour:
+            hour_start = now.replace(minute=0, second=0, microsecond=0)
+            summary_lines = []
+            for c in cams_processed:
+                if c.status == "Offline":
+                    offline_since = c.last_online or now
+                    overlap_start = max(hour_start, offline_since)
+                    minutes_down = int((now - overlap_start).total_seconds() / 60)
+                    if minutes_down > 0:
+                        summary_lines.append(f"{c.name}: {minutes_down}m")
 
-        except asyncio.CancelledError:
-            break
-        except Exception as e: 
-            print(f"Error: {e}")
-            await asyncio.sleep(5)
+            if summary_lines:
+                header = f"📊 گزارش قطعی ساعتی ({now.strftime('%H:00')})"
+                await asyncio.to_thread(send_telegram_batch, header, summary_lines, "info")
+                log_event(session, "Telegram", "Sent", "Hourly Summary")
+            last_summary_hour = now.hour
+
+        session.commit()
+        
+        cam_data = []
+        for c in cams_processed:
+            cam_data.append({
+                "id": c.id, "name": c.name, "ip": c.ip,
+                "nvr_ip": c.nvr_ip, "channel_id": c.channel_id,
+                "status": c.status, "importance": c.importance,
+                "last_online": c.last_online.isoformat() if c.last_online else None,
+                "latitude": c.latitude, "longitude": c.longitude,
+                "x_pos": c.x_pos, "y_pos": c.y_pos,
+                "fov_angle": c.fov_angle,
+                "fov_radius": c.fov_radius,
+                "fov_spread": c.fov_spread,
+                "plan_id": c.plan_id,
+                "model": c.model,
+                "recording_scheduled": c.recording_scheduled,
+                "recording_schedule_type": c.recording_schedule_type,
+                "recording_hours_24h": c.recording_hours_24h,
+                "oldest_record": c.oldest_record.isoformat() if c.oldest_record else None,
+                "total_record_size_gb": c.total_record_size_gb,
+                "total_record_duration_hours": c.total_record_duration_hours,
+                "stats_last_updated": c.stats_last_updated.isoformat() if c.stats_last_updated else None
+            })
+        await broadcast({"type": "cameras", "data": cam_data})
+
+async def task_sync_nvr_configs():
+    with Session(engine) as session:
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+    for n in nvrs:
+        print(f"Triggering NVR recording config sync for {n.ip}...")
+        await asyncio.to_thread(sync_recording_schedule_config, n.ip, n.user, n.password)
+
+async def task_sync_nvr_stats():
+    with Session(engine) as session:
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True)).all()
+    for n in nvrs:
+        print(f"Triggering NVR recording stats sync for {n.ip}...")
+        await asyncio.to_thread(sync_recording_stats_from_nvr, n.ip, n.user, n.password)
+
+async def task_cleanup_database():
+    with Session(engine) as session:
+        print("Starting database logs cleanup...")
+        cleanup_old_data(session)
+        session.commit()
+
+async def start_monitor_loop():
+    print("Monitor loop started (via scheduler)...")
+    with Session(engine) as session:
+        log_event(session, "Service", "Started", "Monitor loop initialized (via scheduler)")
+    from scheduler import scheduler
+    try:
+        await scheduler.start()
+    except asyncio.CancelledError:
+        await scheduler.stop()

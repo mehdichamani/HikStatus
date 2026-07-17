@@ -111,6 +111,18 @@ class UserSession(SQLModel, table=True):
     expires_at: datetime
     last_activity: datetime = Field(default_factory=datetime.now)
 
+class ScheduledTask(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    name: str
+    description: str
+    interval: int
+    is_enabled: bool = True
+    status: str = "Idle"
+    last_run: Optional[datetime] = None
+    last_duration: Optional[float] = None
+    last_status: Optional[str] = None
+    next_run: Optional[datetime] = None
+
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     hash_bytes = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100_000)

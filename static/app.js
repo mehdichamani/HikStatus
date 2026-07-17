@@ -402,6 +402,7 @@ async function loadSettings() {
             <button data-tab="grp-Email" onclick="switchSettingsTab('grp-Email')">تنظیمات ایمیل</button>
             <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
             <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
+            <button data-tab="sec-tasks" onclick="switchSettingsTab('sec-tasks')">وظایف زمان‌بندی‌شده</button>
             <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
             <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
         `;
@@ -518,7 +519,7 @@ function switchSettingsTab(tabId) {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
 
-    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system', 'sec-about'];
+    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -537,6 +538,9 @@ function switchSettingsTab(tabId) {
     }
     if (tabId === 'sec-my-alerts') {
         loadMyAlerts();
+    }
+    if (tabId === 'sec-tasks') {
+        loadScheduledTasks();
     }
 }
 
@@ -1254,6 +1258,8 @@ function connectWS() {
             updateDashFromWS(msg.data);
         } else if (msg.type === 'alert') {
             handleIncomingAlert(msg);
+        } else if (msg.type === 'task_status') {
+            handleTaskStatusUpdate(msg.data);
         }
     };
 
@@ -3160,4 +3166,181 @@ function updateSidebarFovVal(field, value) {
     
     spawnFovHandles();
     saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
+}
+
+// --- SCHEDULED TASKS ---
+let scheduledTasksCache = [];
+
+async function loadScheduledTasks() {
+    try {
+        const res = await apiFetch(`${API}/scheduler/tasks`);
+        if (!res.ok) throw new Error("خطا در دریافت لیست تسک‌ها");
+        scheduledTasksCache = await res.json();
+        renderScheduledTasks();
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
+
+function displayPersianDateTime(isoStr) {
+    if (!isoStr) return 'هرگز';
+    try {
+        const d = new Date(isoStr);
+        return formatPersianDateTime(d);
+    } catch(e) {
+        return 'نامعتبر';
+    }
+}
+
+function renderScheduledTasks() {
+    const tbody = document.getElementById('tasks-table-body');
+    if (!tbody) return;
+
+    if (scheduledTasksCache.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">هیچ وظیفه‌ای تعریف نشده است.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = scheduledTasksCache.map(t => {
+        const statusBadge = t.status === 'Running' 
+            ? `<span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; padding: 4px 8px; border-radius: 4px; font-size: 11px;">درحال اجرا</span>`
+            : `<span class="badge" style="background: rgba(148, 163, 184, 0.1); color: var(--text-secondary); padding: 4px 8px; border-radius: 4px; font-size: 11px;">بیکار</span>`;
+
+        const lastStatusBadge = t.last_status === 'Success'
+            ? `<span style="color: #22c55e;">موفق</span>`
+            : t.last_status === 'Failed'
+            ? `<span style="color: #ef4444;">ناموفق</span>`
+            : t.last_status === 'Cancelled'
+            ? `<span style="color: var(--warning);">لغو شده</span>`
+            : `<span style="color: var(--text-muted);">-</span>`;
+
+        const lastRunStr = t.last_run 
+            ? `${displayPersianDateTime(t.last_run)} (${t.last_duration} ثانیه) - ${lastStatusBadge}`
+            : 'هرگز';
+
+        const runBtn = t.status === 'Running'
+            ? `<button class="btn btn-ghost btn-sm" disabled style="opacity: 0.5; padding: 4px 8px; font-size: 12px;">اجرا ▶️</button>`
+            : `<button class="btn btn-ghost btn-sm" onclick="runTask('${t.id}')" style="color: #22c55e; padding: 4px 8px; font-size: 12px;">اجرا ▶️</button>`;
+
+        const stopBtn = t.status === 'Running'
+            ? `<button class="btn btn-ghost btn-sm" onclick="stopTask('${t.id}')" style="color: #ef4444; padding: 4px 8px; font-size: 12px;">توقف ⏹️</button>`
+            : `<button class="btn btn-ghost btn-sm" disabled style="opacity: 0.5; padding: 4px 8px; font-size: 12px;">توقف ⏹️</button>`;
+
+        const isChecked = t.is_enabled ? 'checked' : '';
+
+        return `
+            <tr id="task-row-${t.id}">
+                <td>
+                    <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">${t.name}</strong>
+                    <span style="font-size: 11px; color: var(--text-secondary); display: block;">${t.description}</span>
+                </td>
+                <td>${statusBadge}</td>
+                <td style="font-size: 12px; font-family: monospace; direction: ltr; text-align: right;">${lastRunStr}</td>
+                <td style="font-size: 12px; font-family: monospace; direction: ltr; text-align: right;">${displayPersianDateTime(t.next_run)}</td>
+                <td>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <input type="number" id="interval-input-${t.id}" class="form-input" style="width: 80px; padding: 4px 8px; font-size: 12px; text-align: center;" value="${t.interval}">
+                        <button class="btn btn-sm" onclick="saveTaskInterval('${t.id}')" style="padding: 4px 8px; font-size: 11px; background: var(--surface-3); border: 1px solid var(--border);">ذخیره</button>
+                    </div>
+                </td>
+                <td>
+                    <label class="toggle" style="transform: scale(0.85); transform-origin: right;">
+                        <input type="checkbox" ${isChecked} onchange="toggleTask('${t.id}', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 4px;">
+                        ${runBtn}
+                        ${stopBtn}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function runTask(id) {
+    try {
+        const res = await apiFetch(`${API}/scheduler/tasks/${id}/run`, { method: 'POST' });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || "خطا در اجرای تسک");
+        }
+        showToast("درخواست اجرای تسک ارسال شد", "success");
+        loadScheduledTasks();
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
+
+async function stopTask(id) {
+    try {
+        const res = await apiFetch(`${API}/scheduler/tasks/${id}/stop`, { method: 'POST' });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || "خطا در توقف تسک");
+        }
+        showToast("درخواست توقف تسک ارسال شد", "success");
+        loadScheduledTasks();
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
+
+async function saveTaskInterval(id) {
+    const input = document.getElementById(`interval-input-${id}`);
+    if (!input) return;
+    const interval = parseInt(input.value);
+    if (isNaN(interval) || interval <= 0) {
+        showToast("دوره زمانی معتبر نیست", "error");
+        return;
+    }
+
+    try {
+        const res = await apiFetch(`${API}/scheduler/tasks/${id}/interval`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ interval })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || "خطا در ذخیره زمان‌بندی");
+        }
+        showToast("زمان‌بندی تسک با موفقیت به‌روزرسانی شد", "success");
+        loadScheduledTasks();
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
+
+async function toggleTask(id, enabled) {
+    try {
+        const res = await apiFetch(`${API}/scheduler/tasks/${id}/toggle`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_enabled: enabled })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || "خطا در تغییر وضعیت تسک");
+        }
+        showToast(enabled ? "تسک فعال شد" : "تسک غیرفعال شد", "success");
+        loadScheduledTasks();
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
+
+function handleTaskStatusUpdate(task) {
+    const idx = scheduledTasksCache.findIndex(t => t.id === task.id);
+    if (idx !== -1) {
+        scheduledTasksCache[idx] = task;
+    } else {
+        scheduledTasksCache.push(task);
+    }
+    const activeTabBtn = document.querySelector('.settings-nav button.active');
+    if (activeTabBtn && activeTabBtn.getAttribute('data-tab') === 'sec-tasks') {
+        renderScheduledTasks();
+    }
 }

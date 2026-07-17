@@ -17,8 +17,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from sqlmodel import Session, select, col
-from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, UserSession, MapPlan, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
+from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, UserSession, MapPlan, ScheduledTask, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
+from scheduler import scheduler
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
 
 class ConnectionManager:
@@ -173,11 +174,50 @@ def seed_defaults():
 
         session.commit()
 
+def seed_scheduled_tasks():
+    with Session(engine) as session:
+        default_tasks = [
+            ScheduledTask(
+                id="ping_cameras",
+                name="پایش وضعیت اتصال دوربین‌ها",
+                description="بررسی دوره‌ای فعال بودن دوربین‌ها و ثبت قطعی‌ها در پایگاه داده",
+                interval=60
+            ),
+            ScheduledTask(
+                id="sync_nvr_configs",
+                name="همگام‌سازی ساختار ضبط NVRها",
+                description="دریافت و ذخیره ساختار ضبط و پایش وضعیت هر دوربین در NVR",
+                interval=3600
+            ),
+            ScheduledTask(
+                id="sync_nvr_stats",
+                name="همگام‌سازی آمار ضبط NVRها",
+                description="دریافت و ذخیره حجم و ساعت ضبط دوربین‌ها از NVR",
+                interval=7200
+            ),
+            ScheduledTask(
+                id="cleanup_database",
+                name="پاک‌سازی خودکار لاگ‌های قدیمی",
+                description="حذف لاگ‌های مانیتورینگ قدیمی‌تر از ۹۰ روز برای بهینه‌سازی دیتابیس",
+                interval=86400
+            )
+        ]
+        for task in default_tasks:
+            existing = session.get(ScheduledTask, task.id)
+            if not existing:
+                session.add(task)
+            else:
+                existing.name = task.name
+                existing.description = task.description
+                session.add(existing)
+        session.commit()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global monitor_task
     init_db()
     seed_defaults()
+    seed_scheduled_tasks()
     set_broadcast_callback(ws_manager.broadcast)
     monitor_task = asyncio.create_task(start_monitor_loop())
     yield
@@ -410,6 +450,75 @@ async def restart_monitor():
 async def api_restart_monitor():
     await restart_monitor()
     return {"status": "restarted"}
+
+# --- SCHEDULER ENDPOINTS ---
+
+@app.get("/api/scheduler/tasks", dependencies=[Depends(require_auth)])
+def get_scheduler_tasks(session: Session = Depends(get_session)):
+    tasks = session.exec(select(ScheduledTask)).all()
+    return sorted(tasks, key=lambda t: t.id)
+
+class UpdateIntervalRequest(BaseModel):
+    interval: int
+
+@app.put("/api/scheduler/tasks/{task_id}/interval")
+def update_task_interval(task_id: str, payload: UpdateIntervalRequest, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
+        
+    db_task = session.get(ScheduledTask, task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="تسک یافت نشد")
+        
+    if payload.interval <= 0:
+        raise HTTPException(status_code=400, detail="بازه زمانی باید بیشتر از صفر باشد")
+        
+    db_task.interval = payload.interval
+    db_task.next_run = datetime.now() + timedelta(seconds=payload.interval)
+    session.add(db_task)
+    session.commit()
+    session.refresh(db_task)
+    return db_task
+
+class ToggleTaskRequest(BaseModel):
+    is_enabled: bool
+
+@app.put("/api/scheduler/tasks/{task_id}/toggle")
+def toggle_task_endpoint(task_id: str, payload: ToggleTaskRequest, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
+        
+    db_task = session.get(ScheduledTask, task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="تسک یافت نشد")
+        
+    db_task.is_enabled = payload.is_enabled
+    if payload.is_enabled:
+        db_task.next_run = datetime.now() + timedelta(seconds=db_task.interval)
+    session.add(db_task)
+    session.commit()
+    session.refresh(db_task)
+    return db_task
+
+@app.post("/api/scheduler/tasks/{task_id}/run")
+async def run_task_immediately(task_id: str, user: dict = Depends(require_auth)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
+        
+    success = await scheduler.trigger_task_now(task_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="تسک در حال اجراست یا یافت نشد")
+    return {"status": "triggered"}
+
+@app.post("/api/scheduler/tasks/{task_id}/stop")
+async def stop_task_immediately(task_id: str, user: dict = Depends(require_auth)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
+        
+    success = await scheduler.stop_task_now(task_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="تسک در حال اجرا نیست")
+    return {"status": "stopped"}
 
 @app.post("/api/data/purge/empty", dependencies=[Depends(require_auth)])
 async def purge_empty(session: Session = Depends(get_session)):

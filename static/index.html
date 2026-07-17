@@ -733,6 +733,32 @@
                                 <button class="btn btn-primary" onclick="saveMyAlerts()">ذخیره تنظیمات اعلان شخصی</button>
                             </div>
                         </div>
+                    <!-- Scheduled Tasks Tab -->
+                    <div class="card" id="sec-tasks" style="display: none; width: 100%;">
+                        <div class="card-header">
+                            <h3>کارهای زمان‌بندی‌شده (Scheduled Tasks)</h3>
+                        </div>
+                        <div style="padding: 20px; overflow-x: auto;">
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
+                                در این بخش می‌توانید وظایف دوره‌ای سیستم را مدیریت و زمان‌بندی کنید.
+                            </p>
+                            <table class="table" style="width: 100%; min-width: 750px;">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: right; width: 30%;">نام کار</th>
+                                        <th style="text-align: right; width: 15%;">وضعیت کار</th>
+                                        <th style="text-align: right; width: 25%;">آخرین اجرا</th>
+                                        <th style="text-align: right; width: 15%;">اجرای بعدی</th>
+                                        <th style="text-align: right; width: 15%;">دوره (ثانیه)</th>
+                                        <th style="text-align: right; width: 5%;">فعال</th>
+                                        <th style="text-align: right; width: 15%;">عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tasks-table-body">
+                                    <!-- Tasks will be dynamically rendered here -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <!-- ABOUT US SECTION -->
