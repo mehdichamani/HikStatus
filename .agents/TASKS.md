@@ -4,17 +4,17 @@
 
 ### زیرساخت و پایداری
 - [x] **timeout بالای عملیات‌های sync برای NVRهای قطع** - ✅ پردازش موازی NVRها با `asyncio.gather` در تمامی تسک‌ها
-- [x] **پیاده‌سازی لاگ‌گذاری ساختاریافته (Structured Logging)** - ✅ با loguru پیاده‌سازی شد (سطح بندی، timestamp، rotation روزانه، retention ۳۰ روز)
+- [x] **پیاده‌سازی لاگ‌گذاری ساختاریافته (Structured Logging)** - ✅ با loguru پیاده‌سازی شد
 
 ### امنیت
-- [x] **رمزنگاری پسوردها در دیتابیس** - استفاده از `passlib[bcrypt]` برای پسوردهای دیتابیس و پسورد ادمین
-- [x] **ذخیره توکن در دیتابیس** - جلوگیری از از دست رفتن sessionها بعد از ری‌استارت
-- [x] **پیاده‌سازی محافظت در برابر CSRF** - استفاده از توکن‌های CSRF یا انتقال احراز هویت به هدرهای Authorization/JWT
+- [x] **رمزنگاری پسوردها در دیتابیس** - ✅ قبلاً با PBKDF2-HMAC-SHA256 پیاده‌سازی شده
+- [x] **ذخیره توکن در دیتابیس** - ✅ قبلاً پیاده‌سازی شده (UserSession model)
+- [x] **پیاده‌سازی محافظت در برابر CSRF** - ✅ قبلاً با بررسی Origin/Referer پیاده‌سازی شده
 
 ### عملکرد
 - [x] **کاهش مصرف حافظه با استریم پاسخ XML** - ✅ با تابع `parse_xml_response` پیاده‌سازی شد (آستانه ۱MB)
-- [ ] **بهینه‌سازی پرس‌وجوهای دیتابیس** - ایندکس‌گذاری بهتر
-- [ ] **Rate limiting جامع‌تر** - در سطح APIهای حساس و جلوگیری از سوءاستفاده
+- [x] **بهینه‌سازی پرس‌وجوهای دیتابیس** - ✅ ۵ ایندکس جدید اضافه شد (downtimeevent, log, nvr)
+- [x] **Rate limiting جامع‌تر** - ✅ کلاس RateLimiter با decorators برای stream, WebSocket, restore, test endpoints
 
 ---
 
@@ -77,3 +77,5 @@
 - [x] **تاگل فعال/غیرفعال NVR در UI** - امکان فعال کردن NVRها از رابط کاربری
 - [x] **پیاده‌سازی لاگ‌گذاری ساختاریافته با loguru** - جایگزینی ۶۱ مورد print() با logger، سطح بندی، timestamp، rotation روزانه، retention ۳۰ روز
 - [x] **کاهش مصرف حافظه با استریم XML** - تابع `parse_xml_response` با آستانه ۱MB برای انتخاب between fromstring و iterparse
+- [x] **ایندکس‌گذاری بهتر دیتابیس** - ۵ ایندکس جدید برای جداول پرکاربرد (downtimeevent, log, nvr)
+- [x] **Rate limiting جامع‌تر** - کلاس RateLimiter با decorators برای stream, WebSocket, restore, test endpoints

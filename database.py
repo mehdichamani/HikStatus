@@ -213,6 +213,21 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.close()
 
+# Index creation on connection for performance
+@event.listens_for(engine, "connect")
+def create_performance_indexes(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    indexes = [
+        ("ix_downtimeevent_camera_id", "downtimeevent", "camera_id"),
+        ("ix_downtimeevent_end_time", "downtimeevent", "end_time"),
+        ("ix_log_timestamp", "log", "timestamp"),
+        ("ix_nvr_group_id", "nvr", "group_id"),
+        ("ix_nvr_enabled", "nvr", "enabled"),
+    ]
+    for idx_name, table, column in indexes:
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})")
+    cursor.close()
+
 
 def init_db():
     import os
@@ -232,7 +247,7 @@ def init_db():
 # Migration System
 # ---------------------------------------------------------------------------
 
-CURRENT_MIGRATION_VERSION = 10
+CURRENT_MIGRATION_VERSION = 11
 
 
 def _ensure_schema_version_table(conn: sqlite3.Connection):
@@ -474,6 +489,38 @@ def rollback_010_add_scheduledtask_last_error(conn: sqlite3.Connection):
 
 
 # ---------------------------------------------------------------------------
+# Migration 011 – Performance indexes
+# ---------------------------------------------------------------------------
+
+def migration_011_add_performance_indexes(conn: sqlite3.Connection):
+    """Add performance indexes for common query patterns."""
+    indexes = [
+        ("ix_downtimeevent_camera_id", "downtimeevent", "camera_id"),
+        ("ix_downtimeevent_end_time", "downtimeevent", "end_time"),
+        ("ix_log_timestamp", "log", "timestamp"),
+        ("ix_nvr_group_id", "nvr", "group_id"),
+        ("ix_nvr_enabled", "nvr", "enabled"),
+    ]
+    for idx_name, table, column in indexes:
+        conn.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})")
+        logger.info(f"[migration 011] Created index {idx_name} on {table}({column})")
+
+
+def rollback_011_add_performance_indexes(conn: sqlite3.Connection):
+    """Drop performance indexes added by migration 011."""
+    indexes = [
+        "ix_downtimeevent_camera_id",
+        "ix_downtimeevent_end_time",
+        "ix_log_timestamp",
+        "ix_nvr_group_id",
+        "ix_nvr_enabled",
+    ]
+    for idx_name in indexes:
+        conn.execute(f"DROP INDEX IF EXISTS {idx_name}")
+        logger.info(f"[rollback 011] Dropped index {idx_name}")
+
+
+# ---------------------------------------------------------------------------
 # Migration registry
 # ---------------------------------------------------------------------------
 
@@ -488,6 +535,7 @@ MIGRATIONS = {
     8: ("create_mapplan", migration_008_create_mapplan),
     9: ("add_camera_plan_id", migration_009_add_camera_plan_id),
     10: ("add_scheduledtask_last_error", migration_010_add_scheduledtask_last_error),
+    11: ("add_performance_indexes", migration_011_add_performance_indexes),
 }
 
 ROLLBACKS = {
@@ -501,6 +549,7 @@ ROLLBACKS = {
     8: rollback_008_create_mapplan,
     9: rollback_009_add_camera_plan_id,
     10: rollback_010_add_scheduledtask_last_error,
+    11: rollback_011_add_performance_indexes,
 }
 
 
