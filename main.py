@@ -619,6 +619,12 @@ def export_config_json(session: Session = Depends(get_session)):
             "alert_settings": alert_dict
         })
 
+    config_data = {
+        "settings": settings_dict,
+        "groups": groups_list,
+        "nvrs": nvrs_list,
+        "users": users_list
+    }
     config_json = json.dumps(config_data, indent=2, ensure_ascii=False)
     from fastapi.responses import Response
     return Response(
