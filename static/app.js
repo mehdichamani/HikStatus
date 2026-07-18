@@ -436,7 +436,7 @@ async function showCam(data) {
     const recConfigEl = document.getElementById('m-rec-config');
     recConfigEl.className = 'badge';
     if (c.recording_scheduled === true) {
-        const typeStr = c.recording_schedule_type ? ` (${c.recording_schedule_type})` : '';
+        const typeStr = c.recording_schedule_type ? ` - ${c.recording_schedule_type}` : '';
         recConfigEl.textContent = `فعال${typeStr}`;
         recConfigEl.classList.add('badge-success');
     } else if (c.recording_scheduled === false) {
