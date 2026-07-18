@@ -2603,3 +2603,19 @@ jdp-container .jdp-btn-close:hover {
     background: var(--surface-2) !important;
 }
 
+.modal-grid-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+@media (min-width: 768px) {
+    .cam-modal-sheet {
+        max-width: 800px !important;
+    }
+    .modal-grid-layout {
+        grid-template-columns: 1.2fr 1fr !important;
+        gap: 24px !important;
+    }
+}
+

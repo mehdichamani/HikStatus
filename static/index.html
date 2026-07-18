@@ -861,7 +861,7 @@
 
     <!-- Camera Detail Modal -->
     <div class="modal-overlay" id="camModal" onclick="closeModal()">
-        <div class="modal-sheet" onclick="event.stopPropagation()">
+        <div class="modal-sheet cam-modal-sheet" onclick="event.stopPropagation()">
             <div class="modal-handle"></div>
             <div class="modal-header">
                 <h2 id="m-name">-</h2>
@@ -872,55 +872,91 @@
                     </svg>
                 </button>
             </div>
-            <div class="modal-body">
-                <div class="info-row">
-                    <span class="info-label">NVR</span>
-                    <span class="info-value mono" id="m-nvr">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">آدرس IP</span>
-                    <span class="info-value mono" id="m-det">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">اهمیت</span>
-                    <span class="info-value badge" id="m-imp">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">قطعی ۱ ساعت اخیر</span>
-                    <span class="info-value danger" id="m-d1">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">قطعی ۲۴ ساعت اخیر</span>
-                    <span class="info-value danger" id="m-d24">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">مدل دوربین</span>
-                    <span class="info-value mono" id="m-model">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">تنظیمات ضبط</span>
-                    <span class="info-value badge" id="m-rec-config">-</span>
-                </div>
+            <div class="modal-body" style="padding: 16px 20px;">
+                <div class="modal-grid-layout">
+                    <!-- Snapshot Column -->
+                    <div class="snapshot-column" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div class="snapshot-container" id="m-snap-container" style="display:none; text-align: center; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); position: relative; aspect-ratio: 16/9; width: 100%;">
+                            <img id="m-snap-img" src="" style="width: 100%; height: 100%; object-fit: contain; display: block;" alt="Camera Snapshot">
+                            <div id="m-snap-loader" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color: #fff; font-size: 14px;">در حال دریافت تصویر...</div>
+                        </div>
+                    </div>
 
-                <div class="info-row">
-                    <span class="info-label">ضبط ۲۴ ساعت اخیر</span>
-                    <span class="info-value mono" id="m-rec-24h">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">قدیمی‌ترین فایل</span>
-                    <span class="info-value mono" id="m-oldest">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">حجم ضبط شده</span>
-                    <span class="info-value mono" id="m-size">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">مدت زمان ضبط</span>
-                    <span class="info-value mono" id="m-duration" style="direction: rtl;">-</span>
-                </div>
-                <div class="snapshot-container" id="m-snap-container" style="display:none; margin-top: 15px; text-align: center; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); position: relative; aspect-ratio: 16/9;">
-                    <img id="m-snap-img" src="" style="width: 100%; height: 100%; object-fit: contain; display: block;" alt="Camera Snapshot">
-                    <div id="m-snap-loader" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color: #fff; font-size: 14px;">در حال دریافت تصویر...</div>
+                    <!-- Info Column -->
+                    <div class="info-column" style="display: flex; flex-direction: column; gap: 12px;">
+                        
+                        <!-- Grid info cards -->
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                            
+                            <!-- Card: NVR -->
+                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                                <span style="font-size: 10px; color: var(--text-secondary);">دستگاه NVR</span>
+                                <span class="mono" id="m-nvr" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                            </div>
+
+                            <!-- Card: IP / CH -->
+                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                                <span style="font-size: 10px; color: var(--text-secondary);">آدرس IP و کانال</span>
+                                <span class="mono" id="m-det" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                            </div>
+
+                            <!-- Card: Importance -->
+                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                                <span style="font-size: 10px; color: var(--text-secondary);">اهمیت دوربین</span>
+                                <div>
+                                    <span id="m-imp" class="badge" style="font-size: 11px; padding: 2px 6px;">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Card: Model -->
+                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                                <span style="font-size: 10px; color: var(--text-secondary);">مدل دستگاه</span>
+                                <span class="mono" id="m-model" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                            </div>
+
+                        </div>
+
+                        <!-- Section: Stability Stats -->
+                        <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface);">
+                            <span style="font-size: 11px; font-weight: bold; color: var(--text-secondary); border-bottom: 1px solid var(--border); padding-bottom: 4px; display: block; margin-bottom: 2px;">پایداری و قطعی</span>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                                <span style="color: var(--text-secondary);">قطعی ۱ ساعت اخیر:</span>
+                                <span class="text-danger" id="m-d1" style="font-weight: 600;">-</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                                <span style="color: var(--text-secondary);">قطعی ۲۴ ساعت اخیر:</span>
+                                <span class="text-danger" id="m-d24" style="font-weight: 600;">-</span>
+                            </div>
+                        </div>
+
+                        <!-- Section: Recording Stats -->
+                        <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface);">
+                            <span style="font-size: 11px; font-weight: bold; color: var(--text-secondary); border-bottom: 1px solid var(--border); padding-bottom: 4px; display: block; margin-bottom: 2px;">وضعیت ضبط تصاویر (شبانه‌روزی)</span>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; font-size: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: var(--text-secondary);">تنظیمات:</span>
+                                    <span id="m-rec-config" class="badge" style="font-size: 11px; padding: 2px 6px;">-</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: var(--text-secondary);">ضبط ۲۴ ساعت اخیر:</span>
+                                    <span class="mono" id="m-rec-24h" style="font-weight: 500;">-</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: var(--text-secondary);">حجم ذخیره:</span>
+                                    <span class="mono" id="m-size" style="font-weight: 500;">-</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: var(--text-secondary);">مدت کل:</span>
+                                    <span class="mono" id="m-duration" style="font-weight: 500; direction: ltr;">-</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px dashed var(--border); padding-top: 6px; margin-top: 2px; align-items: center;">
+                                <span style="color: var(--text-secondary);">قدیمی‌ترین فایل موجود:</span>
+                                <span class="mono" id="m-oldest" style="font-weight: 500;">-</span>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">

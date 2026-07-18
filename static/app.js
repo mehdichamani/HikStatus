@@ -422,22 +422,28 @@ async function showCam(data) {
     document.getElementById('m-name').textContent = c.name;
     document.getElementById('m-nvr').textContent = c.nvr_ip;
     document.getElementById('m-det').textContent = `${c.ip} (CH ${c.channel_id})`;
-    document.getElementById('m-imp').textContent = ['کم', 'عادی', 'مهم'][c.importance - 1];
+    
+    const impEl = document.getElementById('m-imp');
+    impEl.textContent = ['کم', 'عادی', 'مهم'][c.importance - 1];
+    impEl.className = 'badge';
+    if (c.importance === 1) impEl.classList.add('badge-info');
+    else if (c.importance === 2) impEl.classList.add('badge-warning');
+    else if (c.importance === 3) impEl.classList.add('badge-danger');
     
     // Populate specs & recording stats
     document.getElementById('m-model').textContent = c.model || 'نامشخص';
     
     const recConfigEl = document.getElementById('m-rec-config');
+    recConfigEl.className = 'badge';
     if (c.recording_scheduled === true) {
         const typeStr = c.recording_schedule_type ? ` (${c.recording_schedule_type})` : '';
         recConfigEl.textContent = `فعال${typeStr}`;
-        recConfigEl.style.color = '#28a745';
+        recConfigEl.classList.add('badge-success');
     } else if (c.recording_scheduled === false) {
         recConfigEl.textContent = 'غیرفعال';
-        recConfigEl.style.color = '#dc3545';
+        recConfigEl.classList.add('badge-danger');
     } else {
         recConfigEl.textContent = 'نامشخص';
-        recConfigEl.style.color = '';
     }
     
     let rec24hText = 'نامشخص';
