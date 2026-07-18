@@ -327,7 +327,7 @@ function renderDash() {
 
 function setDashCamFilter(filter) {
     dashCamFilter = filter;
-    document.querySelectorAll('.dash-filter-bar .filter-chips .chip').forEach(b => {
+    document.querySelectorAll('.chip[id^="filter-cam-"]').forEach(b => {
         b.classList.remove('active');
     });
     if (filter === 'all') document.getElementById('filter-cam-all').classList.add('active');

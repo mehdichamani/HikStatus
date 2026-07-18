@@ -2619,3 +2619,16 @@ jdp-container .jdp-btn-close:hover {
     }
 }
 
+#filter-cam-online {
+    color: var(--success) !important;
+}
+#filter-cam-online.active {
+    color: white !important;
+}
+#filter-cam-offline {
+    color: var(--danger) !important;
+}
+#filter-cam-offline.active {
+    color: white !important;
+}
+
