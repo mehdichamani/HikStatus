@@ -419,9 +419,16 @@ async function showCam(data) {
         snapContainer.style.display = 'none';
     };
 
+    // Find factory name
+    const nvrObj = nvrCache.find(n => n.ip === c.nvr_ip);
+    const groupObj = nvrObj && nvrObj.group_id ? groupCache.find(g => g.id === nvrObj.group_id) : null;
+    const groupName = groupObj && groupObj.name ? groupObj.name : 'سایر کارخانه‌ها';
+
     document.getElementById('m-name').textContent = c.name;
-    document.getElementById('m-nvr').textContent = c.nvr_ip;
-    document.getElementById('m-det').textContent = `${c.ip} (CH ${c.channel_id})`;
+    document.getElementById('m-factory').textContent = groupName;
+    document.getElementById('m-nvr').textContent = `${getNvrDisplayName(c.nvr_ip)} (${c.nvr_ip})`;
+    document.getElementById('m-cam-ip').textContent = c.ip || 'نامشخص';
+    document.getElementById('m-cam-ch').textContent = c.channel_id ? `کانال ${c.channel_id}` : 'نامشخص';
     
     const impEl = document.getElementById('m-imp');
     impEl.textContent = ['کم', 'عادی', 'مهم'][c.importance - 1];

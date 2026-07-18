@@ -876,7 +876,7 @@
                 <div class="modal-grid-layout">
                     <!-- Snapshot Column -->
                     <div class="snapshot-column" style="display: flex; flex-direction: column; gap: 8px;">
-                        <div class="snapshot-container" id="m-snap-container" style="display:none; text-align: center; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); position: relative; aspect-ratio: 16/9; width: 100%;">
+                        <div class="snapshot-container" id="m-snap-container" style="display:none; text-align: center; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); position: relative; aspect-ratio: 4/3; width: 100%;">
                             <img id="m-snap-img" src="" style="width: 100%; height: 100%; object-fit: contain; display: block;" alt="Camera Snapshot">
                             <div id="m-snap-loader" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color: #fff; font-size: 14px;">در حال دریافت تصویر...</div>
                         </div>
@@ -888,16 +888,28 @@
                         <!-- Grid info cards -->
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
                             
+                            <!-- Card: Factory -->
+                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                                <span style="font-size: 10px; color: var(--text-secondary);">نام کارخانه</span>
+                                <span id="m-factory" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                            </div>
+
                             <!-- Card: NVR -->
                             <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
                                 <span style="font-size: 10px; color: var(--text-secondary);">دستگاه NVR</span>
                                 <span class="mono" id="m-nvr" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
                             </div>
 
-                            <!-- Card: IP / CH -->
+                            <!-- Card: Camera IP -->
                             <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
-                                <span style="font-size: 10px; color: var(--text-secondary);">آدرس IP و کانال</span>
-                                <span class="mono" id="m-det" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                                <span style="font-size: 10px; color: var(--text-secondary);">آدرس IP دوربین</span>
+                                <span class="mono" id="m-cam-ip" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                            </div>
+
+                            <!-- Card: Channel -->
+                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                                <span style="font-size: 10px; color: var(--text-secondary);">کانال روی NVR</span>
+                                <span class="mono" id="m-cam-ch" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
                             </div>
 
                             <!-- Card: Importance -->
