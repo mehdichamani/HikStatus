@@ -249,7 +249,7 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
 
     if not is_failed:
         if nvr_obj.status == "Offline":
-            log_event(session, "NVR", "Online", f"{nvr_name} reconnected")
+            log_event(session, "NVR", "Online", f"اتصال مجدد {nvr_name} برقرار شد")
             await broadcast({
                 "type": "alert",
                 "title": "اتصال مجدد NVR",
@@ -685,7 +685,7 @@ async def task_ping_cameras():
                 offline_cams = session.exec(select(Camera).where(Camera.nvr_ip == nvr_obj.ip)).all()
                 for cam in offline_cams:
                     if cam.status != "Offline":
-                        log_event(session, "Camera", "Offline", f"{cam.name} ({cam.ip}) - NVR auth error")
+                        log_event(session, "Camera", "Offline", f"{cam.name} ({cam.ip}) - خطای احراز هویت NVR")
                         cam.status = "Offline"
                         open_evt = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id, DowntimeEvent.end_time == None)).first()
                         if not open_evt:
@@ -696,13 +696,13 @@ async def task_ping_cameras():
                 continue
             elif status == "FAIL":
                 nvr_label = f"{nvr_obj.name} ({nvr_obj.ip})" if nvr_obj.name else f"NVR {nvr_obj.ip}"
-                error_message = f"{nvr_label} Failed: {payload}"
+                error_message = f"خطا در {nvr_label}: {payload}"
                 await process_nvr_alerts(session, nvr_obj, True, error_message)
                 # Mark all cameras of this offline NVR as Offline and include in broadcast
                 offline_cams = session.exec(select(Camera).where(Camera.nvr_ip == nvr_obj.ip)).all()
                 for cam in offline_cams:
                     if cam.status != "Offline":
-                        log_event(session, "Camera", "Offline", f"{cam.name} ({cam.ip}) - NVR offline")
+                        log_event(session, "Camera", "Offline", f"{cam.name} ({cam.ip}) - قطع ارتباط با NVR")
                         cam.status = "Offline"
                         open_evt = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id, DowntimeEvent.end_time == None)).first()
                         if not open_evt:
@@ -769,7 +769,8 @@ async def task_ping_cameras():
             if t_alerts:
                 res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها قطع شدند", t_alerts, "warning", gid)
                 is_ok = res is True
-                log_event(session, "Telegram", "Sent" if is_ok else "Failed", f"Sent {len(t_alerts)} alerts for group {gid}")
+                status_txt = "با موفقیت انجام شد" if is_ok else "با خطا مواجه شد"
+                log_event(session, "Telegram", "Sent" if is_ok else "Failed", f"ارسال {len(t_alerts)} هشدار تلگرام برای گروه {gid} {status_txt}")
                 if not is_ok:
                     await broadcast({
                         "type": "alert",
@@ -789,7 +790,8 @@ async def task_ping_cameras():
             if m_alerts:
                 res = await asyncio.to_thread(send_email_batch, "دوربین‌ها قطع شدند", m_alerts, "warning", gid)
                 is_ok = res is True
-                log_event(session, "Mail", "Sent" if is_ok else "Failed", f"Sent {len(m_alerts)} alerts for group {gid}")
+                status_txt = "با موفقیت انجام شد" if is_ok else "با خطا مواجه شد"
+                log_event(session, "Mail", "Sent" if is_ok else "Failed", f"ارسال {len(m_alerts)} هشدار ایمیل برای گروه {gid} {status_txt}")
                 if not is_ok:
                     await broadcast({
                         "type": "alert",
@@ -822,7 +824,7 @@ async def task_ping_cameras():
             if summary_lines:
                 header = f"📊 گزارش قطعی ساعتی ({now.strftime('%H:00')})"
                 await asyncio.to_thread(send_telegram_batch, header, summary_lines, "info")
-                log_event(session, "Telegram", "Sent", "Hourly Summary")
+                log_event(session, "Telegram", "Sent", "گزارش خلاصه ساعتی")
             last_summary_hour = now.hour
 
         session.commit()
@@ -961,7 +963,7 @@ async def task_capture_camera_snapshots():
 async def start_monitor_loop():
     logger.info("Monitor loop started (via scheduler)...")
     with Session(engine) as session:
-        log_event(session, "Service", "Started", "Monitor loop initialized (via scheduler)")
+        log_event(session, "Service", "Started", "راه‌اندازی سرویس مانیتورینگ (توسط زمان‌بند)")
     from scheduler import scheduler
     try:
         await scheduler.start()

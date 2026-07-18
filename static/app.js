@@ -1096,6 +1096,26 @@ function resetLogs() {
     fetchLogs();
 }
 
+function translateLogDetails(text) {
+    if (!text) return "";
+    let t = text;
+    // NVR reconnected
+    t = t.replace(/(\S+) reconnected/g, "اتصال مجدد $1 برقرار شد");
+    // NVR auth error
+    t = t.replace(/NVR auth error/g, "خطای احراز هویت NVR");
+    // NVR offline
+    t = t.replace(/NVR offline/g, "قطع ارتباط با NVR");
+    // NVR failed connection exception
+    t = t.replace(/Failed: HTTPConnectionPool.*/g, "خطا در اتصال به دستگاه (Connection Timeout)");
+    // Monitor loop initialized (via scheduler)
+    t = t.replace(/Monitor loop initialized \(via scheduler\)/g, "راه‌اندازی سرویس مانیتورینگ (توسط زمان‌بند)");
+    // Sent X alerts for group Y
+    t = t.replace(/Sent (\d+) alerts for group (\d+)/g, "ارسال $1 هشدار برای گروه $2");
+    // Hourly Summary
+    t = t.replace(/Hourly Summary/g, "گزارش خلاصه ساعتی");
+    return t;
+}
+
 async function fetchLogs() {
     if (loading || allLoaded) return;
     loading = true;
@@ -1107,7 +1127,7 @@ async function fetchLogs() {
     if (logs.length < 30) allLoaded = true;
 
     document.getElementById('log-list').insertAdjacentHTML('beforeend', logs.map(l => {
-        let detail = l.details;
+        let detail = translateLogDetails(l.details);
         if (detail.includes('mins')) detail = `<span class="downtime-tag">${detail.match(/\d+m/)}</span> ` + detail;
         const cls = ['Error', 'Failed', 'Offline'].includes(l.state) ? 'status-danger' : 'status-success';
         return `<tr>
@@ -1308,7 +1328,7 @@ async function genReport() {
                 <div class="report-item-header" style="margin-bottom:0;">
                     <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
                         <span class="badge ${statusClass}">${statusText}</span>
-                        <span>${i.details}</span>
+                        <span>${translateLogDetails(i.details)}</span>
                     </span>
                     <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
                 </div>
@@ -1326,7 +1346,7 @@ async function genReport() {
                 <div class="report-item-header" style="margin-bottom:0;">
                     <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
                         <span class="badge warning">خطای رمز عبور</span>
-                        <span>${i.details}</span>
+                        <span>${translateLogDetails(i.details)}</span>
                     </span>
                     <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
                 </div>
@@ -1346,7 +1366,7 @@ async function genReport() {
                 <div class="report-item-header" style="margin-bottom:0;">
                     <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
                         <span class="badge ${statusClass}">${statusText}</span>
-                        <span>${i.details}</span>
+                        <span>${translateLogDetails(i.details)}</span>
                     </span>
                     <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
                 </div>
