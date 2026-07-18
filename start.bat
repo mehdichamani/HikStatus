@@ -10,6 +10,15 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
+:: ── Warn if ffmpeg missing ─────────────────────────────────────────────────────
+where ffmpeg >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] ffmpeg not found in PATH.
+    echo        RTSP streaming will not work without it.
+    echo        Run install.bat or install ffmpeg manually.
+    echo.
+)
+
 :: ── Optional port argument (default 28888) ───────────────────────────────────
 set PORT=28888
 if not "%~1"=="" set PORT=%~1

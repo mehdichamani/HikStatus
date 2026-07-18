@@ -8,18 +8,41 @@ echo  ║       HikStatus - Installation       ║
 echo  ╚══════════════════════════════════════╝
 echo.
 
-:: ── Check Python ────────────────────────────────────────────────────────────
-where python >nul 2>&1
+:: ── Check & install Python ──────────────────────────────────────────────────
+python --version >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Python is not installed or not in PATH.
-    echo         Download it from https://www.python.org/downloads/
-    echo         Make sure to check "Add Python to PATH" during installation.
-    pause
-    exit /b 1
+    :: Try py launcher as fallback
+    py -3 --version >nul 2>&1
+    if errorlevel 1 (
+        echo [INFO] Python is not installed. Installing via winget...
+        where winget >nul 2>&1
+        if errorlevel 1 (
+            echo [ERROR] winget is not available. Please install Python manually:
+            echo        https://www.python.org/downloads/
+            echo        Make sure to check "Add Python to PATH" during installation.
+            pause
+            exit /b 1
+        )
+        winget install --id Python.Python.3.13 --accept-package-agreements --accept-source-agreements
+        if errorlevel 1 (
+            echo [ERROR] Python install failed. Please install Python manually:
+            echo        https://www.python.org/downloads/
+            pause
+            exit /b 1
+        )
+        echo [OK] Python installed.
+        echo [INFO] Please CLOSE this window and re-run install.bat.
+        echo        The new Python needs a fresh PATH to work.
+        pause
+        exit /b 0
+    )
 )
 
 for /f "tokens=*" %%v in ('python --version 2^>^&1') do set PY_VER=%%v
-echo [OK] Found %PY_VER%
+if not defined PY_VER (
+    for /f "tokens=*" %%v in ('py -3 --version 2^>^&1') do set PY_VER=%%v
+)
+echo [OK] Found !PY_VER!
 
 :: ── Create virtual environment ───────────────────────────────────────────────
 if not exist ".venv\Scripts\python.exe" (
@@ -45,6 +68,28 @@ if errorlevel 1 (
     exit /b 1
 )
 echo [OK] Dependencies installed.
+
+:: ── Check & install ffmpeg ───────────────────────────────────────────────────
+where ffmpeg >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] ffmpeg not found. Installing via winget...
+    where winget >nul 2>&1
+    if errorlevel 1 (
+        echo [WARN] winget is not available. Please install ffmpeg manually:
+        echo        https://www.gyan.dev/ffmpeg/builds/
+        echo        Download ffmpeg-release-essentials.zip and add bin\ to PATH.
+    ) else (
+        winget install --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
+        if errorlevel 1 (
+            echo [WARN] winget install failed. Please install ffmpeg manually:
+            echo        https://www.gyan.dev/ffmpeg/builds/
+        ) else (
+            echo [OK] ffmpeg installed.
+        )
+    )
+) else (
+    echo [OK] ffmpeg found.
+)
 
 :: ── Create data directory ────────────────────────────────────────────────────
 if not exist "data\" (
@@ -72,8 +117,7 @@ echo  ║  Installation complete!                                  ║
 echo  ║                                                          ║
 echo  ║  Next steps:                                             ║
 echo  ║  1. Edit .env  and set ADMIN_USER / ADMIN_PASS           ║
-echo  ║  2. (Optional) Edit init_config.json with your NVR info  ║
-echo  ║  3. Run start.bat to launch HikStatus                    ║
+echo  ║  2. Run start.bat to launch HikStatus                    ║
 echo  ╚══════════════════════════════════════════════════════════╝
 echo.
 pause
