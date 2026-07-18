@@ -1413,21 +1413,84 @@ def get_cam_stats(cam_id: int, session: Session = Depends(get_session), user: di
 def generate_report(start: float, end: float, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     start_dt = datetime.fromtimestamp(start)
     end_dt = datetime.fromtimestamp(end)
+    
     if user["role"] == "admin":
         cameras = session.exec(select(Camera)).all()
+        nvr_logs = session.exec(select(Log).where(
+            Log.log_type == "NVR",
+            Log.timestamp >= start_dt,
+            Log.timestamp <= end_dt
+        ).order_by(Log.timestamp.desc())).all()
     else:
         nvrs = session.exec(select(NVR).where(NVR.group_id == user["group_id"])).all()
         nvr_ips = [n.ip for n in nvrs]
         if not nvr_ips:
-            return []
+            return {
+                "cameras": [],
+                "nvr_events": [],
+                "nvr_auth_errors": [],
+                "task_events": []
+            }
         cameras = session.exec(select(Camera).where(Camera.nvr_ip.in_(nvr_ips))).all()
+        
+        all_nvr_logs = session.exec(select(Log).where(
+            Log.log_type == "NVR",
+            Log.timestamp >= start_dt,
+            Log.timestamp <= end_dt
+        ).order_by(Log.timestamp.desc())).all()
+        nvr_logs = []
+        for l in all_nvr_logs:
+            for n in nvrs:
+                if n.ip in l.details or (n.name and n.name in l.details):
+                    nvr_logs.append(l)
+                    break
+
     report_data = []
     for c in cameras:
         mins = calculate_downtime_range(session, c.id, start_dt, end_dt)
         if mins > 0:
             report_data.append({"name": c.name, "ip": c.ip, "mins": mins})
     report_data.sort(key=lambda x: x['mins'], reverse=True)
-    return report_data
+
+    nvr_events = []
+    nvr_auth_errors = []
+    for l in nvr_logs:
+        shamsi = format_shamsi_datetime(l.timestamp)
+        item = {
+            "id": l.id,
+            "timestamp": l.timestamp.isoformat(),
+            "shamsi_date": shamsi,
+            "state": l.state,
+            "details": l.details
+        }
+        if l.state == "AuthError":
+            nvr_auth_errors.append(item)
+        else:
+            nvr_events.append(item)
+
+    task_logs = session.exec(select(Log).where(
+        Log.log_type == "Task",
+        Log.timestamp >= start_dt,
+        Log.timestamp <= end_dt
+    ).order_by(Log.timestamp.desc())).all()
+    
+    task_events = []
+    for l in task_logs:
+        shamsi = format_shamsi_datetime(l.timestamp)
+        task_events.append({
+            "id": l.id,
+            "timestamp": l.timestamp.isoformat(),
+            "shamsi_date": shamsi,
+            "state": l.state,
+            "details": l.details
+        })
+
+    return {
+        "cameras": report_data,
+        "nvr_events": nvr_events,
+        "nvr_auth_errors": nvr_auth_errors,
+        "task_events": task_events
+    }
 
 # --- User & Personal Alerts API ---
 class UserCreate(BaseModel):

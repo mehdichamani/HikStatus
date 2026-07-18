@@ -1267,29 +1267,92 @@ async function genReport() {
     const s = startDate.getTime() / 1000;
     const e = endDate.getTime() / 1000;
 
-    document.getElementById('rep-list').innerHTML = '<div class="loader"><div class="spinner"></div><span>درحال تحلیل...</span></div>';
+    const loaderHtml = '<div class="loader"><div class="spinner"></div><span>درحال تحلیل...</span></div>';
+    document.getElementById('rep-list').innerHTML = loaderHtml;
+    document.getElementById('rep-nvr-list').innerHTML = loaderHtml;
+    document.getElementById('rep-auth-list').innerHTML = loaderHtml;
+    document.getElementById('rep-task-list').innerHTML = loaderHtml;
 
     const res = await apiFetch(`${API}/reports/generate?start=${s}&end=${e}`);
     const data = await res.json();
 
-    if (data.length === 0) {
+    // 1. Camera Downtimes
+    const cameras = data.cameras || [];
+    if (cameras.length === 0) {
         document.getElementById('rep-list').innerHTML = '<div class="empty-state">قطعی‌ای یافت نشد</div>';
-        return;
+    } else {
+        const max = Math.max(...cameras.map(i => i.mins));
+        document.getElementById('rep-list').innerHTML = cameras.map(i => {
+            const pct = Math.min(100, (i.mins / max) * 100);
+            return `<div class="report-item">
+                <div class="report-item-header">
+                    <span class="report-item-name">${i.name}</span>
+                    <span class="report-item-value">${i.mins} دقیقه</span>
+                </div>
+                <div class="report-bar">
+                    <div class="report-bar-fill" style="width:${pct}%"></div>
+                </div>
+            </div>`;
+        }).join('');
     }
 
-    const max = Math.max(...data.map(i => i.mins));
-    document.getElementById('rep-list').innerHTML = data.map(i => {
-        const pct = Math.min(100, (i.mins / max) * 100);
-        return `<div class="report-item">
-            <div class="report-item-header">
-                <span class="report-item-name">${i.name}</span>
-                <span class="report-item-value">${i.mins} دقیقه</span>
-            </div>
-            <div class="report-bar">
-                <div class="report-bar-fill" style="width:${pct}%"></div>
-            </div>
-        </div>`;
-    }).join('');
+    // 2. NVR Events
+    const nvrEvents = data.nvr_events || [];
+    if (nvrEvents.length === 0) {
+        document.getElementById('rep-nvr-list').innerHTML = '<div class="empty-state">رویدادی یافت نشد</div>';
+    } else {
+        document.getElementById('rep-nvr-list').innerHTML = nvrEvents.map(i => {
+            const statusClass = i.state === 'Online' ? 'success' : 'danger';
+            const statusText = i.state === 'Online' ? 'وصل مجدد NVR' : 'قطع ارتباط NVR';
+            return `<div class="report-item">
+                <div class="report-item-header" style="margin-bottom:0;">
+                    <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
+                        <span class="badge ${statusClass}">${statusText}</span>
+                        <span>${i.details}</span>
+                    </span>
+                    <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // 3. NVR Auth Errors
+    const authErrors = data.nvr_auth_errors || [];
+    if (authErrors.length === 0) {
+        document.getElementById('rep-auth-list').innerHTML = '<div class="empty-state">خطایی یافت نشد</div>';
+    } else {
+        document.getElementById('rep-auth-list').innerHTML = authErrors.map(i => {
+            return `<div class="report-item">
+                <div class="report-item-header" style="margin-bottom:0;">
+                    <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
+                        <span class="badge warning">خطای رمز عبور</span>
+                        <span>${i.details}</span>
+                    </span>
+                    <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // 4. Task Events
+    const taskEvents = data.task_events || [];
+    if (taskEvents.length === 0) {
+        document.getElementById('rep-task-list').innerHTML = '<div class="empty-state">رویدادی یافت نشد</div>';
+    } else {
+        document.getElementById('rep-task-list').innerHTML = taskEvents.map(i => {
+            const statusClass = i.state === 'Started' ? 'info' : (i.state === 'Success' ? 'success' : 'danger');
+            const statusText = i.state === 'Started' ? 'شروع اجرا' : (i.state === 'Success' ? 'پایان موفق' : 'خطای اجرا');
+            return `<div class="report-item">
+                <div class="report-item-header" style="margin-bottom:0;">
+                    <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
+                        <span class="badge ${statusClass}">${statusText}</span>
+                        <span>${i.details}</span>
+                    </span>
+                    <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
 }
 
 function toggleReportSection(forceHeatmap = null) {

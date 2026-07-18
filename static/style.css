@@ -496,6 +496,26 @@ body {
     color: var(--danger);
 }
 
+.badge.success {
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.badge.danger {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+.badge.warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--warning);
+}
+
+.badge.info {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary);
+}
+
 /* ===== CAMERA GRID ===== */
 .cam-grid {
     display: grid;
