@@ -176,19 +176,6 @@ function renderDash() {
         filteredCams = filteredCams.filter(c => c.status !== 'Online');
     }
 
-    // Apply search query (matches camera name, camera IP, NVR name, or NVR IP)
-    if (dashCamSearchVal.trim() !== '') {
-        const query = dashCamSearchVal.toLowerCase().trim();
-        filteredCams = filteredCams.filter(c => {
-            const camName = (c.name || '').toLowerCase();
-            const camIp = (c.ip || '').toLowerCase();
-            const nvrObj = nvrCache.find(n => n.ip === c.nvr_ip);
-            const nvrName = nvrObj && nvrObj.name ? nvrObj.name.toLowerCase() : '';
-            const nvrIp = (c.nvr_ip || '').toLowerCase();
-            return camName.includes(query) || camIp.includes(query) || nvrName.includes(query) || nvrIp.includes(query);
-        });
-    }
-
     // Render Offline Section
     const off = filteredCams.filter(c => c.status !== 'Online');
     if (off.length > 0) {
@@ -198,9 +185,9 @@ function renderDash() {
         document.getElementById('offline-grid').innerHTML = off.map(c => createCard(c)).join('');
     } else {
         document.getElementById('offline-section').classList.add('hidden');
-        // Only show "All OK" if there are no offline cameras in the entire unfiltered cache, and we are not filtering/searching
+        // Only show "All OK" if there are no offline cameras in the entire unfiltered cache, and we are not filtering
         const unfilteredOff = dashCamerasCache.filter(c => c.status !== 'Online');
-        if (unfilteredOff.length === 0 && dashCamSearchVal.trim() === '' && dashCamFilter === 'all') {
+        if (unfilteredOff.length === 0 && dashCamFilter === 'all') {
             document.getElementById('all-ok').classList.remove('hidden');
         } else {
             document.getElementById('all-ok').classList.add('hidden');
@@ -336,11 +323,6 @@ function renderDash() {
         unassignedHtml += `</div></div>`;
         con.innerHTML += unassignedHtml;
     }
-}
-
-function onDashCamSearchChange(val) {
-    dashCamSearchVal = val;
-    renderDash();
 }
 
 function setDashCamFilter(filter) {
@@ -1466,6 +1448,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     nav('dash');
+    warmUpSearchCache();
     connectWS();
     initBrowserAlerts();
     checkAdminPasswordWarning();
@@ -3668,4 +3651,105 @@ function handleTaskStatusUpdate(task) {
     if (activeTabBtn && activeTabBtn.getAttribute('data-tab') === 'sec-tasks') {
         renderScheduledTasks();
     }
+}
+
+// ===== GLOBAL SEARCH AND DROPDOWN =====
+async function warmUpSearchCache() {
+    try {
+        if (!nvrCache || nvrCache.length === 0) {
+            const nRes = await apiFetch(`${API}/nvrs`);
+            nvrCache = await nRes.json();
+        }
+        if (!groupCache || groupCache.length === 0) {
+            const gRes = await apiFetch(`${API}/groups`);
+            groupCache = await gRes.json();
+        }
+        if (!dashCamerasCache || dashCamerasCache.length === 0) {
+            const res = await apiFetch(`${API}/cameras`);
+            dashCamerasCache = await res.json();
+        }
+    } catch (e) {
+        console.error('Failed to warm up search cache:', e);
+    }
+}
+
+function toggleGlobalSearch(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('global-search-dropdown');
+    if (!dropdown) return;
+    
+    const isHidden = dropdown.classList.toggle('hidden');
+    if (!isHidden) {
+        const input = document.getElementById('global-search-input');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        document.getElementById('global-search-results').innerHTML = 
+            '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">عبارتی وارد کنید...</div>';
+        
+        warmUpSearchCache();
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const container = document.querySelector('.global-search-container');
+    const dropdown = document.getElementById('global-search-dropdown');
+    if (container && dropdown && !container.contains(e.target)) {
+        dropdown.classList.add('hidden');
+    }
+});
+
+function onGlobalSearch(query) {
+    const resultsContainer = document.getElementById('global-search-results');
+    if (!resultsContainer) return;
+
+    if (!query || query.trim() === '') {
+        resultsContainer.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">عبارتی وارد کنید...</div>';
+        return;
+    }
+
+    const q = query.toLowerCase().trim();
+    
+    // Find matching cameras
+    const matches = dashCamerasCache.filter(c => {
+        const camName = (c.name || '').toLowerCase();
+        const camIp = (c.ip || '').toLowerCase();
+        
+        // Find NVR and its Group
+        const nvrObj = nvrCache.find(n => n.ip === c.nvr_ip);
+        const nvrName = nvrObj && nvrObj.name ? nvrObj.name.toLowerCase() : '';
+        const groupObj = nvrObj && nvrObj.group_id ? groupCache.find(g => g.id === nvrObj.group_id) : null;
+        const groupName = groupObj && groupObj.name ? groupObj.name.toLowerCase() : '';
+
+        return camName.includes(q) || camIp.includes(q) || nvrName.includes(q) || groupName.includes(q);
+    });
+
+    if (matches.length === 0) {
+        resultsContainer.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">دوربینی یافت نشد</div>';
+        return;
+    }
+
+    resultsContainer.innerHTML = matches.map(c => {
+        const nvrObj = nvrCache.find(n => n.ip === c.nvr_ip);
+        const nvrName = nvrObj && nvrObj.name ? nvrObj.name : `NVR ${getNvrNum(c.nvr_ip)}`;
+        const groupObj = nvrObj && nvrObj.group_id ? groupCache.find(g => g.id === nvrObj.group_id) : null;
+        const groupName = groupObj && groupObj.name ? groupObj.name : 'سایر NVRها';
+
+        const pathText = `${groupName} › ${nvrName} › ${c.name}`;
+        const meta = encodeURIComponent(JSON.stringify(c));
+        const statusDot = c.status === 'Online' ? 
+            '<span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>' : 
+            '<span style="width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block;"></span>';
+
+        return `<div class="search-result-item" onclick="showCam('${meta}'); toggleGlobalSearch();" style="padding: 8px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.2s; border-radius: 4px; gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 13px; font-weight: 500; color: var(--text);">${pathText}</span>
+                <span style="font-size: 11px; color: var(--text-secondary);">${c.ip}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                ${statusDot}
+            </div>
+        </div>`;
+    }).join('');
 }

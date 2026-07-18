@@ -2599,3 +2599,7 @@ jdp-container .jdp-btn-close:hover {
     }
 }
 
+.search-result-item:hover {
+    background: var(--surface-2) !important;
+}
+
