@@ -1295,15 +1295,8 @@ async function genReport() {
 function toggleReportSection(forceHeatmap = null) {
     const listSection = document.getElementById('report-list-section');
     const heatmapSection = document.getElementById('report-heatmap-section');
-    const toggleBtn = document.getElementById('btn-toggle-heatmap');
-
-    const currentlyHidden = heatmapSection.classList.contains('hidden');
-    const showHeatmap = forceHeatmap === null ? currentlyHidden : forceHeatmap;
-
-    listSection.classList.toggle('hidden', showHeatmap);
-    heatmapSection.classList.toggle('hidden', !showHeatmap);
-
-    toggleBtn.textContent = showHeatmap ? 'گزارش قطعی' : 'نقشه حرارتی';
+    if (listSection) listSection.classList.remove('hidden');
+    if (heatmapSection) heatmapSection.classList.remove('hidden');
 }
 
 // --- INIT ---
