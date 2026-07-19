@@ -1763,16 +1763,9 @@ body {
     #settings .settings-nav {
         flex: 1;
         flex-direction: row !important;
-        overflow-x: auto;
-        white-space: nowrap;
+        flex-wrap: wrap !important;
         gap: 8px;
         padding: 4px 0;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none; /* Firefox */
-    }
-    
-    #settings .settings-nav::-webkit-scrollbar {
-        display: none; /* Safari and Chrome */
     }
 
     #settings .settings-nav button {
