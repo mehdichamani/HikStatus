@@ -105,7 +105,6 @@ class TaskScheduler:
                 db_task.status = "Running"
                 db_task.last_run = datetime.now()
                 session.add(db_task)
-                session.add(Log(log_type="Task", state="Started", details=f"شروع اجرای تسک {db_task.name}"))
                 session.commit()
         await self._broadcast_status(task_id, "Running")
         
@@ -133,11 +132,12 @@ class TaskScheduler:
                     db_task.next_run = datetime.now() + timedelta(seconds=db_task.interval)
                     session.add(db_task)
                     
-                    status_fa = "با موفقیت پایان یافت" if status_str == "Success" else ("لغو شد" if status_str == "Cancelled" else "با خطا مواجه شد")
-                    details_str = f"پایان اجرای تسک {db_task.name} ({status_fa})"
-                    if error_msg:
-                        details_str += f" - خطای سیستم: {error_msg}"
-                    session.add(Log(log_type="Task", state=status_str, details=details_str))
+                    if status_str != "Success":
+                        status_fa = "لغو شد" if status_str == "Cancelled" else "با خطا مواجه شد"
+                        details_str = f"پایان اجرای تسک {db_task.name} ({status_fa})"
+                        if error_msg:
+                            details_str += f" - خطای سیستم: {error_msg}"
+                        session.add(Log(log_type="Task", state=status_str, details=details_str))
                     
                     session.commit()
             self.active_tasks.pop(task_id, None)
