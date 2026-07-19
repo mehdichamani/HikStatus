@@ -1,24 +1,45 @@
 # وظایف توسعه پروژه HikStatus
 
-## 🔴 اولویت بالا (امنیت و پایداری)
+## 🔴 بحرانی (نیاز به حل فوری)
 
-### رفع مشکلات امنیتی
+### امنیتی
 - [ ] **[SEC-1] اضافه کردن `secure=True` به کوکی session** — `main.py:366`
 - [ ] **[BUG-4] تغییر مسیر `/api/data/purge` به `require_admin`** — `main.py:506`
 - [ ] **[BUG-5] تغییر مسیر `/api/data/backup` به `require_admin`** — `main.py:514`
-- [ ] **[BUG-6] مخفی کردن رمزهای عبور در خروجی config export** — `main.py:563`
-- [ ] **[DB-5] حذف key ثابت fallback در `get_encryption_key`** — `database.py:175`
-- [ ] **[FE-8] رفع XSS آسیب‌پذیری در `createCard`** — `app.js:280`
-- [ ] **[BUG-10] استفاده از `hmac.compare_digest` برای مقایسه رمز عبور** — `main.py:221`
-- [ ] **[BUG-3] اضافه کردن lock به rate limiter** — `main.py:241`
-
-### محدودیت حجم آپلود
-- [ ] **[BUG-7] اضافه کردن محدودیت حجم فایل JSON در import** — `main.py:652`
-- [ ] **[BUG-8] اضافه کردن محدودیت حجم فایل در آپلود تصویر** — `main.py:918`
 
 ---
 
-## 🟡 اولویت متوسط (بهبود تجربه کاربری)
+## 🟠 بالا (باید در اسرع وقت حل شود)
+
+### امنیتی
+- [ ] **[BUG-6] مخفی کردن رمزهای عبور در خروجی config export** — `main.py:563`
+- [ ] **[DB-5] حذف key ثابت fallback در `get_encryption_key`** — `database.py:175`
+- [ ] **[FE-8] رفع XSS آسیب‌پذیری در `createCard`** — `app.js:280`
+
+### عملکردی
+- [ ] **[BUG-3] اضافه کردن lock به rate limiter** — `main.py:241`
+
+---
+
+## 🟡 متوسط (بهبود تجربه کاربری)
+
+### باگ
+- [ ] **[BUG-7] اضافه کردن محدودیت حجم فایل JSON در import** — `main.py:652`
+- [ ] **[BUG-8] اضافه کردن محدودیت حجم فایل در آپلود تصویر** — `main.py:918`
+- [ ] **[BUG-9] مدیریت صحیح پروسه‌های orphan FFmpeg** — `main.py:1238`
+- [ ] **[BUG-10] استفاده از `hmac.compare_digest` برای مقایسه رمز عبور** — `main.py:221`
+- [ ] **[DB-2] اصلاح `DowntimeEvent.start_time` با timezone** — `database.py:76`
+- [ ] **[DB-3] اصلاح `UserSession.last_activity` با timezone** — `database.py:114`
+- [ ] **[SCHED-3] رفع race condition در `trigger_task_now`** — `scheduler.py:138`
+
+### عملکردی
+- [ ] **[PERF-1] بهینه‌سازی query heatmap با SQL aggregation** — `main.py:1332`
+- [ ] **[PERF-2] بهینه‌سازی مسیر `/api/cameras/{id}/snapshot`** — `main.py:1021`
+- [ ] **[PERF-3] بهینه‌سازی `sync_recording_stats_from_nvr`** — `monitor.py:502`
+
+### کیفیت کد
+- [ ] **[FE-1] حذف کد تکراری بین `fetchDash` و `updateDashFromWS`** — `app.js:1373`
+- [ ] **[FE-7] شکستن تابع `fetchDash` به توابع کوچک‌تر** — `app.js:63`
 
 ### قابلیت‌های مدیریتی
 - [ ] **حالت نگهداری و بی‌صدا کردن موقت (Maintenance Mode & Snooze)** — امکان Snooze کردن دوربین‌های قطع شده و توقف موقت مانیتورینگ
@@ -33,14 +54,10 @@
 ### زیرساخت فنی
 - [ ] **پایش پیشرفته وضعیت NVR (NVR Health Monitoring)** — بررسی وضعیت HDD، دمای دستگاه و وضعیت ضبط کانال‌ها
 - [ ] **سیستم برچسب (tag) برای دوربین‌ها** — دسته‌بندی بهتر دوربین‌ها
-- [ ] **[PERF-1] بهینه‌سازی query heatmap با SQL aggregation** — `main.py:1332`
-- [ ] **[BUG-9] مدیریت صحیح پروسه‌های orphan FFmpeg** — `main.py:1238`
-- [ ] **[FE-1] حذف کد تکراری بین `fetchDash` و `updateDashFromWS`** — `app.js`
-- [ ] **[FE-7] شکستن تابع `fetchDash` به توابع کوچک‌تر** — `app.js:63`
 
 ---
 
-## 🟢 اولویت پایین (آینده و بهبودها)
+## ℹ️ پایین (آینده و بهبودها)
 
 ### گزارش‌گیری و مستندات
 - [ ] **گزارش‌گیری پیشرفته و آمار پایداری (SLA & PDF/Excel)** — محاسبه درصد Uptime و خروجی PDF/Excel
