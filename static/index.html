@@ -350,28 +350,48 @@
 
                     <div id="report-list-section" style="margin-top: 24px;">
                         <div class="report-block">
-                            <div class="panel-header">گزارش قطعی دوربین‌ها</div>
+                            <div class="panel-header" onclick="toggleReportBlock(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                <span>گزارش قطعی دوربین‌ها</span>
+                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform var(--transition); transform: rotate(0deg);">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </div>
                             <div id="rep-list" class="report-list">
                                 <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
                             </div>
                         </div>
 
                         <div class="report-block" style="margin-top: 24px;">
-                            <div class="panel-header">رویدادهای قطع و وصل NVR</div>
+                            <div class="panel-header" onclick="toggleReportBlock(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                <span>رویدادهای قطع و وصل NVR</span>
+                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform var(--transition); transform: rotate(0deg);">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </div>
                             <div id="rep-nvr-list" class="report-list">
                                 <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
                             </div>
                         </div>
 
                         <div class="report-block" style="margin-top: 24px;">
-                            <div class="panel-header">خطاهای احراز هویت (رمز اشتباه) NVR</div>
+                            <div class="panel-header" onclick="toggleReportBlock(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                <span>خطاهای احراز هویت (رمز اشتباه) NVR</span>
+                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform var(--transition); transform: rotate(0deg);">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </div>
                             <div id="rep-auth-list" class="report-list">
                                 <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
                             </div>
                         </div>
 
                         <div class="report-block" style="margin-top: 24px;">
-                            <div class="panel-header">گزارش اجرای تسک‌های زمان‌بندی شده</div>
+                            <div class="panel-header" onclick="toggleReportBlock(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                <span>گزارش اجرای تسک‌های زمان‌بندی شده</span>
+                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform var(--transition); transform: rotate(0deg);">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </div>
                             <div id="rep-task-list" class="report-list">
                                 <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
                             </div>

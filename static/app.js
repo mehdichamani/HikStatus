@@ -348,6 +348,13 @@ function toggleFactory(id) {
     if (el) el.classList.toggle('open');
 }
 
+function toggleReportBlock(header) {
+    const block = header.closest('.report-block');
+    if (block) {
+        block.classList.toggle('collapsed');
+    }
+}
+
 function createCard(c) {
     const stClass = c.status === 'Online' ? 'status-online' : 'status-offline';
     const meta = encodeURIComponent(JSON.stringify(c));

@@ -2664,3 +2664,20 @@ jdp-container .jdp-btn-close:hover {
     }
 }
 
+/* ===== COLLAPSIBLE REPORT BLOCKS ===== */
+.report-block.collapsed .report-list {
+    display: none !important;
+}
+
+.report-block.collapsed .panel-header {
+    border-bottom: none !important;
+}
+
+.report-block .chevron-icon {
+    transition: transform var(--transition);
+}
+
+.report-block.collapsed .chevron-icon {
+    transform: rotate(180deg);
+}
+
