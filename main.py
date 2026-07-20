@@ -1172,10 +1172,44 @@ def get_camera_live_page(id: int, session: Session = Depends(get_session), user:
         <script>
             const img = document.getElementById('liveImg');
             const errorBox = document.getElementById('errorBox');
+            const errorTitle = errorBox.querySelector('h3');
+            const errorText = errorBox.querySelector('p');
+            const docBtn = errorBox.querySelector('button');
             
-            img.onerror = () => {{
+            function showError(title, message, showDoc = false) {{
+                errorTitle.textContent = title;
+                errorText.textContent = message;
+                docBtn.style.display = showDoc ? 'inline-block' : 'none';
                 img.style.display = 'none';
                 errorBox.style.display = 'block';
+            }}
+            
+            img.onerror = () => {{
+                fetch(img.src)
+                    .then(response => {{
+                        if (response.status === 429) {{
+                            showError(
+                                "تعداد پخش‌های همزمان بیش از حد مجاز است",
+                                "در حال حاضر حداکثر ظرفیت تماشای همزمان دوربین‌ها (۳ دوربین) پر شده است. لطفاً پنجره‌های پخش زنده دیگر را ببندید و مجدداً تلاش کنید.",
+                                false
+                            );
+                        }} else if (response.status === 403) {{
+                            showError("خطای دسترسی غیرمجاز", "شما دسترسی لازم برای مشاهده این دوربین را ندارید.", false);
+                        }} else {{
+                            showError(
+                                "عدم برقراری ارتباط با جریان ویدئویی (RTSP)",
+                                "امکان اتصال به دوربین از طریق پورت RTSP وجود ندارد. این مشکل معمولاً به دلیل بسته بودن پورت یا عدم فوروارد پورت RTSP رخ می‌دهد.",
+                                true
+                            );
+                        }}
+                    }})
+                    .catch(() => {{
+                        showError(
+                            "عدم برقراری ارتباط با جریان ویدئویی (RTSP)",
+                            "امکان اتصال به دوربین از طریق پورت RTSP وجود ندارد. این مشکل معمولاً به دلیل بسته بودن پورت یا عدم فوروارد پورت RTSP رخ می‌دهد.",
+                            true
+                        );
+                    }});
             }};
             
             function toggleDoc() {{
