@@ -145,6 +145,20 @@ These are the login credentials for the web UI. Copy from `.env.example` and edi
 
 ---
 
+### RTSP Live Stream Limit
+
+Due to the heavy CPU utilization of real-time video transcoding using `ffmpeg`, the system limits concurrent camera streaming to **3 global connections** by default.
+
+To change (increase/decrease) this limit:
+1. Open `main.py`.
+2. Locate the following line and change the first argument to your preferred value:
+   ```python
+   @max_connections(3, key="global:stream")
+   ```
+3. Save the file and restart the application.
+
+---
+
 ### Initial Configuration (`init_config.json`)
 
 Copy `init_config.example.json` to `init_config.json` to pre-seed the database on first startup (or after a "Purge and Load Init" operation).
