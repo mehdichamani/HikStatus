@@ -115,6 +115,14 @@
             </svg>
             <span>نمودار</span>
         </button>
+        <button class="nav-item" data-view="outages" onclick="nav('outages')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>توضیحات قطعی</span>
+        </button>
         <button class="nav-item" data-view="settings" onclick="nav('settings')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3" />
@@ -496,6 +504,41 @@
             </div>
         </section>
 
+        <!-- OUTAGES VIEW -->
+        <section id="outages" class="view">
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <h3>توضیحات قطعی‌های دوربین‌ها</h3>
+                    <button class="btn btn-ghost" onclick="loadOutageExplanations()" style="padding: 6px 12px;">
+                        بارگذاری مجدد
+                    </button>
+                </div>
+                <div class="table-container" style="overflow-x: auto; margin-top: 15px;">
+                    <table class="table" style="width: 100%; border-collapse: collapse; text-align: right; min-width: 900px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border);">
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">نام دوربین</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">IP</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">کارخانه</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">زمان شروع</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">زمان پایان</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">مدت (ساعت)</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">مهلت توضیح</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">علت قطعی</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">توضیح تفصیلی</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">ثبت‌کننده</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">وضعیت</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="outage-explanations-list">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <!-- SETTINGS VIEW -->
         <section id="settings" class="view">
             <div class="panel-row">
@@ -794,11 +837,14 @@
                             <select id="userRole" class="form-input" style="flex: 1.5; min-width: 150px;">
                                 <option value="group_view">مشاهده (تنها دوربین‌های گروه خود)</option>
                                 <option value="group_control">کنترل (دوربین‌ها + ویرایش NVRها + اعلان شخصی)</option>
+                                <option value="it_manager">مسئول آی تی کارخانه (ثبت توضیحات قطعی)</option>
+                                <option value="inspector">ناظر و بازرس (مشاهده قطعی‌های چند کارخانه)</option>
                                 <option value="admin">مدیر کامل سیستم</option>
                             </select>
                             <select id="userGroup" class="form-input" style="flex: 1.2; min-width: 130px;">
                                 <option value="">بدون گروه</option>
                             </select>
+                            <input id="userAccessGroups" class="form-input" placeholder="آیدی کارخانه‌ها (مثال: 1,2)" style="display: none; flex: 1.2; min-width: 140px;">
                             <button class="btn btn-primary btn-icon-only" onclick="addUser()">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19" />
@@ -1222,6 +1268,14 @@
             </svg>
             <span>نمودار</span>
         </button>
+        <button class="mobile-nav-item" data-view="outages" onclick="nav('outages')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>توضیحات</span>
+        </button>
         <button class="mobile-nav-item" data-view="settings" onclick="nav('settings')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3" />
@@ -1231,6 +1285,39 @@
             <span>تنظیمات</span>
         </button>
     </nav>
+
+    <!-- Outage Explanation Modal -->
+    <div class="modal-overlay hidden" id="explanationModal" onclick="closeExplanationModal()">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h3>ثبت توضیح قطعی دوربین</h3>
+                <button class="btn-close" onclick="closeExplanationModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 16px;">
+                <input type="hidden" id="exp-outage-id">
+                
+                <div class="form-field-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="exp-type">علت قطعی:</label>
+                    <select id="exp-type" class="form-input" style="width: 100%;">
+                        <option value="قطعی برق">قطعی برق</option>
+                        <option value="تعمیرات">تعمیرات</option>
+                        <option value="حوادث عمرانی">حوادث عمرانی</option>
+                        <option value="مشکلات دیگر">مشکلات دیگر</option>
+                    </select>
+                </div>
+                
+                <div class="form-field-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="exp-detail">توضیح تفصیلی:</label>
+                    <textarea id="exp-detail" class="form-input" rows="4" style="width: 100%; font-family: inherit; resize: vertical;" placeholder="توضیحات بیشتر درباره علت قطعی در اینجا وارد شود..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px;">
+                <button class="btn btn-ghost" onclick="closeExplanationModal()">انصراف</button>
+                <button class="btn btn-primary" onclick="submitExplanation()">ثبت نهایی</button>
+            </div>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>

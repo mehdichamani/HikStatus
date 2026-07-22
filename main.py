@@ -77,9 +77,15 @@ def seed_database(session: Session):
         "MAP_IMAGE": ("", "Custom Floor Plan Image URL"),
         "MAP_START_LAT": ("37.796067", "Default Map Start Latitude"),
         "MAP_START_LNG": ("45.062508", "Default Map Start Longitude"),
+        "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به توضیح"),
+        "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت ثبت توضیح قطعی به ساعت"),
+        "OUTAGE_ANALYSIS_DAYS": ("5,6,0,1,2,3", "روزهای بررسی قطعی در هفته (شنبه=5 تا جمعه=4)"),
+        "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
+        "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
     }
 
     # Delete all records from all tables
+    session.query(OutageExplanation).delete()
     session.query(DowntimeEvent).delete()
     session.query(Camera).delete()
     session.query(MapPlan).delete()
@@ -102,6 +108,18 @@ def seed_defaults():
         # Check if settings table is already seeded
         existing_settings_count = len(session.exec(select(Settings)).all())
         if existing_settings_count > 0:
+            # Check for new settings and seed them if missing
+            defaults = {
+                "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به توضیح"),
+                "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت ثبت توضیح قطعی به ساعت"),
+                "OUTAGE_ANALYSIS_DAYS": ("5,6,0,1,2,3", "روزهای بررسی قطعی در هفته (شنبه=5 تا جمعه=4)"),
+                "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
+                "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
+            }
+            for key, (default_val, desc) in defaults.items():
+                if not session.get(Settings, key):
+                    session.add(Settings(key=key, value=str(default_val), description=desc))
+            session.commit()
             return
 
         defaults = {
@@ -127,6 +145,11 @@ def seed_defaults():
             "MAP_IMAGE": ("", "Custom Floor Plan Image URL"),
             "MAP_START_LAT": ("37.796067", "Default Map Start Latitude"),
             "MAP_START_LNG": ("45.062508", "Default Map Start Longitude"),
+            "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به توضیح"),
+            "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت ثبت توضیح قطعی به ساعت"),
+            "OUTAGE_ANALYSIS_DAYS": ("5,6,0,1,2,3", "روزهای بررسی قطعی در هفته (شنبه=5 تا جمعه=4)"),
+            "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
+            "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
         }
 
         for key, (default_val, desc) in defaults.items():
@@ -171,6 +194,12 @@ def seed_scheduled_tasks():
                 id="cleanup_database",
                 name="پاک‌سازی خودکار لاگ‌های قدیمی",
                 description="حذف لاگ‌های مانیتورینگ قدیمی‌تر از ۹۰ روز برای بهینه‌سازی دیتابیس",
+                interval=86400
+            ),
+            ScheduledTask(
+                id="analyze_outages",
+                name="تحلیل و لیست کردن قطعی‌های مشخص‌نشده",
+                description="بررسی خودکار قطعی‌ها و ثبت دوربین‌های دارای قطعی بیش از N ساعت در هر کارخانه",
                 interval=86400
             )
         ]
@@ -329,10 +358,27 @@ def require_admin(user: dict = Depends(require_auth)):
     return user
 
 def require_control(user: dict = Depends(require_auth)):
-    """admin or group_control."""
-    if user["role"] not in ("admin", "group_control"):
+    """admin or group_control or it_manager."""
+    if user["role"] not in ("admin", "group_control", "it_manager"):
         raise HTTPException(status_code=403, detail="دسترسی کنترل الزامی است")
     return user
+
+def get_user_accessible_groups(user: dict, db: Session) -> list[int] | None:
+    """Returns a list of accessible group IDs for the user, or None if the user has access to all."""
+    if user["role"] == "admin":
+        return None
+    elif user["role"] == "inspector":
+        db_user = db.get(User, user["user_id"])
+        if not db_user or not db_user.accessible_group_ids or db_user.accessible_group_ids == "*":
+            return None
+        try:
+            return [int(x.strip()) for x in db_user.accessible_group_ids.split(",") if x.strip().isdigit()]
+        except Exception:
+            return []
+    else:
+        if user["group_id"] is not None:
+            return [user["group_id"]]
+        return []
 
 @app.get("/api/auth/me")
 def get_me(user: dict = Depends(require_auth), db: Session = Depends(get_session)):
@@ -1021,9 +1067,12 @@ def test_telegram(request: Request):
 # --- API ---
 @app.get("/api/nvrs", response_model=list[NVR], response_model_exclude={"password"})
 def get_nvrs(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
-    if user["role"] == "admin":
+    accessible_groups = get_user_accessible_groups(user, session)
+    if accessible_groups is None:
         return session.exec(select(NVR)).all()
-    return session.exec(select(NVR).where(NVR.group_id == user["group_id"])).all()
+    if not accessible_groups:
+        return []
+    return session.exec(select(NVR).where(NVR.group_id.in_(accessible_groups))).all()
 
 @app.post("/api/nvrs")
 def create_nvr(nvr: NVR, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
@@ -1053,8 +1102,10 @@ def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: 
     n = session.get(NVR, ip)
     if not n:
         raise HTTPException(status_code=404, detail="NVR not found")
-    if user["role"] != "admin" and n.group_id != user["group_id"]:
-        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز به این NVR")
+    if user["role"] != "admin":
+        accessible_groups = get_user_accessible_groups(user, session)
+        if accessible_groups is None or n.group_id not in accessible_groups:
+            raise HTTPException(status_code=403, detail="دسترسی غیرمجاز به این NVR")
     if "name" in p:
         n.name = p["name"]
     if "user" in p:
@@ -1078,7 +1129,12 @@ def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: 
 
 @app.get("/api/groups", response_model=list[NVRGroup])
 def get_groups(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
-    return session.exec(select(NVRGroup)).all()
+    accessible_groups = get_user_accessible_groups(user, session)
+    if accessible_groups is None:
+        return session.exec(select(NVRGroup)).all()
+    if not accessible_groups:
+        return []
+    return session.exec(select(NVRGroup).where(NVRGroup.id.in_(accessible_groups))).all()
 
 @app.post("/api/groups")
 def create_group(group: NVRGroup, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
@@ -1196,9 +1252,12 @@ def delete_group_plan(gid: int, pid: int, session: Session = Depends(get_session
 
 @app.get("/api/cameras", response_model=list[Camera])
 def get_cameras(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
-    if user["role"] == "admin":
+    accessible_groups = get_user_accessible_groups(user, session)
+    if accessible_groups is None:
         return session.exec(select(Camera).order_by(Camera.nvr_ip, Camera.channel_id)).all()
-    nvrs = session.exec(select(NVR).where(NVR.group_id == user["group_id"])).all()
+    if not accessible_groups:
+        return []
+    nvrs = session.exec(select(NVR).where(NVR.group_id.in_(accessible_groups))).all()
     nvr_ips = [n.ip for n in nvrs]
     if not nvr_ips:
         return []
@@ -1210,8 +1269,9 @@ def update_cam(id: int, p: dict, session: Session = Depends(get_session), user: 
     if not c:
         raise HTTPException(status_code=404, detail="Camera not found")
     if user["role"] != "admin":
+        accessible_groups = get_user_accessible_groups(user, session)
         nvr = session.get(NVR, c.nvr_ip)
-        if not nvr or nvr.group_id != user["group_id"]:
+        if not nvr or accessible_groups is None or nvr.group_id not in accessible_groups:
             raise HTTPException(status_code=403, detail="دسترسی غیرمجاز به این دوربین")
     if "importance" in p:
         importance = int(p["importance"])
@@ -1752,11 +1812,13 @@ class UserCreate(BaseModel):
     password: str
     role: str
     group_id: Optional[int] = None
+    accessible_group_ids: Optional[str] = None
 
 class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
     group_id: Optional[int] = None
+    accessible_group_ids: Optional[str] = None
     is_active: Optional[bool] = None
     two_factor_enabled: Optional[bool] = None
 
@@ -1775,6 +1837,7 @@ def create_user(payload: UserCreate, session: Session = Depends(get_session), us
         password_hash=hash_password(payload.password),
         role=payload.role,
         group_id=payload.group_id,
+        accessible_group_ids=payload.accessible_group_ids,
         is_active=True
     )
     session.add(db_user)
@@ -1799,6 +1862,8 @@ def update_user(id: int, payload: UserUpdate, session: Session = Depends(get_ses
         db_user.role = payload.role
     if payload.group_id is not None or "group_id" in payload.model_fields_set:
         db_user.group_id = payload.group_id
+    if payload.accessible_group_ids is not None or "accessible_group_ids" in payload.model_fields_set:
+        db_user.accessible_group_ids = payload.accessible_group_ids
     if payload.is_active is not None:
         db_user.is_active = payload.is_active
     if payload.two_factor_enabled is not None:
@@ -1831,7 +1896,7 @@ class AlertSettingsUpdate(BaseModel):
     telegram_chat_ids: Optional[str] = None
 
 @app.get("/api/me/alerts")
-def get_my_alerts(session: Session = Depends(get_session), user: dict = Depends(require_control)):
+def get_my_alerts(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     u_id = user["user_id"]
     if u_id is None:
         raise HTTPException(status_code=400, detail="مدیر سیستم از تنظیمات عمومی استفاده می‌کند")
@@ -1845,7 +1910,7 @@ def get_my_alerts(session: Session = Depends(get_session), user: dict = Depends(
     return alert_settings
 
 @app.put("/api/me/alerts")
-def update_my_alerts(payload: AlertSettingsUpdate, session: Session = Depends(get_session), user: dict = Depends(require_control)):
+def update_my_alerts(payload: AlertSettingsUpdate, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     u_id = user["user_id"]
     if u_id is None:
         raise HTTPException(status_code=400, detail="مدیر سیستم از تنظیمات عمومی استفاده می‌کند")
@@ -1862,6 +1927,98 @@ def update_my_alerts(payload: AlertSettingsUpdate, session: Session = Depends(ge
     session.add(alert_settings)
     session.commit()
     return alert_settings
+
+class OutageExplanationSubmit(BaseModel):
+    explanation_type: str
+    explanation_detail: Optional[str] = None
+
+@app.get("/api/outage-explanations")
+def get_outage_explanations(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    accessible_groups = get_user_accessible_groups(user, session)
+    
+    query = select(OutageExplanation).order_by(OutageExplanation.created_at.desc())
+    if accessible_groups is not None:
+        query = query.where(OutageExplanation.group_id.in_(accessible_groups))
+        
+    outages = session.exec(query).all()
+    
+    cameras = {c.id: c for c in session.exec(select(Camera)).all()}
+    groups = {g.id: g for g in session.exec(select(NVRGroup)).all()}
+    users = {u.id: u for u in session.exec(select(User)).all()}
+    
+    output = []
+    now = datetime.now()
+    for o in outages:
+        cam = cameras.get(o.camera_id)
+        group = groups.get(o.group_id)
+        user_obj = users.get(o.explained_by_user_id) if o.explained_by_user_id else None
+        
+        eff_end = o.end_time or now
+        duration = eff_end - o.start_time
+        duration_hours = round(duration.total_seconds() / 3600, 1)
+        
+        shamsi_start = format_shamsi_datetime(o.start_time)
+        shamsi_end = format_shamsi_datetime(o.end_time) if o.end_time else "همچنان قطع"
+        shamsi_deadline = format_shamsi_datetime(o.assigned_deadline)
+        shamsi_explained_at = format_shamsi_datetime(o.explained_at) if o.explained_at else None
+        
+        if o.explained_at:
+            status_val = "explained"
+        elif now > o.assigned_deadline:
+            status_val = "expired"
+        else:
+            status_val = "pending"
+            
+        output.append({
+            "id": o.id,
+            "camera_name": cam.name if cam else "نامشخص",
+            "camera_ip": cam.ip if cam else "نامشخص",
+            "group_name": group.name if group else "بدون گروه",
+            "start_time": o.start_time.isoformat(),
+            "end_time": o.end_time.isoformat() if o.end_time else None,
+            "duration_hours": duration_hours,
+            "assigned_deadline": o.assigned_deadline.isoformat(),
+            "explanation_type": o.explanation_type,
+            "explanation_detail": o.explanation_detail,
+            "explained_by_username": user_obj.username if user_obj else None,
+            "explained_at": o.explained_at.isoformat() if o.explained_at else None,
+            "shamsi_start": shamsi_start,
+            "shamsi_end": shamsi_end,
+            "shamsi_deadline": shamsi_deadline,
+            "shamsi_explained_at": shamsi_explained_at,
+            "status": status_val
+        })
+    return output
+
+@app.put("/api/outage-explanations/{id}")
+def submit_outage_explanation(id: int, payload: OutageExplanationSubmit, session: Session = Depends(get_session), user: dict = Depends(require_control)):
+    outage = session.get(OutageExplanation, id)
+    if not outage:
+        raise HTTPException(status_code=404, detail="Outage record not found")
+        
+    if user["role"] != "admin" and outage.group_id != user["group_id"]:
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز برای ویرایش قطعی این کارخانه")
+        
+    if outage.explained_at:
+        raise HTTPException(status_code=400, detail="توضیح این قطعی قبلاً ثبت شده و غیرقابل تغییر است")
+        
+    now = datetime.now()
+    if now > outage.assigned_deadline:
+        raise HTTPException(status_code=400, detail="مهلت نوشتن توضیح برای این قطعی به پایان رسیده است")
+        
+    VALID_TYPES = ["قطعی برق", "تعمیرات", "حوادث عمرانی", "مشکلات دیگر"]
+    if payload.explanation_type not in VALID_TYPES:
+        raise HTTPException(status_code=400, detail="علت قطعی نامعتبر است")
+        
+    outage.explanation_type = payload.explanation_type
+    outage.explanation_detail = payload.explanation_detail
+    outage.explained_by_user_id = user["user_id"]
+    outage.explained_at = now
+    
+    session.add(outage)
+    session.commit()
+    
+    return {"status": "ok", "message": "توضیح قطعی با موفقیت ثبت شد"}
 
 class ChangePasswordRequest(BaseModel):
     new_password: str

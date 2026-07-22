@@ -41,6 +41,7 @@ function nav(id) {
         fetchAndRenderHeatmap();
     }
     if (id === 'settings') loadSettings();
+    if (id === 'outages') loadOutageExplanations();
 }
 
 function closeModal() {
@@ -561,15 +562,17 @@ async function loadSettings() {
             <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
             <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
         `;
-    } else if (role === 'group_control') {
+    } else if (role === 'group_control' || role === 'it_manager') {
         nav.innerHTML = `
             <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
             <button data-tab="sec-my-alerts" onclick="switchSettingsTab('sec-my-alerts')">تنظیمات اعلان شخصی من</button>
             <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
             <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
         `;
-    } else if (role === 'group_view') {
+    } else { // inspector, group_view
         nav.innerHTML = `
+            <button data-tab="sec-my-alerts" onclick="switchSettingsTab('sec-my-alerts')">تنظیمات اعلان شخصی من</button>
+            <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
             <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
         `;
     }
@@ -3039,7 +3042,10 @@ function applyRoleUI() {
         el.style.display = (role === 'admin') ? '' : 'none';
     });
     document.querySelectorAll('[data-view="reports"]').forEach(el => {
-        el.style.display = (role === 'admin' || role === 'group_control') ? '' : 'none';
+        el.style.display = (role === 'admin' || role === 'group_control' || role === 'inspector') ? '' : 'none';
+    });
+    document.querySelectorAll('[data-view="outages"]').forEach(el => {
+        el.style.display = (role === 'admin' || role === 'it_manager' || role === 'inspector') ? '' : 'none';
     });
     document.querySelectorAll('[data-view="settings"]').forEach(el => {
         el.style.display = '';
@@ -3047,7 +3053,7 @@ function applyRoleUI() {
 
     const editBtn = document.getElementById('btn-edit-positions');
     if (editBtn) {
-        editBtn.style.display = (role === 'group_view') ? 'none' : '';
+        editBtn.style.display = (role === 'admin' || role === 'group_control') ? '' : 'none';
     }
 
     const headerUsername = document.getElementById('header-username');
@@ -3072,6 +3078,26 @@ async function loadUsers() {
                 `<option value="${g.id}">${g.name}</option>`
             ).join('');
         }
+        
+        // Handle User Role change to show/hide group select or access input
+        const roleSelect = document.getElementById('userRole');
+        if (roleSelect && !roleSelect.dataset.hasListener) {
+            roleSelect.dataset.hasListener = 'true';
+            roleSelect.addEventListener('change', (e) => {
+                const groupSelect = document.getElementById('userGroup');
+                const accessGroupsInput = document.getElementById('userAccessGroups');
+                if (e.target.value === 'inspector') {
+                    if (groupSelect) groupSelect.style.display = 'none';
+                    if (accessGroupsInput) accessGroupsInput.style.display = '';
+                } else if (e.target.value === 'admin') {
+                    if (groupSelect) groupSelect.style.display = 'none';
+                    if (accessGroupsInput) accessGroupsInput.style.display = 'none';
+                } else {
+                    if (groupSelect) groupSelect.style.display = '';
+                    if (accessGroupsInput) accessGroupsInput.style.display = 'none';
+                }
+            });
+        }
     } catch (e) {
         console.error('Error loading users:', e);
     }
@@ -3090,13 +3116,22 @@ function renderUsersList() {
         const roleLabel = {
             'admin': 'مدیر کامل',
             'group_control': 'کنترل گروه',
-            'group_view': 'مشاهده گروه'
+            'group_view': 'مشاهده گروه',
+            'it_manager': 'مسئول آی تی کارخانه',
+            'inspector': 'ناظر و بازرس'
         }[u.role] || u.role;
+        
+        let detailsText = `نقش: ${roleLabel}`;
+        if (u.role === 'inspector') {
+            detailsText += ` | دسترسی کارخانه‌ها: ${u.accessible_group_ids || 'همه'}`;
+        } else if (u.role !== 'admin') {
+            detailsText += ` | کارخانه: ${groupName}`;
+        }
         
         return `<div class="list-item">
             <div class="list-item-info">
                 <strong>${u.username}</strong>
-                <span style="font-size:12px; opacity:0.7; margin-right:15px;">نقش: ${roleLabel} | کارخانه: ${groupName}</span>
+                <span style="font-size:12px; opacity:0.7; margin-right:15px;">${detailsText}</span>
             </div>
             <div class="list-item-actions">
                 <button class="btn btn-ghost" onclick="deleteUser(${u.id})" style="color:var(--danger)">حذف</button>
@@ -3110,7 +3145,8 @@ async function addUser() {
     const password = document.getElementById('userPass').value;
     const role = document.getElementById('userRole').value;
     const grpVal = document.getElementById('userGroup').value;
-    const group_id = grpVal ? parseInt(grpVal) : null;
+    const group_id = (role !== 'inspector' && role !== 'admin' && grpVal) ? parseInt(grpVal) : null;
+    const accessible_group_ids = role === 'inspector' ? document.getElementById('userAccessGroups').value.trim() : null;
     
     if (!username || !password) {
         return showToast('نام کاربری و رمز عبور را وارد کنید', 'error');
@@ -3120,11 +3156,12 @@ async function addUser() {
         await apiFetch(`${API}/users`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role, group_id })
+            body: JSON.stringify({ username, password, role, group_id, accessible_group_ids })
         });
         showToast('کاربر جدید با موفقیت اضافه شد');
         document.getElementById('userName').value = '';
         document.getElementById('userPass').value = '';
+        if (document.getElementById('userAccessGroups')) document.getElementById('userAccessGroups').value = '';
         loadUsers();
     } catch (e) {
         showToast('خطا در افزودن کاربر: ' + e.message, 'error');
@@ -3937,4 +3974,107 @@ if ('serviceWorker' in navigator) {
             .then(reg => console.log('Service Worker registered', reg))
             .catch(err => console.error('Service Worker registration failed', err));
     });
+}
+
+// Outage Explanations UI logic
+let outagesCache = [];
+
+async function loadOutageExplanations() {
+    try {
+        const res = await apiFetch(`${API}/outage-explanations`);
+        outagesCache = await res.json();
+        renderOutagesList();
+    } catch (e) {
+        console.error('Error loading outages:', e);
+        showToast('خطا در بارگذاری توضیحات قطعی: ' + e.message, 'error');
+    }
+}
+
+function renderOutagesList() {
+    const list = document.getElementById('outage-explanations-list');
+    if (!list) return;
+    if (outagesCache.length === 0) {
+        list.innerHTML = '<tr><td colspan="12" class="empty-state" style="text-align: center; padding: 20px;">هیچ قطعی مشخص‌نشده‌ای یافت نشد</td></tr>';
+        return;
+    }
+    
+    const role = window.currentUser ? window.currentUser.role : 'group_view';
+    const canExplain = role === 'admin' || role === 'it_manager' || role === 'group_control';
+    
+    list.innerHTML = outagesCache.map(o => {
+        let statusBadge = '';
+        let actionBtn = '';
+        
+        if (o.status === 'explained') {
+            statusBadge = '<span class="badge badge-success" style="background:#10b981; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">توضیح داده شده</span>';
+            actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">غیر قابل ویرایش</span>';
+        } else if (o.status === 'expired') {
+            statusBadge = '<span class="badge badge-danger" style="background:#ef4444; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">منقضی شده</span>';
+            actionBtn = '<span style="font-size: 12px; color: var(--danger);">پایان مهلت</span>';
+        } else {
+            statusBadge = '<span class="badge badge-warning" style="background:#f59e0b; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">در انتظار توضیح</span>';
+            if (canExplain) {
+                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px;">ثبت توضیح</button>`;
+            } else {
+                actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">-</span>';
+            }
+        }
+        
+        return `<tr style="border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+            <td style="padding: 12px;"><strong>${o.camera_name}</strong></td>
+            <td style="padding: 12px; font-family: monospace;">${o.camera_ip}</td>
+            <td style="padding: 12px;">${o.group_name}</td>
+            <td style="padding: 12px; font-size: 13px;">${o.shamsi_start}</td>
+            <td style="padding: 12px; font-size: 13px;">${o.shamsi_end}</td>
+            <td style="padding: 12px; text-align: center;">${o.duration_hours}</td>
+            <td style="padding: 12px; font-size: 13px; color: var(--text-secondary);">${o.shamsi_deadline}</td>
+            <td style="padding: 12px;">${o.explanation_type || '-'}</td>
+            <td style="padding: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${o.explanation_detail || ''}">${o.explanation_detail || '-'}</td>
+            <td style="padding: 12px; font-size: 13px;">${o.explained_by_username || '-'}</td>
+            <td style="padding: 12px;">${statusBadge}</td>
+            <td style="padding: 12px;">${actionBtn}</td>
+        </tr>`;
+    }).join('');
+}
+
+function openExplanationModal(id) {
+    const o = outagesCache.find(x => x.id === id);
+    if (!o) return;
+    
+    document.getElementById('exp-outage-id').value = id;
+    document.getElementById('exp-type').value = 'قطعی برق';
+    document.getElementById('exp-detail').value = '';
+    
+    const modal = document.getElementById('explanationModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('open');
+    }
+}
+
+function closeExplanationModal() {
+    const modal = document.getElementById('explanationModal');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.classList.add('hidden');
+    }
+}
+
+async function submitExplanation() {
+    const id = parseInt(document.getElementById('exp-outage-id').value);
+    const explanation_type = document.getElementById('exp-type').value;
+    const explanation_detail = document.getElementById('exp-detail').value.trim();
+    
+    try {
+        await apiFetch(`${API}/outage-explanations/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ explanation_type, explanation_detail })
+        });
+        showToast('توضیح قطعی با موفقیت ثبت شد');
+        closeExplanationModal();
+        loadOutageExplanations();
+    } catch (e) {
+        showToast('خطا در ثبت توضیح قطعی: ' + e.message, 'error');
+    }
 }

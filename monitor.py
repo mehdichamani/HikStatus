@@ -960,6 +960,98 @@ async def task_capture_camera_snapshots():
         logger.info(f"Capturing snapshots for {len(cameras)} cameras in parallel...")
         await asyncio.gather(*[capture_one(cam) for cam in cameras])
 
+async def task_analyze_outages():
+    from database import Settings, DowntimeEvent, Camera, NVR, OutageExplanation
+    from sqlmodel import select
+    from datetime import datetime, timedelta
+    
+    logger.info("Starting definite outages analysis task...")
+    now = datetime.now()
+    
+    with Session(engine) as session:
+        # 1. Read config
+        # N: Minimum hours of downtime to check
+        min_hours_cfg = session.get(Settings, "OUTAGE_MIN_HOURS_TO_EXPLAIN")
+        min_hours = int(min_hours_cfg.value) if min_hours_cfg else 2
+        
+        # Deadline for it_manager to explain (hours)
+        deadline_hours_cfg = session.get(Settings, "OUTAGE_EXPLANATION_DEADLINE_HOURS")
+        deadline_hours = int(deadline_hours_cfg.value) if deadline_hours_cfg else 24
+        
+        # Last analysis run time
+        last_run_cfg = session.get(Settings, "OUTAGE_LAST_ANALYSIS_TIME")
+        if last_run_cfg and last_run_cfg.value:
+            try:
+                last_run = datetime.fromisoformat(last_run_cfg.value)
+            except Exception:
+                last_run = now - timedelta(days=1)
+        else:
+            last_run = now - timedelta(days=1)
+            
+        logger.info(f"Analyzing outages between {last_run} and {now} (threshold >= {min_hours} hours)")
+        
+        # Find all DowntimeEvents that overlap with the [last_run, now] interval
+        # An event overlaps if start_time < now and (end_time is None or end_time > last_run)
+        events = session.exec(
+            select(DowntimeEvent).where(
+                DowntimeEvent.start_time < now,
+                (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time > last_run)
+            )
+        ).all()
+        
+        added_count = 0
+        for evt in events:
+            # Check if this event already exists in OutageExplanation
+            existing = session.exec(
+                select(OutageExplanation).where(OutageExplanation.downtime_event_id == evt.id)
+            ).first()
+            if existing:
+                # If end_time has changed (camera reconnected), update it in OutageExplanation
+                if evt.end_time != existing.end_time:
+                    existing.end_time = evt.end_time
+                    session.add(existing)
+                continue
+                
+            # Calculate actual outage duration up to 'now' or 'end_time'
+            effective_end = evt.end_time or now
+            duration = effective_end - evt.start_time
+            
+            if duration.total_seconds() >= min_hours * 3600:
+                # Load camera to find group_id via NVR
+                camera = session.get(Camera, evt.camera_id)
+                if not camera:
+                    continue
+                    
+                nvr = session.get(NVR, camera.nvr_ip)
+                group_id = nvr.group_id if nvr else None
+                
+                # Register outage explanation record
+                outage_exp = OutageExplanation(
+                    camera_id=evt.camera_id,
+                    downtime_event_id=evt.id,
+                    group_id=group_id,
+                    start_time=evt.start_time,
+                    end_time=evt.end_time,
+                    created_at=now,
+                    assigned_deadline=now + timedelta(hours=deadline_hours),
+                    explanation_type=None,
+                    explanation_detail=None,
+                    explained_by_user_id=None,
+                    explained_at=None
+                )
+                session.add(outage_exp)
+                added_count += 1
+                
+        # 3. Update last run configuration
+        if not last_run_cfg:
+            last_run_cfg = Settings(key="OUTAGE_LAST_ANALYSIS_TIME", value=now.isoformat(), description="Last time outages were analyzed")
+        else:
+            last_run_cfg.value = now.isoformat()
+        session.add(last_run_cfg)
+        
+        session.commit()
+        logger.info(f"Definite outages analysis task completed. Added {added_count} new unexplained outages.")
+
 async def start_monitor_loop():
     logger.info("Monitor loop started (via scheduler)...")
     with Session(engine) as session:

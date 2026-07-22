@@ -75,6 +75,20 @@ class DowntimeEvent(SQLModel, table=True):
     start_time: datetime = Field(default_factory=datetime.now)
     end_time: Optional[datetime] = None
 
+class OutageExplanation(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    camera_id: int = Field(foreign_key="camera.id")
+    downtime_event_id: int = Field(foreign_key="downtimeevent.id")
+    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    assigned_deadline: datetime
+    explanation_type: Optional[str] = None
+    explanation_detail: Optional[str] = None
+    explained_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    explained_at: Optional[datetime] = None
+
 class Log(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     timestamp: datetime = Field(default_factory=datetime.now)
@@ -93,6 +107,7 @@ class User(SQLModel, table=True):
     password_hash: str           # sha256 hex (simple, no extra deps)
     role: str = "group_view"     # "admin" | "group_control" | "group_view"
     group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
+    accessible_group_ids: Optional[str] = Field(default=None)
     is_active: bool = True
     two_factor_secret: Optional[str] = None
     two_factor_enabled: bool = False
@@ -548,8 +563,54 @@ def rollback_012_add_user_2fa_fields(conn: sqlite3.Connection):
 
 
 # ---------------------------------------------------------------------------
+# Migration 013 – OutageExplanation table & User accessible_group_ids
+# ---------------------------------------------------------------------------
+
+def migration_013_add_outage_explanation(conn: sqlite3.Connection):
+    """Create outageexplanation table and add accessible_group_ids to user."""
+    # 1. Create table outageexplanation
+    if not _table_exists(conn, "outageexplanation"):
+        conn.execute("""
+            CREATE TABLE outageexplanation (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                camera_id INTEGER NOT NULL,
+                downtime_event_id INTEGER NOT NULL,
+                group_id INTEGER,
+                start_time TIMESTAMP NOT NULL,
+                end_time TIMESTAMP,
+                created_at TIMESTAMP NOT NULL,
+                assigned_deadline TIMESTAMP NOT NULL,
+                explanation_type TEXT,
+                explanation_detail TEXT,
+                explained_by_user_id INTEGER,
+                explained_at TIMESTAMP,
+                FOREIGN KEY(camera_id) REFERENCES camera(id),
+                FOREIGN KEY(downtime_event_id) REFERENCES downtimeevent(id),
+                FOREIGN KEY(group_id) REFERENCES nvrgroup(id),
+                FOREIGN KEY(explained_by_user_id) REFERENCES user(id)
+            )
+        """)
+        logger.info("[migration 013] Created outageexplanation table")
+        
+    # 2. Add accessible_group_ids to user
+    if not _column_exists(conn, "user", "accessible_group_ids"):
+        conn.execute("ALTER TABLE user ADD COLUMN accessible_group_ids TEXT")
+        logger.info("[migration 013] Added column accessible_group_ids to user")
+
+
+def rollback_013_add_outage_explanation(conn: sqlite3.Connection):
+    if _table_exists(conn, "outageexplanation"):
+        conn.execute("DROP TABLE outageexplanation")
+        logger.info("[rollback 013] Dropped outageexplanation table")
+    logger.info("[rollback 013] rollback skipped (SQLite)")
+
+
+# ---------------------------------------------------------------------------
 # Migration registry
 # ---------------------------------------------------------------------------
+
+CURRENT_MIGRATION_VERSION = 13
+
 
 MIGRATIONS = {
     1: ("add_camera_geo_fields", migration_001_add_camera_geo_fields),
@@ -564,6 +625,7 @@ MIGRATIONS = {
     10: ("add_scheduledtask_last_error", migration_010_add_scheduledtask_last_error),
     11: ("add_performance_indexes", migration_011_add_performance_indexes),
     12: ("add_user_2fa_fields", migration_012_add_user_2fa_fields),
+    13: ("add_outage_explanation", migration_013_add_outage_explanation),
 }
 
 ROLLBACKS = {
@@ -579,6 +641,7 @@ ROLLBACKS = {
     10: rollback_010_add_scheduledtask_last_error,
     11: rollback_011_add_performance_indexes,
     12: rollback_012_add_user_2fa_fields,
+    13: rollback_013_add_outage_explanation,
 }
 
 

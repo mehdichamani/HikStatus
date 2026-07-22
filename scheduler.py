@@ -5,7 +5,7 @@ import time
 from typing import Optional
 from sqlmodel import Session, select
 from database import engine, ScheduledTask, Log
-from monitor import task_ping_cameras, task_sync_camera_names, task_sync_nvr_configs, task_sync_nvr_stats, task_cleanup_database, task_capture_camera_snapshots, broadcast
+from monitor import task_ping_cameras, task_sync_camera_names, task_sync_nvr_configs, task_sync_nvr_stats, task_cleanup_database, task_capture_camera_snapshots, task_analyze_outages, broadcast
 from loguru import logger
 
 TASK_FUNCTIONS = {
@@ -14,8 +14,26 @@ TASK_FUNCTIONS = {
     "sync_nvr_configs": task_sync_nvr_configs,
     "sync_nvr_stats": task_sync_nvr_stats,
     "cleanup_database": task_cleanup_database,
-    "capture_camera_snapshots": task_capture_camera_snapshots
+    "capture_camera_snapshots": task_capture_camera_snapshots,
+    "analyze_outages": task_analyze_outages
 }
+
+def get_next_analysis_run(base_time: datetime, days_str: str, time_str: str) -> datetime:
+    try:
+        days = [int(x.strip()) for x in days_str.split(",") if x.strip().isdigit()]
+        hour, minute = map(int, time_str.split(":"))
+    except Exception:
+        days = [5, 6, 0, 1, 2, 3]  # Saturday to Thursday
+        hour, minute = 7, 30
+        
+    for i in range(8):
+        check_date = base_time + timedelta(days=i)
+        check_weekday = check_date.weekday()  # 0=Monday, ..., 6=Sunday
+        if check_weekday in days:
+            run_time = datetime(check_date.year, check_date.month, check_date.day, hour, minute)
+            if run_time > base_time:
+                return run_time
+    return base_time + timedelta(days=1)
 
 class TaskScheduler:
     def __init__(self):
@@ -129,7 +147,19 @@ class TaskScheduler:
                     db_task.last_status = status_str
                     db_task.last_error = error_msg
                     # Schedule next run based on interval
-                    db_task.next_run = datetime.now() + timedelta(seconds=db_task.interval)
+                    if db_task.id == "analyze_outages":
+                        from database import Settings
+                        days_str = "5,6,0,1,2,3"
+                        time_str = "07:30"
+                        s_days = session.get(Settings, "OUTAGE_ANALYSIS_DAYS")
+                        s_time = session.get(Settings, "OUTAGE_ANALYSIS_TIME")
+                        if s_days:
+                            days_str = s_days.value
+                        if s_time:
+                            time_str = s_time.value
+                        db_task.next_run = get_next_analysis_run(datetime.now(), days_str, time_str)
+                    else:
+                        db_task.next_run = datetime.now() + timedelta(seconds=db_task.interval)
                     session.add(db_task)
                     
                     if status_str != "Success":
