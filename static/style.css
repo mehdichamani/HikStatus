@@ -54,6 +54,7 @@ body {
 
 /* ===== HEADER ===== */
 .app-header {
+    position: relative;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     padding: 6px 20px;
@@ -1789,6 +1790,17 @@ body {
     .nvr-form button {
         width: 100% !important;
         justify-content: center;
+    }
+
+    .global-search-container {
+        position: static !important;
+    }
+
+    #global-search-dropdown {
+        left: 16px !important;
+        right: 16px !important;
+        width: auto !important;
+        top: calc(100% + 8px) !important;
     }
 }
 
