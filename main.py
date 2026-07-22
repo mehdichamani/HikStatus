@@ -335,8 +335,28 @@ def require_control(user: dict = Depends(require_auth)):
     return user
 
 @app.get("/api/auth/me")
-def get_me(user: dict = Depends(require_auth)):
-    return user
+def get_me(user: dict = Depends(require_auth), db: Session = Depends(get_session)):
+    username = user["username"]
+    db_user = db.exec(select(User).where(User.username == username)).first()
+    two_factor_enabled = db_user.two_factor_enabled if db_user else False
+    
+    return {
+        "username": user["username"],
+        "role": user["role"],
+        "group_id": user["group_id"],
+        "user_id": user["user_id"],
+        "two_factor_enabled": two_factor_enabled
+    }
+
+class Login2FARequest(BaseModel):
+    temp_token: str
+    code: str
+
+class Verify2FASetupRequest(BaseModel):
+    code: str
+
+class Disable2FARequest(BaseModel):
+    password: str
 
 @app.post("/api/auth/login")
 def login(payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_session)):
@@ -346,7 +366,23 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
     
     admin_user, admin_pass = get_admin_credentials()
     password_ok, password_is_plain = verify_admin_password(payload.password, admin_pass)
+    
     if payload.username == admin_user and password_ok:
+        # Check if admin has 2FA enabled in the database
+        db_admin = db.exec(select(User).where(User.username == admin_user)).first()
+        if db_admin and db_admin.two_factor_enabled:
+            # Generate temp token
+            temp_data = {
+                "username": admin_user,
+                "role": "admin",
+                "group_id": None,
+                "user_id": None,
+                "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat(),
+                "password_is_plain": password_is_plain
+            }
+            temp_token = encrypt_password(json.dumps(temp_data))
+            return {"status": "2fa_required", "temp_token": temp_token}
+
         if password_is_plain:
             logger.warning("SECURITY WARNING: Admin password in .env is stored in plain text (not hashed). Please hash it and replace. Guide: static/admin-password-help.html")
         token = create_session_token()
@@ -375,6 +411,18 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
             db.commit()
             db.refresh(db_user)
             
+        if db_user.two_factor_enabled:
+            # Generate temp token
+            temp_data = {
+                "username": db_user.username,
+                "role": db_user.role,
+                "group_id": db_user.group_id,
+                "user_id": db_user.id,
+                "expires_at": (datetime.now() + timedelta(minutes=5)).isoformat()
+            }
+            temp_token = encrypt_password(json.dumps(temp_data))
+            return {"status": "2fa_required", "temp_token": temp_token}
+
         token = create_session_token()
         
         expires_at = datetime.now() + timedelta(days=30)
@@ -393,6 +441,170 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         return {"status": "ok", "role": db_user.role, "group_id": db_user.group_id}
 
     raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
+
+@app.post("/api/auth/login/2fa")
+def login_2fa(payload: Login2FARequest, response: Response, db: Session = Depends(get_session)):
+    try:
+        decrypted = decrypt_password(payload.temp_token)
+        data = json.loads(decrypted)
+    except Exception:
+        raise HTTPException(status_code=400, detail="توکن موقت نامعتبر یا منقضی شده است")
+        
+    expires_at_str = data.get("expires_at")
+    if not expires_at_str or datetime.fromisoformat(expires_at_str) < datetime.now():
+        raise HTTPException(status_code=400, detail="زمان ورود کد به پایان رسیده است. لطفاً مجدداً تلاش کنید")
+        
+    username = data.get("username")
+    role = data.get("role")
+    group_id = data.get("group_id")
+    user_id = data.get("user_id")
+    password_is_plain = data.get("password_is_plain", False)
+    
+    # Fetch user details
+    if role == "admin":
+        db_user = db.exec(select(User).where(User.username == username)).first()
+    else:
+        db_user = db.exec(select(User).where(User.id == user_id)).first()
+        
+    if not db_user or not db_user.two_factor_enabled or not db_user.two_factor_secret:
+        raise HTTPException(status_code=400, detail="تنظیمات تایید دو مرحله‌ای یافت نشد")
+        
+    import pyotp
+    totp = pyotp.TOTP(db_user.two_factor_secret)
+    if not totp.verify(payload.code):
+        raise HTTPException(status_code=400, detail="کد وارد شده صحیح نیست یا منقضی شده است")
+        
+    token = create_session_token()
+    session_expires_at = datetime.now() + timedelta(days=30)
+    session_record = UserSession(
+        token=token,
+        username=username,
+        role=role,
+        group_id=group_id,
+        user_id=user_id,
+        expires_at=session_expires_at
+    )
+    db.add(session_record)
+    db.commit()
+    
+    response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+    
+    ret = {"status": "ok", "role": role, "group_id": group_id}
+    if role == "admin":
+        ret["password_is_plain"] = password_is_plain
+    return ret
+
+@app.post("/api/auth/2fa/setup")
+def setup_2fa(user: dict = Depends(require_auth), db: Session = Depends(get_session)):
+    import pyotp
+    username = user["username"]
+    user_id = user["user_id"]
+    role = user["role"]
+    
+    if role == "admin":
+        db_user = db.exec(select(User).where(User.username == username)).first()
+        if not db_user:
+            # Create special shell user for admin in database to hold 2FA secret
+            db_user = User(
+                username=username,
+                password_hash="2fa_disabled_pass",
+                role="admin",
+                is_active=True
+            )
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+    else:
+        db_user = db.exec(select(User).where(User.id == user_id)).first()
+        
+    if not db_user:
+        raise HTTPException(status_code=404, detail="کاربر یافت نشد")
+        
+    if db_user.two_factor_enabled:
+        raise HTTPException(status_code=400, detail="ورود دو مرحله‌ای قبلاً فعال شده است")
+        
+    secret = pyotp.random_base32()
+    db_user.two_factor_secret = secret
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    totp = pyotp.TOTP(secret)
+    otpauth_url = totp.provisioning_uri(name=username, issuer_name="HikStatus")
+    
+    return {
+        "secret": secret,
+        "otpauth_url": otpauth_url
+    }
+
+@app.post("/api/auth/2fa/verify-setup")
+def verify_2fa_setup(payload: Verify2FASetupRequest, user: dict = Depends(require_auth), db: Session = Depends(get_session)):
+    import pyotp
+    username = user["username"]
+    user_id = user["user_id"]
+    role = user["role"]
+    
+    if role == "admin":
+        db_user = db.exec(select(User).where(User.username == username)).first()
+    else:
+        db_user = db.exec(select(User).where(User.id == user_id)).first()
+        
+    if not db_user or not db_user.two_factor_secret:
+        raise HTTPException(status_code=400, detail="ابتدا باید درخواست فعال‌سازی دهید")
+        
+    if db_user.two_factor_enabled:
+        raise HTTPException(status_code=400, detail="ورود دو مرحله‌ای قبلاً فعال شده است")
+        
+    totp = pyotp.TOTP(db_user.two_factor_secret)
+    if not totp.verify(payload.code):
+        raise HTTPException(status_code=400, detail="کد وارد شده صحیح نیست یا منقضی شده است")
+        
+    db_user.two_factor_enabled = True
+    db.add(db_user)
+    db.commit()
+    
+    db.add(Log(
+        log_type="Security",
+        state="2FA Enabled",
+        details=f"User {username} enabled two-factor authentication."
+    ))
+    db.commit()
+    
+    return {"status": "ok", "message": "ورود دو مرحله‌ای با موفقیت فعال شد"}
+
+@app.post("/api/auth/2fa/disable")
+def disable_2fa(payload: Disable2FARequest, user: dict = Depends(require_auth), db: Session = Depends(get_session)):
+    username = user["username"]
+    user_id = user["user_id"]
+    role = user["role"]
+    
+    if role == "admin":
+        admin_user, admin_pass = get_admin_credentials()
+        password_ok, _ = verify_admin_password(payload.password, admin_pass)
+        if username != admin_user or not password_ok:
+            raise HTTPException(status_code=401, detail="رمز عبور اشتباه است")
+        db_user = db.exec(select(User).where(User.username == username)).first()
+    else:
+        db_user = db.exec(select(User).where(User.id == user_id)).first()
+        if not db_user or not verify_password(payload.password, db_user.password_hash):
+            raise HTTPException(status_code=401, detail="رمز عبور اشتباه است")
+            
+    if not db_user or not db_user.two_factor_enabled:
+        raise HTTPException(status_code=400, detail="ورود دو مرحله‌ای فعال نیست")
+        
+    db_user.two_factor_enabled = False
+    db_user.two_factor_secret = None
+    db.add(db_user)
+    db.commit()
+    
+    db.add(Log(
+        log_type="Security",
+        state="2FA Disabled",
+        details=f"User {username} disabled two-factor authentication."
+    ))
+    db.commit()
+    
+    return {"status": "ok", "message": "ورود دو مرحله‌ای با موفقیت غیرفعال شد"}
 
 @app.post("/api/auth/logout")
 def logout(request: Request, response: Response, db: Session = Depends(get_session)):
@@ -1546,6 +1758,7 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     group_id: Optional[int] = None
     is_active: Optional[bool] = None
+    two_factor_enabled: Optional[bool] = None
 
 @app.get("/api/users", response_model=list[User])
 def get_users(session: Session = Depends(get_session), user: dict = Depends(require_admin)):
@@ -1588,6 +1801,10 @@ def update_user(id: int, payload: UserUpdate, session: Session = Depends(get_ses
         db_user.group_id = payload.group_id
     if payload.is_active is not None:
         db_user.is_active = payload.is_active
+    if payload.two_factor_enabled is not None:
+        db_user.two_factor_enabled = payload.two_factor_enabled
+        if not payload.two_factor_enabled:
+            db_user.two_factor_secret = None
         
     session.add(db_user)
     session.commit()

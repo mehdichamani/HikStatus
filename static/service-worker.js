@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hikstatus-cache-v1';
+const CACHE_NAME = 'hikstatus-cache-v5';
 const ASSETS = [
   '/',
   '/login',
@@ -6,7 +6,8 @@ const ASSETS = [
   '/static/app.js',
   '/static/logo.webp',
   '/static/index.html',
-  '/static/login.html'
+  '/static/login.html',
+  '/static/qrcode.min.js'
 ];
 
 self.addEventListener('install', (event) => {

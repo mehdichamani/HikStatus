@@ -40,7 +40,6 @@ function nav(id) {
         genReport();
         fetchAndRenderHeatmap();
     }
-    if (id === 'logs' && logOff === 0) fetchLogs();
     if (id === 'settings') loadSettings();
 }
 
@@ -551,9 +550,10 @@ async function loadSettings() {
     const nav = document.getElementById('config-nav');
     if (role === 'admin') {
         nav.innerHTML = `
-            <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
             <button data-tab="sec-groups" onclick="switchSettingsTab('sec-groups')">کارخانه‌ها / گروه‌ها</button>
+            <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
             <button data-tab="sec-users" onclick="switchSettingsTab('sec-users')">مدیریت کاربران</button>
+            <button data-tab="sec-logs" onclick="switchSettingsTab('sec-logs')">لاگ</button>
             <button data-tab="grp-Email" onclick="switchSettingsTab('grp-Email')">تنظیمات ایمیل</button>
             <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
             <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
@@ -662,7 +662,9 @@ async function loadSettings() {
     ).join('');
 
     let defaultTab = 'sec-nvr';
-    if (role === 'group_view') {
+    if (role === 'admin') {
+        defaultTab = 'sec-groups';
+    } else if (role === 'group_view') {
         defaultTab = 'sec-about';
     }
     const activeTab = document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || defaultTab;
@@ -674,7 +676,7 @@ function switchSettingsTab(tabId) {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
 
-    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about'];
+    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -682,6 +684,9 @@ function switchSettingsTab(tabId) {
         }
     });
 
+    if (tabId === 'sec-logs') {
+        resetLogs();
+    }
     if (tabId === 'grp-Browser') {
         updateBrowserAlertsUI();
     }
@@ -3189,6 +3194,9 @@ function openProfileModal() {
     document.getElementById('p-new-pass').value = '';
     document.getElementById('p-new-pass-confirm').value = '';
     
+    cancel2FASetup();
+    update2FAUIState();
+    
     document.getElementById('profileModal').classList.add('open');
 }
 
@@ -3217,6 +3225,115 @@ async function changeMyPassword() {
         closeProfileModal();
     } catch (e) {
         showToast('خطا در تغییر رمز عبور: ' + e.message, 'error');
+    }
+}
+
+function update2FAUIState() {
+    const isEnabled = window.currentUser && window.currentUser.two_factor_enabled;
+    const disabledSec = document.getElementById('p-2fa-disabled-section');
+    const setupSec = document.getElementById('p-2fa-setup-section');
+    const enabledSec = document.getElementById('p-2fa-enabled-section');
+    
+    if (!disabledSec || !setupSec || !enabledSec) return;
+    
+    if (isEnabled) {
+        disabledSec.style.display = 'none';
+        setupSec.style.display = 'none';
+        enabledSec.style.display = 'block';
+        document.getElementById('p-2fa-disable-password').value = '';
+    } else {
+        disabledSec.style.display = 'block';
+        setupSec.style.display = 'none';
+        enabledSec.style.display = 'none';
+    }
+}
+
+let activeQRCode = null;
+
+async function start2FASetup() {
+    try {
+        const res = await apiFetch(`${API}/auth/2fa/setup`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        document.getElementById('p-2fa-disabled-section').style.display = 'none';
+        document.getElementById('p-2fa-setup-section').style.display = 'flex';
+        document.getElementById('p-2fa-manual-key').value = data.secret;
+        document.getElementById('p-2fa-verification-code').value = '';
+        
+        const qrContainer = document.getElementById('p-2fa-qrcode');
+        qrContainer.innerHTML = '';
+        
+        if (typeof QRCode !== 'undefined') {
+            activeQRCode = new QRCode(qrContainer, {
+                text: data.otpauth_url,
+                width: 160,
+                height: 160,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        } else {
+            qrContainer.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:20px 0;">خطا در بارگذاری کتابخانه QR Code. لطفاً دوباره تلاش کنید.</div>';
+        }
+    } catch (e) {
+        showToast('خطا در راه‌اندازی ورود دو مرحله‌ای: ' + e.message, 'error');
+    }
+}
+
+function cancel2FASetup() {
+    const codeField = document.getElementById('p-2fa-verification-code');
+    if (codeField) codeField.value = '';
+    update2FAUIState();
+}
+
+async function verify2FAAndEnable() {
+    const code = document.getElementById('p-2fa-verification-code').value.trim();
+    if (code.length !== 6 || isNaN(code)) {
+        return showToast('لطفاً کد ۶ رقمی را به‌طور صحیح وارد کنید', 'error');
+    }
+    
+    try {
+        await apiFetch(`${API}/auth/2fa/verify-setup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+        
+        showToast('ورود دو مرحله‌ای با موفقیت فعال شد');
+        window.currentUser.two_factor_enabled = true;
+        update2FAUIState();
+    } catch (e) {
+        showToast('خطا در تایید کد: ' + e.message, 'error');
+    }
+}
+
+function copy2FAKey() {
+    const keyInput = document.getElementById('p-2fa-manual-key');
+    keyInput.select();
+    navigator.clipboard.writeText(keyInput.value);
+    showToast('کلید با موفقیت در حافظه کپی شد');
+}
+
+async function disable2FA() {
+    const password = document.getElementById('p-2fa-disable-password').value;
+    if (!password) {
+        return showToast('لطفاً برای غیرفعال‌سازی، رمز عبور خود را وارد کنید', 'error');
+    }
+    
+    try {
+        await apiFetch(`${API}/auth/2fa/disable`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        
+        showToast('ورود دو مرحله‌ای غیرفعال شد');
+        window.currentUser.two_factor_enabled = false;
+        update2FAUIState();
+    } catch (e) {
+        showToast('خطا در غیرفعال‌سازی: ' + e.message, 'error');
     }
 }
 

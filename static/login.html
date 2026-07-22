@@ -245,6 +245,8 @@
 
         <div class="login-card">
             <div class="error-msg" id="error-msg"></div>
+            
+            <!-- Standard Login Form -->
             <form id="login-form" onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label class="form-label">نام کاربری</label>
@@ -261,6 +263,31 @@
                     <span class="btn-text">ورود</span>
                 </button>
             </form>
+
+            <!-- 2FA Verification Form -->
+            <form id="login-2fa-form" onsubmit="handle2FALogin(event)" style="display: none;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(99, 102, 241, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; color: var(--primary);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </div>
+                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">ورود دو مرحله‌ای</h3>
+                    <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">کد ۶ رقمی تولید شده توسط اپلیکیشن Authenticator خود را وارد کنید.</p>
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label class="form-label" style="text-align: center;">کد تایید دو مرحله‌ای</label>
+                    <input type="text" id="2fa-code" class="form-input" placeholder="000000" style="text-align: center; letter-spacing: 6px; font-family: monospace; font-size: 20px; font-weight: bold; padding: 10px 12px;" maxlength="6" autocomplete="one-time-code">
+                </div>
+                <button type="submit" class="btn-login" id="login-2fa-btn" style="margin-bottom: 12px;">
+                    <span class="spinner"></span>
+                    <span class="btn-text">تایید و ورود</span>
+                </button>
+                <button type="button" class="btn-login" style="background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: normal;" onclick="cancel2FALogin()">
+                    <span class="btn-text">بازگشت به صفحه ورود</span>
+                </button>
+            </form>
         </div>
 
         <div class="login-footer">
@@ -271,6 +298,8 @@
     </div>
 
     <script>
+        let tempToken = '';
+
         async function handleLogin(e) {
             e.preventDefault();
             const btn = document.getElementById('login-btn');
@@ -291,6 +320,17 @@
 
                 if (res.ok) {
                     const data = await res.json();
+                    
+                    if (data.status === "2fa_required") {
+                        tempToken = data.temp_token;
+                        document.getElementById('login-form').style.display = 'none';
+                        document.getElementById('login-2fa-form').style.display = 'block';
+                        const codeField = document.getElementById('2fa-code');
+                        codeField.value = '';
+                        codeField.focus();
+                        return;
+                    }
+
                     localStorage.setItem('user_role', data.role);
                     if (data.group_id) {
                         localStorage.setItem('user_group_id', data.group_id);
@@ -305,7 +345,7 @@
                     window.location.href = '/';
                 } else {
                     const data = await res.json();
-                    errorMsg.textContent = data.detail || 'خطا در ورود';
+                    errorMsg.textContent = data.detail || 'نام کاربری یا رمز عبور اشتباه است';
                     errorMsg.classList.add('show');
                 }
             } catch (err) {
@@ -315,6 +355,64 @@
                 btn.classList.remove('loading');
                 btn.disabled = false;
             }
+        }
+
+        async function handle2FALogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('login-2fa-btn');
+            const errorMsg = document.getElementById('error-msg');
+            const code = document.getElementById('2fa-code').value.trim();
+
+            if (code.length !== 6 || isNaN(code)) {
+                errorMsg.textContent = 'لطفاً کد ۶ رقمی را به‌طور صحیح وارد کنید';
+                errorMsg.classList.add('show');
+                return;
+            }
+
+            errorMsg.classList.remove('show');
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/login/2fa', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ temp_token: tempToken, code })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('user_role', data.role);
+                    if (data.group_id) {
+                        localStorage.setItem('user_group_id', data.group_id);
+                    } else {
+                        localStorage.removeItem('user_group_id');
+                    }
+                    if (data.password_is_plain) {
+                        localStorage.setItem('admin_plain_password', '1');
+                    } else {
+                        localStorage.removeItem('admin_plain_password');
+                    }
+                    window.location.href = '/';
+                } else {
+                    const data = await res.json();
+                    errorMsg.textContent = data.detail || 'کد وارد شده صحیح نیست یا منقضی شده است';
+                    errorMsg.classList.add('show');
+                }
+            } catch (err) {
+                errorMsg.textContent = 'خطا در اتصال به سرور';
+                errorMsg.classList.add('show');
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        }
+
+        function cancel2FALogin() {
+            tempToken = '';
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('login-2fa-form').style.display = 'none';
+            document.getElementById('error-msg').classList.remove('show');
         }
 
         if ('serviceWorker' in navigator) {

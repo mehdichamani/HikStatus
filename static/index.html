@@ -106,15 +106,7 @@
             </svg>
             <span>نقشه</span>
         </button>
-        <button class="nav-item" data-view="logs" onclick="nav('logs')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-            <span>گزارش</span>
-        </button>
+
         <button class="nav-item" data-view="reports" onclick="nav('reports')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="20" x2="18" y2="10" />
@@ -259,45 +251,7 @@
             <div id="nvr-container" class="nvr-list"></div>
         </section>
 
-        <!-- LOGS VIEW -->
-        <section id="logs" class="view">
-            <div class="panel-row">
-                <aside class="panel-side">
-                    <div class="search-box">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="11" cy="11" r="8" />
-                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <input id="logSearch" placeholder="جستجو..." onkeyup="delayLogSearch()">
-                    </div>
-                    <div class="filter-chips">
-                        <button class="chip active" onclick="setFilter(this, '')">همه</button>
-                        <button class="chip" onclick="setFilter(this, 'Camera')">دوربین</button>
-                        <button class="chip" onclick="setFilter(this, 'NVR')">NVR</button>
-                        <button class="chip" onclick="setFilter(this, 'Telegram')">تلگرام</button>
-                        <button class="chip" onclick="setFilter(this, 'Mail')">ایمیل</button>
-                    </div>
-                </aside>
-                <div class="panel-main" id="logScroll">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>زمان</th>
-                                <th>نوع</th>
-                                <th>وضعیت</th>
-                                <th>جزئیات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="log-list"></tbody>
-                    </table>
-                    <div id="logLoader" class="loader hidden">
-                        <div class="spinner"></div>
-                        <span>درحال بارگذاری...</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+
 
         <!-- REPORTS VIEW -->
         <section id="reports" class="view">
@@ -557,8 +511,26 @@
                     <nav id="config-nav" class="settings-nav"></nav>
                 </aside>
                 <div class="panel-main panel-scroll">
+                    <!-- Factory Groups Management -->
+                    <div class="card" id="sec-groups">
+                        <div class="card-header">
+                            <h3>مدیریت کارخانه‌ها / گروه‌ها</h3>
+                        </div>
+                        <div class="nvr-form" style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border);">
+                            <input id="groupName" class="form-input" placeholder="نام کارخانه (مثلاً کارخانه تبریز)">
+                            <input id="groupDesc" class="form-input" placeholder="توضیحات (اختیاری)" style="flex: 2;">
+                            <button class="btn btn-primary btn-icon-only" onclick="addGroup()">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19" />
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="group-list" class="list-container"></div>
+                    </div>
+
                     <!-- NVR Management -->
-                    <div class="card" id="sec-nvr">
+                    <div class="card" id="sec-nvr" style="display: none;">
                         <div class="card-header">
                             <h3>مدیریت NVRها</h3>
                         </div>
@@ -582,22 +554,46 @@
                         </div>
                     </div>
 
-                    <!-- Factory Groups Management -->
-                    <div class="card" id="sec-groups" style="display: none;">
+                    <!-- Logs Management (System Logs) -->
+                    <div class="card" id="sec-logs" style="display: none; width: 100%;">
                         <div class="card-header">
-                            <h3>مدیریت کارخانه‌ها / گروه‌ها</h3>
+                            <h3>لاگ‌های سیستم</h3>
                         </div>
-                        <div class="nvr-form" style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border);">
-                            <input id="groupName" class="form-input" placeholder="نام کارخانه (مثلاً کارخانه تبریز)">
-                            <input id="groupDesc" class="form-input" placeholder="توضیحات (اختیاری)" style="flex: 2;">
-                            <button class="btn btn-primary btn-icon-only" onclick="addGroup()">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="5" x2="12" y2="19" />
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                </svg>
-                            </button>
+                        <div class="panel-row" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px;">
+                            <aside class="panel-side" style="width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; background: transparent; padding: 0; border: none; box-shadow: none;">
+                                <div class="search-box" style="margin: 0; width: 100%; display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--border); padding: 8px 12px; border-radius: var(--radius-sm);">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-muted); flex-shrink: 0;">
+                                        <circle cx="11" cy="11" r="8" />
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                    </svg>
+                                    <input id="logSearch" placeholder="جستجو..." onkeyup="delayLogSearch()" style="background: transparent; border: none; color: var(--text); outline: none; width: 100%; font-family: inherit; font-size: 13px;">
+                                </div>
+                                <div class="filter-chips" style="display: flex; flex-direction: column; gap: 6px;">
+                                    <button class="chip active" onclick="setFilter(this, '')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">همه</button>
+                                    <button class="chip" onclick="setFilter(this, 'Camera')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">دوربین</button>
+                                    <button class="chip" onclick="setFilter(this, 'NVR')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">NVR</button>
+                                    <button class="chip" onclick="setFilter(this, 'Telegram')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">تلگرام</button>
+                                    <button class="chip" onclick="setFilter(this, 'Mail')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">ایمیل</button>
+                                </div>
+                            </aside>
+                            <div class="panel-main" id="logScroll" style="flex: 1; min-height: 400px; max-height: 500px; overflow-y: auto; padding-left: 10px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>زمان</th>
+                                            <th>نوع</th>
+                                            <th>وضعیت</th>
+                                            <th>جزئیات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="log-list"></tbody>
+                                </table>
+                                <div id="logLoader" class="loader hidden" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px 0;">
+                                    <div class="spinner"></div>
+                                    <span>درحال بارگذاری...</span>
+                                </div>
+                            </div>
                         </div>
-                        <div id="group-list" class="list-container"></div>
                     </div>
 
                     <!-- Dynamic Settings -->
@@ -1101,6 +1097,70 @@
                     
                     <button class="btn btn-primary w-100" onclick="changeMyPassword()">تغییر رمز عبور</button>
                 </div>
+
+                <!-- Two-Factor Authentication Section -->
+                <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+                    <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--text-primary);">تایید دو مرحله‌ای (2FA)</h3>
+                    
+                    <!-- If 2FA is Disabled -->
+                    <div id="p-2fa-disabled-section">
+                        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px;">
+                            با فعال‌سازی تایید دو مرحله‌ای، امنیت حساب خود را افزایش دهید. برای ورود، علاوه بر رمز عبور، به کد تولید شده توسط اپلیکیشن‌های Authenticator (مانند Google Authenticator) نیاز خواهید داشت.
+                        </p>
+                        <button class="btn btn-primary w-100" onclick="start2FASetup()">شروع فعال‌سازی ورود دو مرحله‌ای</button>
+                    </div>
+
+                    <!-- If 2FA Setup is in Progress -->
+                    <div id="p-2fa-setup-section" style="display: none; flex-direction: column; gap: 12px; padding: 12px; background: var(--surface-2); border-radius: var(--radius); border: 1px solid var(--border);">
+                        <p style="font-size: 12px; font-weight: bold; color: var(--primary); margin-bottom: 4px;">مراحل فعال‌سازی:</p>
+                        <ol style="font-size: 12px; color: var(--text-secondary); padding-right: 15px; margin: 0; line-height: 1.8;">
+                            <li>اپلیکیشن Google Authenticator یا Microsoft Authenticator را در گوشی خود باز کنید.</li>
+                            <li>دکمه اسکن بارکد (Scan QR) یا وارد کردن کلید دستی را در برنامه انتخاب کنید.</li>
+                            <li>بارکد زیر را اسکن کنید یا کلید متنی را به صورت دستی وارد نمایید.</li>
+                        </ol>
+                        
+                        <!-- QR Code Container -->
+                        <div style="display: flex; justify-content: center; padding: 10px; background: white; border-radius: 8px; width: fit-content; margin: 5px auto;">
+                            <div id="p-2fa-qrcode"></div>
+                        </div>
+
+                        <!-- Manual Key Display -->
+                        <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
+                            <span style="color: var(--text-secondary);">کلید متنی (در صورت عدم امکان اسکن):</span>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <input type="text" id="p-2fa-manual-key" class="form-input mono" style="font-size: 12px; padding: 6px 8px; text-align: center; background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 100%; border-radius: var(--radius-sm);" readonly onclick="this.select()">
+                                <button class="btn btn-ghost" style="padding: 6px 12px; font-size: 11px; border: 1px solid var(--border);" onclick="copy2FAKey()">کپی</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 3: Verification Code -->
+                        <div class="form-field-group">
+                            <label class="form-label" style="font-size: 12px; font-weight: bold;">کد ۶ رقمی تولید شده را جهت تست وارد کنید:</label>
+                            <input type="text" id="p-2fa-verification-code" class="form-input mono" placeholder="000000" style="text-align: center; letter-spacing: 4px; font-size: 16px;" maxlength="6">
+                        </div>
+                        
+                        <div style="display: flex; gap: 8px; margin-top: 5px;">
+                            <button class="btn btn-primary" style="flex: 1;" onclick="verify2FAAndEnable()">تایید و فعال‌سازی</button>
+                            <button class="btn btn-ghost" onclick="cancel2FASetup()" style="border: 1px solid var(--border);">انصراف</button>
+                        </div>
+                    </div>
+
+                    <!-- If 2FA is Enabled -->
+                    <div id="p-2fa-enabled-section" style="display: none;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #10b981; font-size: 13px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <strong>ورود دو مرحله‌ای فعال است.</strong>
+                        </div>
+                        
+                        <div class="form-field-group" style="margin-bottom: 12px;" id="p-2fa-disable-password-group">
+                            <label class="form-label">جهت غیرفعال‌سازی، رمز عبور حساب خود را وارد کنید:</label>
+                            <input type="password" id="p-2fa-disable-password" class="form-input" placeholder="رمز عبور فعلی">
+                        </div>
+                        <button class="btn btn-danger w-100" onclick="disable2FA()">غیرفعال‌سازی ورود دو مرحله‌ای</button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <button class="btn btn-danger" onclick="logout()" style="display: flex; align-items: center; gap: 6px;">
@@ -1153,13 +1213,7 @@
             </svg>
             <span>نقشه</span>
         </button>
-        <button class="mobile-nav-item" data-view="logs" onclick="nav('logs')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-            </svg>
-            <span>گزارش</span>
-        </button>
+
         <button class="mobile-nav-item" data-view="reports" onclick="nav('reports')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="20" x2="18" y2="10" />
@@ -1181,6 +1235,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.js"></script>
+    <script src="/static/qrcode.min.js"></script>
     <script src="/static/app.js?v=2" defer></script>
 </body>
 

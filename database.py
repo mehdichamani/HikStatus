@@ -94,6 +94,8 @@ class User(SQLModel, table=True):
     role: str = "group_view"     # "admin" | "group_control" | "group_view"
     group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
     is_active: bool = True
+    two_factor_secret: Optional[str] = None
+    two_factor_enabled: bool = False
 
 class UserAlertSettings(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -251,7 +253,7 @@ def init_db():
 # Migration System
 # ---------------------------------------------------------------------------
 
-CURRENT_MIGRATION_VERSION = 11
+CURRENT_MIGRATION_VERSION = 12
 
 
 def _ensure_schema_version_table(conn: sqlite3.Connection):
@@ -525,6 +527,27 @@ def rollback_011_add_performance_indexes(conn: sqlite3.Connection):
 
 
 # ---------------------------------------------------------------------------
+# Migration 012 – User 2FA fields
+# ---------------------------------------------------------------------------
+
+def migration_012_add_user_2fa_fields(conn: sqlite3.Connection):
+    """Add two_factor_secret and two_factor_enabled to user."""
+    cols = _get_columns(conn, "user")
+    additions = {
+        "two_factor_secret": "TEXT",
+        "two_factor_enabled": "BOOLEAN DEFAULT 0",
+    }
+    for name, dtype in additions.items():
+        if name not in cols:
+            conn.execute(f"ALTER TABLE user ADD COLUMN {name} {dtype}")
+            logger.info(f"[migration 012] Added column {name} to user")
+
+
+def rollback_012_add_user_2fa_fields(conn: sqlite3.Connection):
+    logger.info("[rollback 012] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
 # Migration registry
 # ---------------------------------------------------------------------------
 
@@ -540,6 +563,7 @@ MIGRATIONS = {
     9: ("add_camera_plan_id", migration_009_add_camera_plan_id),
     10: ("add_scheduledtask_last_error", migration_010_add_scheduledtask_last_error),
     11: ("add_performance_indexes", migration_011_add_performance_indexes),
+    12: ("add_user_2fa_fields", migration_012_add_user_2fa_fields),
 }
 
 ROLLBACKS = {
@@ -554,6 +578,7 @@ ROLLBACKS = {
     9: rollback_009_add_camera_plan_id,
     10: rollback_010_add_scheduledtask_last_error,
     11: rollback_011_add_performance_indexes,
+    12: rollback_012_add_user_2fa_fields,
 }
 
 
