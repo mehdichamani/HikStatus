@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from sqlmodel import Session, select, col
-from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, User, UserAlertSettings, UserSession, MapPlan, ScheduledTask, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
+from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, OutageExplanation, User, UserAlertSettings, UserSession, MapPlan, ScheduledTask, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
 from scheduler import scheduler
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
@@ -1964,7 +1964,7 @@ def get_outage_explanations(session: Session = Depends(get_session), user: dict 
         
         if o.explained_at:
             status_val = "explained"
-        elif now > o.assigned_deadline:
+        elif o.assigned_deadline and now > o.assigned_deadline:
             status_val = "expired"
         else:
             status_val = "pending"
