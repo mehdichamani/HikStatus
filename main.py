@@ -411,6 +411,14 @@ app.mount("/static/plans", StaticFiles(directory="data/plans"), name="plans")
 app.mount("/static/snapshots", StaticFiles(directory="data/snapshots"), name="snapshots")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.get("/service-worker.js")
+def service_worker_route():
+    return FileResponse('static/service-worker.js', media_type='application/javascript')
+
+@app.get("/manifest.json")
+def manifest_json_route():
+    return FileResponse('static/manifest.json', media_type='application/json')
+
 @app.get("/login")
 def login_page():
     return FileResponse('static/login.html')

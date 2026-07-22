@@ -1,0 +1,18 @@
+{
+  "short_name": "HikStatus",
+  "name": "HikStatus — سامانه مانیتورینگ دوربین‌ها",
+  "description": "سامانه مانیتورینگ دوربین‌های کارخانجات گروه صنعتی شیشه کاوه",
+  "icons": [
+    {
+      "src": "/static/logo.webp",
+      "type": "image/webp",
+      "sizes": "256x256",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "display": "standalone",
+  "orientation": "portrait"
+}

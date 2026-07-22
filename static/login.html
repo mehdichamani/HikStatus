@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0a0a0f">
+    <link rel="manifest" href="/manifest.json">
     <title>ورود — HikStatus</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -46,7 +47,6 @@
             justify-content: center;
             padding: 20px;
             -webkit-font-smoothing: antialiased;
-            overflow: hidden;
         }
 
         .login-wrapper {
@@ -315,6 +315,14 @@
                 btn.classList.remove('loading');
                 btn.disabled = false;
             }
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker registration failed', err));
+            });
         }
     </script>
 </body>

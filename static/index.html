@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0a0a0f">
+    <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>HikStatus</title>
@@ -21,6 +22,12 @@
 </head>
 
 <body>
+
+    <!-- Initial Loading Screen -->
+    <div id="initial-loading-screen" style="position: fixed; inset: 0; background: var(--bg, #0a0a0f); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; opacity: 1; transition: opacity 0.4s ease, visibility 0.4s;">
+        <div style="width: 48px; height: 48px; border: 4px solid var(--border, #2a2a36); border-top-color: var(--primary, #6366f1); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="font-family: 'Vazirmatn', sans-serif; font-size: 14px; color: var(--text-secondary, #94a3b8);">در حال بارگذاری سامانه...</p>
+    </div>
 
     <!-- Connection Drop Warning Banner -->
     <div id="connection-warning" class="connection-warning hidden">
@@ -1105,6 +1112,24 @@
                     <span>خروج از حساب</span>
                 </button>
                 <button class="btn btn-ghost" onclick="closeProfileModal()">بستن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h3 id="confirm-title">تایید عملیات</h3>
+                <button class="btn-close" onclick="closeConfirmModal(false)">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px;">
+                <p id="confirm-message" style="line-height: 1.6; font-size: 14px; color: var(--text-secondary);"></p>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px;">
+                <button class="btn btn-ghost" id="confirm-cancel-btn" onclick="closeConfirmModal(false)">انصراف</button>
+                <button class="btn btn-primary" id="confirm-ok-btn" onclick="closeConfirmModal(true)">تایید</button>
             </div>
         </div>
     </div>

@@ -896,7 +896,7 @@ async function addGroup() {
 }
 
 async function deleteGroup(id) {
-    if (!confirm('آیا از حذف این کارخانه اطمینان دارید؟ NVRهای این کارخانه بدون گروه خواهند شد.')) return;
+    if (!await showConfirm('آیا از حذف این کارخانه اطمینان دارید؟ NVRهای این کارخانه بدون گروه خواهند شد.')) return;
     try {
         await apiFetch(`${API}/groups/${id}`, { method: 'DELETE' });
         showToast('کارخانه حذف شد');
@@ -1030,7 +1030,7 @@ async function saveNVRRow(ip) {
 }
 
 async function purgeDatabase() {
-    if (!confirm('توجه: تمامی اطلاعات دیتابیس (دوربین‌ها، NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات) به طور کامل پاک خواهند شد. آیا مطمئن هستید؟')) return;
+    if (!await showConfirm('توجه: تمامی اطلاعات دیتابیس (دوربین‌ها، NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات) به طور کامل پاک خواهند شد. آیا مطمئن هستید؟')) return;
     try {
         await apiFetch(`${API}/data/purge`, { method: 'POST' });
         showToast('پاکسازی کامل دیتابیس با موفقیت انجام شد');
@@ -1049,7 +1049,7 @@ async function restoreDatabase(input) {
         showToast('فایل باید با پسوند .db باشد', 'error');
         return;
     }
-    if (!confirm(`آیا مطمئنید؟ پایگاه داده فعلی با فایل "${file.name}" جایگزین خواهد شد و مانیتور راه‌اندازی مجدد می‌شود.`)) return;
+    if (!await showConfirm(`آیا مطمئنید؟ پایگاه داده فعلی با فایل "${file.name}" جایگزین خواهد شد و مانیتور راه‌اندازی مجدد می‌شود.`)) return;
     const statusEl = document.getElementById('restore-status');
     if (statusEl) statusEl.textContent = 'در حال آپلود...';
     try {
@@ -1081,7 +1081,7 @@ async function importJsonConfig(input) {
         showToast('فایل باید با پسوند .json باشد', 'error');
         return;
     }
-    if (!confirm(`توجه: با بارگذاری این فایل، تمامی تنظیمات فعلی، لیست NVRها، گروه‌ها و کاربران کاملاً حذف شده و با اطلاعات فایل "${file.name}" جایگزین خواهند شد. آیا ادامه می‌دهید؟`)) return;
+    if (!await showConfirm(`توجه: با بارگذاری این فایل، تمامی تنظیمات فعلی، لیست NVRها، گروه‌ها و کاربران کاملاً حذف شده و با اطلاعات فایل "${file.name}" جایگزین خواهند شد. آیا ادامه می‌دهید؟`)) return;
     const statusEl = document.getElementById('import-json-status');
     if (statusEl) statusEl.textContent = 'در حال بارگذاری...';
     try {
@@ -1134,6 +1134,36 @@ function showToast(msg, type = 'success') {
         toast.style.transition = 'opacity 0.3s';
         setTimeout(() => toast.remove(), 300);
     }, duration);
+}
+
+let confirmPromiseResolver = null;
+
+function showConfirm(message, title = 'تایید عملیات', isDangerous = true) {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-message').textContent = message;
+    
+    const okBtn = document.getElementById('confirm-ok-btn');
+    if (isDangerous) {
+        okBtn.style.background = 'var(--danger)';
+        okBtn.style.borderColor = 'var(--danger)';
+    } else {
+        okBtn.style.background = 'var(--primary)';
+        okBtn.style.borderColor = 'var(--primary)';
+    }
+
+    document.getElementById('confirmModal').classList.add('open');
+    
+    return new Promise((resolve) => {
+        confirmPromiseResolver = resolve;
+    });
+}
+
+function closeConfirmModal(result) {
+    document.getElementById('confirmModal').classList.remove('open');
+    if (confirmPromiseResolver) {
+        confirmPromiseResolver(result);
+        confirmPromiseResolver = null;
+    }
 }
 
 // --- LOGS ---
@@ -1472,6 +1502,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     connectWS();
     initBrowserAlerts();
     checkAdminPasswordWarning();
+
+    // Hide initial loading screen
+    const loadingScreen = document.getElementById('initial-loading-screen');
+    if (loadingScreen) {
+        loadingScreen.style.opacity = '0';
+        loadingScreen.style.pointerEvents = 'none';
+        setTimeout(() => {
+            loadingScreen.style.display = 'none';
+        }, 400);
+    }
 });
 
 function checkAdminPasswordWarning() {
@@ -2000,7 +2040,7 @@ async function uploadGroupPlan(input) {
 
 async function deletePlan(planId) {
     if (!currentGroupId) return;
-    if (!confirm('آیا از حذف این پлан مطمئن هستید؟')) return;
+    if (!await showConfirm('آیا از حذف این پлан مطمئن هستید؟')) return;
 
     try {
         const res = await apiFetch(`${API}/groups/${currentGroupId}/plans/${planId}`, { method: 'DELETE' });
@@ -2481,7 +2521,7 @@ function updateMarkerFovVal(id, field, value) {
 }
 
 async function removeCameraFromMap(id) {
-    if (!confirm('آیا از حذف این دوربین از نقشه مطمئن هستید؟')) return;
+    if (!await showConfirm('آیا از حذف این دوربین از نقشه مطمئن هستید؟')) return;
 
     const c = mapCamerasList.find(cam => cam.id === id);
     if (!c) return;
@@ -3087,7 +3127,7 @@ async function addUser() {
 }
 
 async function deleteUser(id) {
-    if (!confirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
+    if (!await showConfirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
     try {
         await apiFetch(`${API}/users/${id}`, { method: 'DELETE' });
         showToast('کاربر با موفقیت حذف شد');
@@ -3582,8 +3622,8 @@ function renderScheduledTasks() {
     }).join('');
 }
 
-function confirmRunTask(id, name) {
-    if (confirm(`آیا از اجرای دستی «${name}» اطمینان دارید؟`)) {
+async function confirmRunTask(id, name) {
+    if (await showConfirm(`آیا از اجرای دستی «${name}» اطمینان دارید؟`)) {
         runTask(id);
     }
 }
@@ -3772,4 +3812,12 @@ function onGlobalSearch(query) {
             </div>
         </div>`;
     }).join('');
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(reg => console.log('Service Worker registered', reg))
+            .catch(err => console.error('Service Worker registration failed', err));
+    });
 }
