@@ -61,23 +61,28 @@
 
   
 
-- [ ] **محدودیت حجم فایل JSON** در import — `main.py:652-775`
+- [x] **محدودیت حجم فایل JSON** در import — `main.py:652-775`
+- **توضیح**: محدودیت حجم فایل برای جلوگیری از DOS/OOM اضافه شد.
 
-- [ ] **محدودیت حجم فایل تصویر** در آپلود — `main.py:918-947`
+- [x] **محدودیت حجم فایل تصویر** در آپلود — `main.py:918-947`
+- **توضیح**: محدودیت ۵ مگابایتی برای فایل‌های تصویری اضافه شد.
 
-- [ ] **مدیریت صحیح پروسه‌های orphan FFmpeg** — `main.py:1238`
+- [x] **مدیریت صحیح پروسه‌های orphan FFmpeg** — `main.py:1238`
 
 - استفاده از `process.terminate()` و `process.wait()` برای تمام فرزندان
+- **توضیح**: با اجرای `ffmpeg` از طریق یک `process group` جدید (`start_new_session=True`) و به کمک `os.killpg`، تمامی زیرپردازش‌ها به درستی متوقف می‌شوند.
 
-- [ ] **مقایسهٔ امن رمز عبور** — `main.py:221-235`
+- [x] **مقایسهٔ امن رمز عبور** — `main.py:221-235`
 
 - استفاده از `hmac.compare_digest`
+- **توضیح**: عملگر `==` با متد `secrets.compare_digest` جایگزین شد تا از حملات زمان‌سنجی (Timing Attack) جلوگیری شود.
 
 - [ ] **استفاده از timezone‑aware datetime** برای `DowntimeEvent.start_time` — `database.py:76`
 
 - [ ] **استفاده از timezone‑aware datetime** برای `UserSession.last_activity` — `database.py:114`
 
-- [ ] **رفع race condition در `trigger_task_now`** — `scheduler.py:138-147`
+- [x] **رفع race condition در `trigger_task_now`** — `scheduler.py:138-147`
+- **توضیح**: یک `asyncio.Lock` به سطح کلاس اضافه شد و قبل از بررسی و تغییر وضعیت تسک (مانند وضعیت `Running`) از بروز اختلال همزمانی جلوگیری می‌کند.
 
   
 

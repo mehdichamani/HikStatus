@@ -264,7 +264,7 @@ def verify_admin_password(input_password: str, env_password_val: str) -> tuple[b
                 pass
     if is_hash:
         return verify_password(input_password, env_password_val), False
-    return input_password == env_password_val, True
+    return secrets.compare_digest(input_password, env_password_val), True
 
 
 def create_session_token():
@@ -915,6 +915,9 @@ def export_config_json(session: Session = Depends(get_session)):
 
 @app.post("/api/config/import", dependencies=[Depends(require_admin)])
 async def import_config_json(request: Request, session: Session = Depends(get_session)):
+    cl = request.headers.get("content-length")
+    if cl and int(cl) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="حجم فایل بیش از حد مجاز (۱۰ مگابایت) است")
     try:
         body = await request.json()
     except Exception:
@@ -1191,6 +1194,9 @@ def get_group_plans(id: int, session: Session = Depends(get_session), user: dict
 
 @app.post("/api/groups/{id}/plans")
 async def upload_group_plan(id: int, file: UploadFile = File(...), name: str = "", session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    if file.size and file.size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="حجم فایل بیش از حد مجاز (۵ مگابایت) است")
+
     g = session.get(NVRGroup, id)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -1534,6 +1540,8 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
     encoded_pass = quote(decrypted_pass, safe='')
     rtsp_url = f"rtsp://{nvr.user}:{encoded_pass}@{rtsp_host}/Streaming/Channels/{rtsp_chan}"
     
+    import os
+    import signal
     import subprocess
     from fastapi.responses import StreamingResponse
     
@@ -1547,7 +1555,7 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
             "-r", "15",
             "-"
         ]
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
         buffer = b""
         try:
             while True:
@@ -1568,16 +1576,22 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
         except GeneratorExit:
             pass
         finally:
-            process.terminate()
             try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                 process.wait(timeout=3)
             except Exception:
-                process.kill()
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except Exception:
+                    pass
             
     return StreamingResponse(gen_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 @app.post("/api/map/upload")
 async def upload_map(file: UploadFile = File(...), user: dict = Depends(require_admin)):
+    if file.size and file.size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="حجم فایل بیش از حد مجاز (۵ مگابایت) است")
+
     os.makedirs("static", exist_ok=True)
     ext = file.filename.split(".")[-1].lower()
     if ext not in ["png", "jpg", "jpeg", "svg"]:
