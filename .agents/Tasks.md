@@ -10,29 +10,35 @@
 
   
 
-- [ ] **کوکی session_token** بدون `Secure` flag — `main.py:366`
+- [x] **کوکی session_token** بدون `Secure` flag — `main.py:366`
 
 - اضافه کردن `secure=True` به کوکی
+- **توضیح**: آرگومان `secure=True` به متد `set_cookie` در تمام endpointهای لاگین و احراز هویت در فایل `main.py` اضافه شد تا کوکی تنها روی HTTPS منتقل شود.
 
-- [ ] **مسیر `/api/data/purge`** فقط نیاز به `require_auth` دارد — `main.py:506-511`
-
-- تغییر به `require_admin`
-
-- [ ] **مسیر `/api/data/backup`** فقط نیاز به `require_auth` دارد — `main.py:514-525`
+- [x] **مسیر `/api/data/purge`** فقط نیاز به `require_auth` دارد — `main.py:506-511`
 
 - تغییر به `require_admin`
+- **توضیح**: پیش‌نیاز `Depends(require_auth)` به `Depends(require_admin)` در فایل `main.py` تغییر یافت.
 
-- [ ] **مسیر `/api/config/export`** رمزهای NVR را رمزگشایی می‌کند — `main.py:563-649`
+- [x] **مسیر `/api/data/backup`** فقط نیاز به `require_auth` دارد — `main.py:514-525`
+
+- تغییر به `require_admin`
+- **توضیح**: پیش‌نیاز `Depends(require_auth)` به `Depends(require_admin)` در فایل `main.py` تغییر یافت.
+
+- [x] **مسیر `/api/config/export`** رمزهای NVR را رمزگشایی می‌کند — `main.py:563-649`
 
 - حذف خروجی رمزگشایی
+- **توضیح**: روند رمزگشایی حذف شد و به جای آن در خروجی API فیلد password با رشته خالی جایگزین شد.
 
-- [ ] **کلید ثابت fallback** در `get_encryption_key` — `database.py:175`
+- [x] **کلید ثابت fallback** در `get_encryption_key` — `database.py:175`
 
 - حذف کلید ثابت
+- **توضیح**: کلید ثابت از فایل `database.py` پاک شد و در صورت شکست ساخت کلید ارور `RuntimeError` برگردانده می‌شود.
 
-- [ ] **XSS** در `createCard` — `app.js:280-301`
+- [x] **XSS** در `createCard` — `app.js:280-301`
 
 - استفاده از sanitization مناسب
+- **توضیح**: تابع `escapeHTML` به فایل `app.js` اضافه شد و مقادیر داینامیک `c.name` و `c.channel_id` درون این تابع قرار گرفتند تا قبل از تزریق به کد HTML کاراکترهای خطرناک escape شوند.
 
   
 
@@ -44,9 +50,10 @@
 
   
 
-- [ ] **قفل (lock) برای rate limiter** — `main.py:241-249`
+- [x] **قفل (lock) برای rate limiter** — `main.py:241-249`
 
 - اضافه کردن `threading.Lock` یا `asyncio.Lock`
+- **توضیح**: کلاس `threading.Lock` وارد شد و پروسه آپدیت دیکشنری `_login_attempts` در تابع `check_rate_limit` به وسیله متد `with _rate_limit_lock` ایمن گردید تا از بروز race condition جلوگیری شود.
 
   
 
