@@ -74,96 +74,9 @@ async function fetchDash() {
         console.error('Error loading Groups:', e);
     }
     const res = await apiFetch(`${API}/cameras`);
-    dashCamerasCache = await res.json();
+    const cams = await res.json();
 
-    const cams = dashCamerasCache;
-    const on = cams.filter(c => c.status === 'Online').length;
-    const off = cams.filter(c => c.status !== 'Online');
-
-    document.getElementById('s-tot').textContent = cams.length;
-    document.getElementById('s-on').textContent = on;
-    document.getElementById('s-off').textContent = off.length;
-
-    const totEl = document.getElementById('tot');
-    const onEl = document.getElementById('on');
-    const offEl = document.getElementById('off');
-    if (totEl) totEl.textContent = cams.length;
-    if (onEl) onEl.textContent = on;
-    if (offEl) offEl.textContent = off.length;
-
-    // NVR status
-    const activeNvrs = nvrCache.filter(n => n.enabled !== false);
-    const nvrOn = activeNvrs.filter(n => n.status === 'Online').length;
-    const nvrOff = activeNvrs.filter(n => n.status !== 'Online').length;
-    const sNvrTot = document.getElementById('s-nvr-tot');
-    const sNvrOn = document.getElementById('s-nvr-on');
-    const sNvrOff = document.getElementById('s-nvr-off');
-    if (sNvrTot) sNvrTot.textContent = activeNvrs.length;
-    if (sNvrOn) sNvrOn.textContent = nvrOn;
-    if (sNvrOff) sNvrOff.textContent = nvrOff;
-
-    // Factory summary
-    const factoryCountEl = document.getElementById('s-factory-count');
-    if (factoryCountEl) factoryCountEl.textContent = groupCache.length;
-
-    const factorySummaryContent = document.getElementById('factory-summary-content');
-    if (factorySummaryContent) {
-        let summaryHtml = '';
-        groupCache.forEach(g => {
-            const groupNvrs = nvrCache.filter(n => n.group_id === g.id);
-            const activeGroupNvrs = groupNvrs.filter(n => n.enabled !== false);
-            const offlineGroupNvrs = activeGroupNvrs.filter(n => n.status !== 'Online');
-
-            const groupCamCount = cams.filter(c => {
-                const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
-                return nvr && nvr.group_id === g.id;
-            });
-            const offlineGroupCams = groupCamCount.filter(c => c.status !== 'Online');
-
-            let camText = `${groupCamCount.length} دوربین`;
-            if (offlineGroupCams.length > 0) {
-                camText += ` <span class="text-danger" style="font-weight: bold;">(${offlineGroupCams.length} قطع)</span>`;
-            }
-
-            let nvrText = `${activeGroupNvrs.length} NVR`;
-            if (offlineGroupNvrs.length > 0) {
-                nvrText += ` <span class="text-danger" style="font-weight: bold;">(${offlineGroupNvrs.length} قطع)</span>`;
-            }
-
-            summaryHtml += `<div class="stat-row"><span class="stat-label">${g.name}</span><span class="stat-value" style="font-size:13px; color: var(--text-secondary);">${camText} · ${nvrText}</span></div>`;
-        });
-
-        // Unassigned NVRs summary
-        const unassignedNvrs = nvrCache.filter(n => !n.group_id && n.enabled !== false);
-        const offlineUnassigned = unassignedNvrs.filter(n => n.status !== 'Online');
-        const unassignedCamCount = cams.filter(c => {
-            const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
-            return nvr && !nvr.group_id;
-        });
-        const offlineUnassignedCams = unassignedCamCount.filter(c => c.status !== 'Online');
-
-        if (unassignedNvrs.length > 0) {
-            let camText = `${unassignedCamCount.length} دوربین`;
-            if (offlineUnassignedCams.length > 0) {
-                camText += ` <span class="text-danger" style="font-weight: bold;">(${offlineUnassignedCams.length} قطع)</span>`;
-            }
-
-            let nvrText = `${unassignedNvrs.length} NVR`;
-            if (offlineUnassigned.length > 0) {
-                nvrText += ` <span class="text-danger" style="font-weight: bold;">(${offlineUnassigned.length} قطع)</span>`;
-            }
-
-            summaryHtml += `<div class="stat-row"><span class="stat-label" style="color: var(--text-secondary);">سایر NVRها</span><span class="stat-value" style="font-size:13px; color: var(--text-secondary);">${camText} · ${nvrText}</span></div>`;
-        }
-
-        if (summaryHtml) {
-            factorySummaryContent.innerHTML = summaryHtml;
-        } else {
-            factorySummaryContent.innerHTML = '<div class="stat-row"><span class="stat-label" style="color: var(--text-secondary);">بدون کارخانه</span></div>';
-        }
-    }
-
-    renderDash();
+    updateDashFromWS(cams);
 }
 
 function renderDash() {
@@ -2037,20 +1950,73 @@ function updateDashFromWS(cams) {
     if (factoryCountEl) factoryCountEl.textContent = groupCache.length;
 
     const factorySummaryContent = document.getElementById('factory-summary-content');
-    if (factorySummaryContent && groupCache.length > 0) {
+    if (factorySummaryContent) {
         let summaryHtml = '';
         groupCache.forEach(g => {
             const groupNvrs = nvrCache.filter(n => n.group_id === g.id);
+            const activeGroupNvrs = groupNvrs.filter(n => n.enabled !== false);
+            const offlineGroupNvrs = activeGroupNvrs.filter(n => n.status !== 'Online');
+
             const groupCamCount = cams.filter(c => {
                 const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
                 return nvr && nvr.group_id === g.id;
-            }).length;
-            summaryHtml += `<div class="stat-row"><span class="stat-label">${g.name}</span><span class="stat-value" style="font-size:13px; color: var(--text-secondary);">${groupCamCount} دوربین · ${groupNvrs.length} NVR</span></div>`;
+            });
+            const offlineGroupCams = groupCamCount.filter(c => c.status !== 'Online');
+
+            let camText = `${groupCamCount.length} دوربین`;
+            if (offlineGroupCams.length > 0) {
+                camText += ` <span class="text-danger" style="font-weight: bold;">(${offlineGroupCams.length} قطع)</span>`;
+            }
+
+            let nvrText = `${activeGroupNvrs.length} NVR`;
+            if (offlineGroupNvrs.length > 0) {
+                nvrText += ` <span class="text-danger" style="font-weight: bold;">(${offlineGroupNvrs.length} قطع)</span>`;
+            }
+
+            summaryHtml += `<div class="stat-row"><span class="stat-label">${g.name}</span><span class="stat-value" style="font-size:13px; color: var(--text-secondary);">${camText} · ${nvrText}</span></div>`;
         });
-        factorySummaryContent.innerHTML = summaryHtml;
+
+        // Unassigned NVRs summary
+        const unassignedNvrs = nvrCache.filter(n => !n.group_id && n.enabled !== false);
+        const offlineUnassigned = unassignedNvrs.filter(n => n.status !== 'Online');
+        const unassignedCamCount = cams.filter(c => {
+            const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
+            return nvr && !nvr.group_id;
+        });
+        const offlineUnassignedCams = unassignedCamCount.filter(c => c.status !== 'Online');
+
+        if (unassignedNvrs.length > 0) {
+            let camText = `${unassignedCamCount.length} دوربین`;
+            if (offlineUnassignedCams.length > 0) {
+                camText += ` <span class="text-danger" style="font-weight: bold;">(${offlineUnassignedCams.length} قطع)</span>`;
+            }
+
+            let nvrText = `${unassignedNvrs.length} NVR`;
+            if (offlineUnassigned.length > 0) {
+                nvrText += ` <span class="text-danger" style="font-weight: bold;">(${offlineUnassigned.length} قطع)</span>`;
+            }
+
+            summaryHtml += `<div class="stat-row"><span class="stat-label" style="color: var(--text-secondary);">سایر NVRها</span><span class="stat-value" style="font-size:13px; color: var(--text-secondary);">${camText} · ${nvrText}</span></div>`;
+        }
+
+        if (summaryHtml) {
+            factorySummaryContent.innerHTML = summaryHtml;
+        } else {
+            factorySummaryContent.innerHTML = '<div class="stat-row"><span class="stat-label" style="color: var(--text-secondary);">بدون کارخانه</span></div>';
+        }
     }
 
     renderDash();
+
+    const dashLoader = document.getElementById('dashLoader');
+    if (dashLoader) dashLoader.classList.add('hidden');
+    const initialLoading = document.getElementById('initial-loading-screen');
+    if (initialLoading) {
+        initialLoading.style.opacity = '0';
+        setTimeout(() => {
+            initialLoading.style.display = 'none';
+        }, 400);
+    }
 
     if (typeof map !== 'undefined' && map && typeof updateMapMarkersFromWS === 'function') {
         updateMapMarkersFromWS(cams);
@@ -2062,6 +2028,18 @@ async function logout() {
         await apiFetch(`${API}/auth/logout`, { method: 'POST' });
     } catch (e) { }
     window.location.href = '/login';
+}
+
+function toggleKiosk() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch((err) => {
+            console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
 }
 
 // ===== BROWSER ALERTS & SOUND SYNTHESIS =====
