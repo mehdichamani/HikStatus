@@ -77,8 +77,8 @@ def seed_database(session: Session):
         "MAP_IMAGE": ("", "Custom Floor Plan Image URL"),
         "MAP_START_LAT": ("37.796067", "Default Map Start Latitude"),
         "MAP_START_LNG": ("45.062508", "Default Map Start Longitude"),
-        "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به توضیح"),
-        "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت ثبت توضیح قطعی به ساعت"),
+        "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به رفع ابهام"),
+        "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت رفع ابهام قطعی به ساعت"),
         "OUTAGE_ANALYSIS_DAYS": ("5,6,0,1,2,3", "روزهای بررسی قطعی در هفته (شنبه=5 تا جمعه=4)"),
         "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
         "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
@@ -110,8 +110,8 @@ def seed_defaults():
         if existing_settings_count > 0:
             # Check for new settings and seed them if missing
             defaults = {
-                "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به توضیح"),
-                "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت ثبت توضیح قطعی به ساعت"),
+                "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به رفع ابهام"),
+                "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت رفع ابهام قطعی به ساعت"),
                 "OUTAGE_ANALYSIS_DAYS": ("5,6,0,1,2,3", "روزهای بررسی قطعی در هفته (شنبه=5 تا جمعه=4)"),
                 "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
                 "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
@@ -145,8 +145,8 @@ def seed_defaults():
             "MAP_IMAGE": ("", "Custom Floor Plan Image URL"),
             "MAP_START_LAT": ("37.796067", "Default Map Start Latitude"),
             "MAP_START_LNG": ("45.062508", "Default Map Start Longitude"),
-            "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به توضیح"),
-            "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت ثبت توضیح قطعی به ساعت"),
+            "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به رفع ابهام"),
+            "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت رفع ابهام قطعی به ساعت"),
             "OUTAGE_ANALYSIS_DAYS": ("5,6,0,1,2,3", "روزهای بررسی قطعی در هفته (شنبه=5 تا جمعه=4)"),
             "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
             "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
@@ -2000,11 +2000,11 @@ def submit_outage_explanation(id: int, payload: OutageExplanationSubmit, session
         raise HTTPException(status_code=403, detail="دسترسی غیرمجاز برای ویرایش قطعی این کارخانه")
         
     if outage.explained_at:
-        raise HTTPException(status_code=400, detail="توضیح این قطعی قبلاً ثبت شده و غیرقابل تغییر است")
+        raise HTTPException(status_code=400, detail="ابهام این قطعی قبلاً رفع شده و غیرقابل تغییر است")
         
     now = datetime.now()
     if now > outage.assigned_deadline:
-        raise HTTPException(status_code=400, detail="مهلت نوشتن توضیح برای این قطعی به پایان رسیده است")
+        raise HTTPException(status_code=400, detail="مهلت رفع ابهام این قطعی به پایان رسیده است")
         
     VALID_TYPES = ["قطعی برق", "تعمیرات", "حوادث عمرانی", "مشکلات دیگر"]
     if payload.explanation_type not in VALID_TYPES:
@@ -2018,7 +2018,7 @@ def submit_outage_explanation(id: int, payload: OutageExplanationSubmit, session
     session.add(outage)
     session.commit()
     
-    return {"status": "ok", "message": "توضیح قطعی با موفقیت ثبت شد"}
+    return {"status": "ok", "message": "رفع ابهام قطعی با موفقیت انجام شد"}
 
 class ChangePasswordRequest(BaseModel):
     new_password: str

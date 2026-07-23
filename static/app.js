@@ -537,9 +537,9 @@ const settingLabels = {
     'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES': 'تأخیر اعلان اهمیت کم (دقیقه)',
     'TELEGRAM_ALERT_FREQUENCY_MINUTES': 'فاصله اعلان‌ها (دقیقه)',
     'TELEGRAM_MUTE_AFTER_N_ALERTS': 'بی‌صدا پس از N اعلان',
-    'OUTAGE_MIN_HOURS_TO_EXPLAIN': 'حداقل زمان قطعی جهت نیاز به توضیح (ساعت)',
-    'OUTAGE_EXPLANATION_DEADLINE_HOURS': 'مهلت ثبت توضیح قطعی (ساعت)',
-    'OUTAGE_ANALYSIS_DAYS': 'روزهای بررسی قطعی در هفته (شنبه=5، جمعه=4 - با کاما جدا کنید)',
+    'OUTAGE_MIN_HOURS_TO_EXPLAIN': 'حداقل زمان قطعی جهت نیاز به رفع ابهام (ساعت)',
+    'OUTAGE_EXPLANATION_DEADLINE_HOURS': 'مهلت رفع ابهام قطعی (ساعت)',
+    'OUTAGE_ANALYSIS_DAYS': 'روزهای بررسی قطعی در هفته',
     'OUTAGE_ANALYSIS_TIME': 'ساعت بررسی قطعی‌ها (مثال: 07:30)',
 };
 
@@ -639,6 +639,36 @@ async function loadSettings() {
                 if (!item) return;
                 const label = settingLabels[k] || k;
 
+                if (k === 'OUTAGE_ANALYSIS_DAYS') {
+                    const daysVal = item.value || '';
+                    const selectedDays = daysVal.split(',').map(x => x.trim());
+                    const weekDaysConfig = [
+                        { name: 'شنبه', val: '5' },
+                        { name: 'یک‌شنبه', val: '6' },
+                        { name: 'دوشنبه', val: '0' },
+                        { name: 'سه‌شنبه', val: '1' },
+                        { name: 'چهارشنبه', val: '2' },
+                        { name: 'پنج‌شنبه', val: '3' },
+                        { name: 'جمعه', val: '4' }
+                    ];
+                    
+                    let daysCheckboxes = weekDaysConfig.map(day => {
+                        return `<label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; user-select: none;">
+                            <input type="checkbox" class="day-select-chk" value="${day.val}" ${selectedDays.includes(day.val) ? 'checked' : ''} onchange="updateOutageDaysValue()">
+                            <span>${day.name}</span>
+                        </label>`;
+                    }).join('');
+                    
+                    html += `<div class="form-field-group span-2">
+                        <label class="form-label">${label}</label>
+                        <input type="hidden" id="OUTAGE_ANALYSIS_DAYS" value="${daysVal}">
+                        <div class="days-checkbox-group" style="display: flex; flex-wrap: wrap; gap: 16px; background: var(--surface-2); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-top: 5px;">
+                            ${daysCheckboxes}
+                        </div>
+                    </div>`;
+                    return;
+                }
+
                 const isLongField = ['MAIL_RECIPIENTS', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY'].includes(k);
                 const gridClass = isLongField ? 'span-2' : '';
 
@@ -731,6 +761,20 @@ async function saveAll() {
         }
     }
     showToast('ذخیره شد');
+}
+
+function updateOutageDaysValue() {
+    const chks = document.querySelectorAll('.day-select-chk');
+    const selected = [];
+    chks.forEach(c => {
+        if (c.checked) {
+            selected.push(c.value);
+        }
+    });
+    const hiddenInput = document.getElementById('OUTAGE_ANALYSIS_DAYS');
+    if (hiddenInput) {
+        hiddenInput.value = selected.join(',');
+    }
 }
 
 async function apply() {
@@ -3998,7 +4042,7 @@ async function loadOutageExplanations() {
         renderOutagesList();
     } catch (e) {
         console.error('Error loading outages:', e);
-        showToast('خطا در بارگذاری توضیحات قطعی: ' + e.message, 'error');
+        showToast('خطا در بارگذاری لیست رفع ابهام قطعی‌ها: ' + e.message, 'error');
     }
 }
 
@@ -4018,15 +4062,15 @@ function renderOutagesList() {
         let actionBtn = '';
         
         if (o.status === 'explained') {
-            statusBadge = '<span class="badge badge-success" style="background:#10b981; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">توضیح داده شده</span>';
+            statusBadge = '<span class="badge badge-success" style="background:#10b981; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">رفع ابهام شده</span>';
             actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">غیر قابل ویرایش</span>';
         } else if (o.status === 'expired') {
             statusBadge = '<span class="badge badge-danger" style="background:#ef4444; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">منقضی شده</span>';
             actionBtn = '<span style="font-size: 12px; color: var(--danger);">پایان مهلت</span>';
         } else {
-            statusBadge = '<span class="badge badge-warning" style="background:#f59e0b; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">در انتظار توضیح</span>';
+            statusBadge = '<span class="badge badge-warning" style="background:#f59e0b; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">در انتظار رفع ابهام</span>';
             if (canExplain) {
-                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px;">ثبت توضیح</button>`;
+                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px;">رفع ابهام</button>`;
             } else {
                 actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">-</span>';
             }
@@ -4083,10 +4127,10 @@ async function submitExplanation() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ explanation_type, explanation_detail })
         });
-        showToast('توضیح قطعی با موفقیت ثبت شد');
+        showToast('رفع ابهام قطعی با موفقیت انجام شد');
         closeExplanationModal();
         loadOutageExplanations();
     } catch (e) {
-        showToast('خطا در ثبت توضیح قطعی: ' + e.message, 'error');
+        showToast('خطا در ثبت رفع ابهام قطعی: ' + e.message, 'error');
     }
 }
