@@ -193,8 +193,8 @@ def get_encryption_key() -> bytes:
         logger.info("Generated a new secure persistent ENCRYPTION_KEY in data/encryption.key")
         return new_key.encode()
     except Exception as e:
-        logger.warning(f"Failed to generate persistent ENCRYPTION_KEY: {e}")
-        return b'z58G3Ww9P33n2jPz42n2jPz42n2jPz42n2jPz42n2jM='
+        logger.error(f"Failed to generate persistent ENCRYPTION_KEY: {e}")
+        raise RuntimeError("Failed to generate encryption key") from e
 
 def encrypt_password(password: str) -> str:
     if not password:

@@ -240,7 +240,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(AuthMiddleware)
 
+import threading
+
 _login_attempts = {}
+_rate_limit_lock = threading.Lock()
 
 def get_admin_credentials():
     username = os.environ.get("ADMIN_USER", "admin")
@@ -269,12 +272,13 @@ def create_session_token():
 
 def check_rate_limit(ip):
     now = datetime.now()
-    if ip not in _login_attempts:
-        _login_attempts[ip] = []
-    _login_attempts[ip] = [t for t in _login_attempts[ip] if (now - t).seconds < 60]
-    if len(_login_attempts[ip]) >= 5:
-        return False
-    _login_attempts[ip].append(now)
+    with _rate_limit_lock:
+        if ip not in _login_attempts:
+            _login_attempts[ip] = []
+        _login_attempts[ip] = [t for t in _login_attempts[ip] if (now - t).seconds < 60]
+        if len(_login_attempts[ip]) >= 5:
+            return False
+        _login_attempts[ip].append(now)
     return True
 
 @app.get("/api/health")
@@ -343,7 +347,7 @@ def require_auth(request: Request, response: Response, db: Session = Depends(get
         db.add(session_record)
         db.commit()
         db.refresh(session_record)
-        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+        response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
         
     return {
         "username": session_record.username,
@@ -445,7 +449,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         db.add(session_record)
         db.commit()
         
-        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+        response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "role": "admin", "password_is_plain": password_is_plain}
 
     # Check database users
@@ -483,7 +487,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         db.add(session_record)
         db.commit()
         
-        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+        response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "role": db_user.role, "group_id": db_user.group_id}
 
     raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
@@ -533,7 +537,7 @@ def login_2fa(payload: Login2FARequest, response: Response, db: Session = Depend
     db.add(session_record)
     db.commit()
     
-    response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+    response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
     
     ret = {"status": "ok", "role": role, "group_id": group_id}
     if role == "admin":
@@ -769,7 +773,7 @@ async def stop_task_immediately(task_id: str, user: dict = Depends(require_auth)
         raise HTTPException(status_code=400, detail="تسک در حال اجرا نیست")
     return {"status": "stopped"}
 
-@app.post("/api/data/purge", dependencies=[Depends(require_auth)])
+@app.post("/api/data/purge", dependencies=[Depends(require_admin)])
 async def purge_database(session: Session = Depends(get_session)):
     seed_database(session)
     invalidate_config_cache()
@@ -777,7 +781,7 @@ async def purge_database(session: Session = Depends(get_session)):
     return {"status": "ok"}
 
 
-@app.get("/api/data/backup", dependencies=[Depends(require_auth)])
+@app.get("/api/data/backup", dependencies=[Depends(require_admin)])
 def backup_database():
     if not os.path.exists(sqlite_file_name):
         raise HTTPException(status_code=404, detail="Database file not found")
@@ -861,17 +865,11 @@ def export_config_json(session: Session = Depends(get_session)):
     nvrs = session.exec(select(NVR)).all()
     nvrs_list = []
     for n in nvrs:
-        decrypted_pass = ""
-        if n.password:
-            try:
-                decrypted_pass = decrypt_password(n.password)
-            except Exception:
-                decrypted_pass = n.password
         nvrs_list.append({
             "ip": n.ip,
             "name": n.name,
             "user": n.user,
-            "password": decrypted_pass,
+            "password": "",
             "enabled": n.enabled,
             "group_id": n.group_id,
             "rtsp_port": n.rtsp_port
