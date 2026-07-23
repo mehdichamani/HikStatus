@@ -537,6 +537,10 @@ const settingLabels = {
     'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES': 'تأخیر اعلان اهمیت کم (دقیقه)',
     'TELEGRAM_ALERT_FREQUENCY_MINUTES': 'فاصله اعلان‌ها (دقیقه)',
     'TELEGRAM_MUTE_AFTER_N_ALERTS': 'بی‌صدا پس از N اعلان',
+    'OUTAGE_MIN_HOURS_TO_EXPLAIN': 'حداقل زمان قطعی جهت نیاز به توضیح (ساعت)',
+    'OUTAGE_EXPLANATION_DEADLINE_HOURS': 'مهلت ثبت توضیح قطعی (ساعت)',
+    'OUTAGE_ANALYSIS_DAYS': 'روزهای بررسی قطعی در هفته (شنبه=5، جمعه=4 - با کاما جدا کنید)',
+    'OUTAGE_ANALYSIS_TIME': 'ساعت بررسی قطعی‌ها (مثال: 07:30)',
 };
 
 async function loadSettings() {
@@ -557,6 +561,7 @@ async function loadSettings() {
             <button data-tab="sec-logs" onclick="switchSettingsTab('sec-logs')">لاگ</button>
             <button data-tab="grp-Email" onclick="switchSettingsTab('grp-Email')">تنظیمات ایمیل</button>
             <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
+            <button data-tab="grp-Outages" onclick="switchSettingsTab('grp-Outages')">تنظیمات قطعی‌ها</button>
             <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
             <button data-tab="sec-tasks" onclick="switchSettingsTab('sec-tasks')">وظایف زمان‌بندی‌شده</button>
             <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
@@ -588,21 +593,24 @@ async function loadSettings() {
     if (role === 'admin') {
         const groups = {
             'ایمیل': ['MAIL_ENABLED', 'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASS', 'MAIL_RECIPIENTS', 'MAIL_FIRST_ALERT_DELAY_MINUTES', 'MAIL_LOW_IMPORTANCE_DELAY_MINUTES', 'MAIL_ALERT_FREQUENCY_MINUTES', 'MAIL_MUTE_AFTER_N_ALERTS'],
-            'تلگرام': ['TELEGRAM_ENABLED', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY', 'TELEGRAM_FIRST_ALERT_DELAY_MINUTES', 'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES', 'TELEGRAM_ALERT_FREQUENCY_MINUTES', 'TELEGRAM_MUTE_AFTER_N_ALERTS']
+            'تلگرام': ['TELEGRAM_ENABLED', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY', 'TELEGRAM_FIRST_ALERT_DELAY_MINUTES', 'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES', 'TELEGRAM_ALERT_FREQUENCY_MINUTES', 'TELEGRAM_MUTE_AFTER_N_ALERTS'],
+            'قطعی‌ها': ['OUTAGE_MIN_HOURS_TO_EXPLAIN', 'OUTAGE_EXPLANATION_DEADLINE_HOURS', 'OUTAGE_ANALYSIS_DAYS', 'OUTAGE_ANALYSIS_TIME']
         };
 
         const groupKeys = {
             'ایمیل': 'Email',
-            'تلگرام': 'Telegram'
+            'تلگرام': 'Telegram',
+            'قطعی‌ها': 'Outages'
         };
 
         for (const [grp, keys] of Object.entries(groups)) {
             const engKey = groupKeys[grp];
+            const hasTestBtn = ['Email', 'Telegram'].includes(engKey);
 
             let html = `<div class="card" id="grp-${engKey}">
                 <div class="card-header">
                     <h3>تنظیمات ${grp}</h3>
-                    <button class="btn btn-ghost" style="padding:4px 12px; font-size:11px" onclick="testConn('${engKey.toLowerCase()}')">تست اتصال</button>
+                    ${hasTestBtn ? `<button class="btn btn-ghost" style="padding:4px 12px; font-size:11px" onclick="testConn('${engKey.toLowerCase()}')">تست اتصال</button>` : ''}
                 </div>`;
 
             // 1. Add Master toggle if it exists
@@ -679,7 +687,7 @@ function switchSettingsTab(tabId) {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
 
-    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
+    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -3759,11 +3767,15 @@ function renderScheduledTasks() {
                     <div class="task-card-row">
                         <span class="task-card-label">دوره تکرار:</span>
                         <div class="task-card-interval">
-                            <span class="task-card-value">${formatInterval(t.interval)}</span>
-                            <div class="task-card-interval-edit">
-                                <input type="number" id="interval-input-${t.id}" class="form-input" style="width: 80px; padding: 4px 8px; font-size: 12px; text-align: center;" value="${t.interval}">
-                                <button class="btn btn-sm" onclick="saveTaskInterval('${t.id}')" style="padding: 4px 10px; font-size: 11px; background: var(--surface-3); border: 1px solid var(--border);">ذخیره</button>
-                            </div>
+                            ${t.id === 'analyze_outages' ? `
+                                <span class="task-card-value" style="color: var(--text-muted); font-size: 12px;">وابسته به تنظیمات بررسی قطعی‌ها</span>
+                            ` : `
+                                <span class="task-card-value">${formatInterval(t.interval)}</span>
+                                <div class="task-card-interval-edit">
+                                    <input type="number" id="interval-input-${t.id}" class="form-input" style="width: 80px; padding: 4px 8px; font-size: 12px; text-align: center;" value="${t.interval}">
+                                    <button class="btn btn-sm" onclick="saveTaskInterval('${t.id}')" style="padding: 4px 10px; font-size: 11px; background: var(--surface-3); border: 1px solid var(--border);">ذخیره</button>
+                                </div>
+                            `}
                         </div>
                     </div>
                 </div>
