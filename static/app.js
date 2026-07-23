@@ -1524,6 +1524,9 @@ async function genReport() {
     const res = await apiFetch(`${API}/reports/generate?start=${s}&end=${e}`);
     const data = await res.json();
 
+    // Load and render charts
+    loadAndRenderCharts(s, e);
+
     // 1. Camera Downtimes
     const cameras = data.cameras || [];
     if (cameras.length === 0) {
@@ -1608,6 +1611,249 @@ function toggleReportSection(forceHeatmap = null) {
     const heatmapSection = document.getElementById('report-heatmap-section');
     if (listSection) listSection.classList.remove('hidden');
     if (heatmapSection) heatmapSection.classList.remove('hidden');
+}
+
+// ===== CHARTS =====
+let chartTrendInstance = null;
+let chartCausesInstance = null;
+let chartGroupsInstance = null;
+let chartTopCamerasInstance = null;
+let chartStatusInstance = null;
+
+async function loadAndRenderCharts(s, e) {
+    const chartsSection = document.getElementById('report-charts-section');
+    if (chartsSection) {
+        chartsSection.style.display = 'flex';
+    }
+    
+    try {
+        const res = await apiFetch(`${API}/reports/charts?start=${s}&end=${e}`);
+        const data = await res.json();
+        
+        renderTrendChart(data.trend_chart);
+        renderCausesChart(data.causes_chart);
+        renderGroupsChart(data.group_chart);
+        renderTopCamerasChart(data.top_cameras_chart);
+        renderStatusChart(data.status_chart);
+    } catch (err) {
+        console.error('Error loading charts:', err);
+    }
+}
+
+function renderTrendChart(chartData) {
+    const ctx = document.getElementById('chart-trend');
+    if (!ctx) return;
+    
+    if (chartTrendInstance) {
+        chartTrendInstance.destroy();
+    }
+    
+    const textColor = 'var(--text)';
+    const gridColor = 'var(--border)';
+    
+    chartTrendInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'مجموع ساعت قطعی روزانه',
+                data: chartData.data,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'inherit' } }
+                },
+                y: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'inherit' } },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderCausesChart(chartData) {
+    const ctx = document.getElementById('chart-causes');
+    if (!ctx) return;
+    
+    if (chartCausesInstance) {
+        chartCausesInstance.destroy();
+    }
+    
+    if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+        chartCausesInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['بدون علت ثبت‌شده'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['rgba(128, 128, 128, 0.2)']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: 'var(--text)', font: { family: 'inherit' } } }
+                }
+            }
+        });
+        return;
+    }
+    
+    chartCausesInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                data: chartData.data,
+                backgroundColor: ['#f43f5e', '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#eab308'],
+                borderWidth: 1,
+                borderColor: 'var(--surface-1)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: 'var(--text)', font: { family: 'inherit' } }
+                }
+            }
+        }
+    });
+}
+
+function renderGroupsChart(chartData) {
+    const ctx = document.getElementById('chart-groups');
+    if (!ctx) return;
+    
+    if (chartGroupsInstance) {
+        chartGroupsInstance.destroy();
+    }
+    
+    chartGroupsInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'مجموع ساعت قطعی',
+                data: chartData.data,
+                backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                borderColor: '#3b82f6',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'var(--border)' },
+                    ticks: { color: 'var(--text)', font: { family: 'inherit' } }
+                },
+                y: {
+                    grid: { color: 'var(--border)' },
+                    ticks: { color: 'var(--text)', font: { family: 'inherit' } },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderTopCamerasChart(chartData) {
+    const ctx = document.getElementById('chart-top-cameras');
+    if (!ctx) return;
+    
+    if (chartTopCamerasInstance) {
+        chartTopCamerasInstance.destroy();
+    }
+    
+    chartTopCamerasInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'ساعت قطعی',
+                data: chartData.data,
+                backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                borderColor: '#ef4444',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'var(--border)' },
+                    ticks: { color: 'var(--text)', font: { family: 'inherit' } },
+                    beginAtZero: true
+                },
+                y: {
+                    grid: { color: 'var(--border)' },
+                    ticks: { color: 'var(--text)', font: { family: 'inherit' } }
+                }
+            }
+        }
+    });
+}
+
+function renderStatusChart(chartData) {
+    const ctx = document.getElementById('chart-status');
+    if (!ctx) return;
+    
+    if (chartStatusInstance) {
+        chartStatusInstance.destroy();
+    }
+    
+    chartStatusInstance = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                data: chartData.data,
+                backgroundColor: ['#22c55e', '#ef4444'],
+                borderWidth: 1,
+                borderColor: 'var(--surface-1)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: 'var(--text)', font: { family: 'inherit' } }
+                }
+            }
+        }
+    });
 }
 
 // --- INIT ---

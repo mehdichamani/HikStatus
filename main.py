@@ -1806,6 +1806,163 @@ def generate_report(start: float, end: float, session: Session = Depends(get_ses
         "task_events": task_events
     }
 
+@app.get("/api/reports/charts")
+def get_reports_charts(start: float, end: float, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    start_dt = datetime.fromtimestamp(start)
+    end_dt = datetime.fromtimestamp(end)
+    
+    # 1. Filter cameras by user accessible groups
+    accessible_groups = get_user_accessible_groups(user, session)
+    
+    cameras_query = select(Camera)
+    nvrs_query = select(NVR)
+    groups_query = select(NVRGroup)
+    
+    if accessible_groups is not None:
+        nvrs_objs = session.exec(select(NVR).where(NVR.group_id.in_(accessible_groups))).all()
+        nvr_ips = [n.ip for n in nvrs_objs]
+        if not nvr_ips:
+            return {
+                "status_chart": {"labels": [], "data": []},
+                "group_chart": {"labels": [], "data": []},
+                "causes_chart": {"labels": [], "data": []},
+                "top_cameras_chart": {"labels": [], "data": []},
+                "trend_chart": {"labels": [], "data": []}
+            }
+        cameras_query = cameras_query.where(Camera.nvr_ip.in_(nvr_ips))
+        nvrs_query = nvrs_query.where(NVR.group_id.in_(accessible_groups))
+        groups_query = groups_query.where(NVRGroup.id.in_(accessible_groups))
+        
+    cameras = session.exec(cameras_query).all()
+    nvrs = session.exec(nvrs_query).all()
+    groups = session.exec(groups_query).all()
+    
+    nvr_ips_to_group = {n.ip: n.group_id for n in nvrs}
+    group_id_to_name = {g.id: g.name for g in groups}
+    
+    # Chart 1: Camera Status (Online vs Offline)
+    online_count = sum(1 for c in cameras if c.status == "Online")
+    offline_count = len(cameras) - online_count
+    status_chart = {
+        "labels": ["آنلاین", "آفلاین"],
+        "data": [online_count, offline_count]
+    }
+    
+    # Query all DowntimeEvents once in the range!
+    cam_ids = [c.id for c in cameras]
+    if not cam_ids:
+        events = []
+    else:
+        events = session.exec(
+            select(DowntimeEvent).where(
+                DowntimeEvent.camera_id.in_(cam_ids),
+                DowntimeEvent.start_time < end_dt,
+                (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time > start_dt)
+            )
+        ).all()
+        
+    now = datetime.now()
+    
+    def calculate_downtime_in_memory(cam_id, start_ts, end_ts):
+        total_minutes = 0
+        for e in events:
+            if e.camera_id != cam_id:
+                continue
+            e_end = e.end_time or now
+            overlap_start = max(e.start_time, start_ts)
+            overlap_end = min(e_end, end_ts)
+            if overlap_end > overlap_start:
+                total_minutes += (overlap_end - overlap_start).total_seconds() / 60
+        return int(total_minutes)
+        
+    # Chart 2: Downtime by Group (Factory)
+    group_downtime = {}
+    for c in cameras:
+        g_id = nvr_ips_to_group.get(c.nvr_ip)
+        g_name = group_id_to_name.get(g_id) if g_id else "بدون گروه"
+        
+        mins = calculate_downtime_in_memory(c.id, start_dt, end_dt)
+        if mins > 0:
+            group_downtime[g_name] = group_downtime.get(g_name, 0) + mins
+            
+    group_chart = {
+        "labels": list(group_downtime.keys()),
+        "data": [round(m / 60, 1) for m in group_downtime.values()]
+    }
+    
+    # Chart 3: Outage Causes (from OutageExplanation)
+    explanations_query = select(OutageExplanation).where(
+        OutageExplanation.start_time >= start_dt,
+        OutageExplanation.start_time <= end_dt
+    )
+    if accessible_groups is not None:
+        explanations_query = explanations_query.where(OutageExplanation.group_id.in_(accessible_groups))
+        
+    explanations = session.exec(explanations_query).all()
+    
+    causes_count = {}
+    for o in explanations:
+        if o.explanation_type:
+            causes_count[o.explanation_type] = causes_count.get(o.explanation_type, 0) + 1
+            
+    causes_chart = {
+        "labels": list(causes_count.keys()),
+        "data": list(causes_count.values())
+    }
+    
+    # Chart 4: Top 10 unstable cameras
+    camera_downtimes = []
+    for c in cameras:
+        mins = calculate_downtime_in_memory(c.id, start_dt, end_dt)
+        if mins > 0:
+            camera_downtimes.append({"name": c.name, "hours": round(mins / 60, 1)})
+            
+    camera_downtimes.sort(key=lambda x: x["hours"], reverse=True)
+    top_10 = camera_downtimes[:10]
+    top_cameras_chart = {
+        "labels": [x["name"] for x in top_10],
+        "data": [x["hours"] for x in top_10]
+    }
+    
+    # Chart 5: Daily Downtime Trend
+    trend_labels = []
+    trend_data = []
+    
+    num_days = (end_dt - start_dt).days + 1
+    day_step = 1
+    if num_days > 45:
+        day_step = (num_days // 30) or 1
+        
+    temp_day = start_dt
+    while temp_day <= end_dt:
+        parts = format_shamsi_datetime(temp_day).split(" ")
+        label = f"{parts[1]} {parts[2]}" if len(parts) >= 3 else parts[0]
+        
+        day_start = temp_day.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=day_step)
+        
+        day_mins = 0
+        for c in cameras:
+            day_mins += calculate_downtime_in_memory(c.id, day_start, day_end)
+            
+        trend_labels.append(label)
+        trend_data.append(round(day_mins / 60, 1))
+        
+        temp_day += timedelta(days=day_step)
+        
+    trend_chart = {
+        "labels": trend_labels,
+        "data": trend_data
+    }
+    
+    return {
+        "status_chart": status_chart,
+        "group_chart": group_chart,
+        "causes_chart": causes_chart,
+        "top_cameras_chart": top_cameras_chart,
+        "trend_chart": trend_chart
+    }
+
 # --- User & Personal Alerts API ---
 class UserCreate(BaseModel):
     username: str
