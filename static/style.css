@@ -1736,11 +1736,11 @@ body {
     }
 
     /* Mobile Settings UX Redesign */
-    #settings .panel-row {
+    #settings .panel-row, #reports .panel-row {
         gap: 12px;
     }
 
-    #settings .panel-side {
+    #settings .panel-side, #reports .panel-side {
         background: none !important;
         border: none !important;
         padding: 4px 8px !important;
@@ -1752,7 +1752,7 @@ body {
         overflow: hidden;
     }
     
-    #settings .panel-side > .btn-ghost {
+    #settings .panel-side > .btn-ghost, #reports .panel-side > .btn-ghost {
         flex-shrink: 0;
         width: 38px;
         height: 38px;
@@ -1765,11 +1765,11 @@ body {
         border: 1px solid var(--border);
     }
     
-    #settings .panel-side > .btn-ghost span {
+    #settings .panel-side > .btn-ghost span, #reports .panel-side > .btn-ghost span {
         display: none !important;
     }
     
-    #settings .settings-nav {
+    #settings .settings-nav, #reports .settings-nav {
         flex: 1;
         flex-direction: row !important;
         flex-wrap: wrap !important;
@@ -1777,7 +1777,7 @@ body {
         padding: 4px 0;
     }
 
-    #settings .settings-nav button {
+    #settings .settings-nav button, #reports .settings-nav button {
         flex: 0 0 auto;
         width: auto;
         text-align: center;

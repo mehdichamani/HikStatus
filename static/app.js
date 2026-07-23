@@ -1620,6 +1620,33 @@ let chartGroupsInstance = null;
 let chartTopCamerasInstance = null;
 let chartStatusInstance = null;
 
+function switchChartTab(tabId) {
+    const tabs = document.querySelectorAll('.chart-tab-content');
+    tabs.forEach(t => t.style.display = 'none');
+    
+    const activeTab = document.getElementById(tabId);
+    if (activeTab) {
+        activeTab.style.display = 'block';
+    }
+    
+    const navButtons = document.querySelectorAll('#charts-nav button');
+    navButtons.forEach(btn => {
+        if (btn.getAttribute('data-tab') === tabId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Chart.js cannot calculate size when display is none.
+    // Triggering a resize when the tab becomes visible fixes the empty chart issue.
+    if (tabId === 'tab-chart-trend' && chartTrendInstance) chartTrendInstance.resize();
+    if (tabId === 'tab-chart-causes' && chartCausesInstance) chartCausesInstance.resize();
+    if (tabId === 'tab-chart-groups' && chartGroupsInstance) chartGroupsInstance.resize();
+    if (tabId === 'tab-chart-top' && chartTopCamerasInstance) chartTopCamerasInstance.resize();
+    if (tabId === 'tab-chart-status' && chartStatusInstance) chartStatusInstance.resize();
+}
+
 function getChartColor(varName, fallback) {
     const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
     return val || fallback;

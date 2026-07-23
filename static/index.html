@@ -261,105 +261,73 @@
         <section id="reports" class="view">
             <div class="panel-row">
                 <aside class="panel-side">
-                    <div class="side-section">
-                        <label class="form-label">محدوده زمانی</label>
-                        <div class="preset-btns">
-                            <button class="chip" onclick="setPreset(1)">۱ ساعت</button>
-                            <button class="chip" onclick="setPreset(8)">۸ ساعت</button>
-                            <button class="chip" onclick="setPreset(24)">۲۴ ساعت</button>
-                        </div>
-                    </div>
-                    <div class="side-section">
-                        <label class="form-label">زمان شروع</label>
-                        <input type="text" id="startDt" class="form-input" data-jdp placeholder="انتخاب تاریخ و زمان شروع">
-                    </div>
-                    <div class="side-section">
-                        <label class="form-label">زمان پایان</label>
-                        <input type="text" id="endDt" class="form-input" data-jdp placeholder="انتخاب تاریخ و زمان پایان">
-                    </div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <button class="btn btn-primary" onclick="genReport()">ساخت گزارش</button>
-                        <button id="btn-toggle-heatmap" class="btn btn-ghost" style="display:none;" onclick="toggleReportSection()">نقشه حرارتی</button>
-                    </div>
+                    <nav id="charts-nav" class="settings-nav">
+                        <button data-tab="tab-report-gen" class="active" onclick="switchChartTab('tab-report-gen')">ساخت گزارش</button>
+                        <button data-tab="tab-chart-trend" onclick="switchChartTab('tab-chart-trend')">روند زمانی</button>
+                        <button data-tab="tab-chart-causes" onclick="switchChartTab('tab-chart-causes')">علل قطعی</button>
+                        <button data-tab="tab-chart-groups" onclick="switchChartTab('tab-chart-groups')">سهم کارخانجات</button>
+                        <button data-tab="tab-chart-top" onclick="switchChartTab('tab-chart-top')">دوربین‌های پرخطر</button>
+                        <button data-tab="tab-chart-status" onclick="switchChartTab('tab-chart-status')">وضعیت فعلی</button>
+                    </nav>
                 </aside>
-                <div class="panel-main">
-                    <!-- Dashboard Charts Grid -->
-                    <div id="report-charts-section" style="display: none; flex-direction: column; gap: 20px; margin-bottom: 24px;">
-                        <div class="panel-header">داشبورد تحلیل قطعی‌ها</div>
-                        
-                        <!-- Line Chart Card (Full Width) -->
-                        <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
-                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">روند قطعی‌ها در بازه زمانی (ساعت)</div>
-                            <div style="position: relative; height: 320px; width: 100%;">
-                                <canvas id="chart-trend"></canvas>
+                <div class="panel-main panel-scroll">
+                    
+                    <div id="tab-report-gen" class="chart-tab-content" style="display: block;">
+                        <div class="card" style="padding: 20px; margin-bottom: 24px;">
+                            <div class="panel-header" style="margin-bottom: 15px;">ساخت گزارش و نقشه حرارتی</div>
+                            <div class="settings-fields-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                                <div class="side-section" style="margin: 0;">
+                                    <label class="form-label">محدوده زمانی</label>
+                                    <div class="preset-btns">
+                                        <button class="chip" onclick="setPreset(1)">۱ ساعت</button>
+                                        <button class="chip" onclick="setPreset(8)">۸ ساعت</button>
+                                        <button class="chip" onclick="setPreset(24)">۲۴ ساعت</button>
+                                    </div>
+                                </div>
+                                <div class="side-section" style="margin: 0;">
+                                    <label class="form-label">زمان شروع</label>
+                                    <input type="text" id="startDt" class="form-input" data-jdp placeholder="انتخاب تاریخ و زمان شروع">
+                                </div>
+                                <div class="side-section" style="margin: 0;">
+                                    <label class="form-label">زمان پایان</label>
+                                    <input type="text" id="endDt" class="form-input" data-jdp placeholder="انتخاب تاریخ و زمان پایان">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; border-top: 1px solid var(--border); padding-top: 15px;">
+                                <button class="btn btn-primary" onclick="genReport()">ساخت گزارش و بروزرسانی نمودارها</button>
+                                <button id="btn-toggle-heatmap" class="btn btn-ghost" style="display:none;" onclick="toggleReportSection()">نقشه حرارتی</button>
                             </div>
                         </div>
 
-                        <!-- 2x2 Grid for other charts -->
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
-                            <!-- Doughnut Chart 1: Causes -->
-                            <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px; min-height: 360px;">
-                                <div style="font-weight: 600; color: var(--text); font-size: 14px;">علت‌های اصلی قطعی‌ها</div>
-                                <div style="position: relative; height: 260px; width: 100%; display: flex; align-items: center; justify-content: center;">
-                                    <canvas id="chart-causes"></canvas>
+                        <div id="report-heatmap-section">
+                            <div class="panel-header">نقشه حرارتی قطعی‌ها (۳۰ روز گذشته)</div>
+                            <div class="card" style="margin-top: 12px; padding: 16px; overflow-x: auto;">
+                                <div class="heatmap-wrapper">
+                                    <div class="heatmap-y-labels">
+                                        <div>شنبه</div>
+                                        <div>یکشنبه</div>
+                                        <div>دوشنبه</div>
+                                        <div>سه‌شنبه</div>
+                                        <div>چهارشنبه</div>
+                                        <div>پنج‌شنبه</div>
+                                        <div>جمعه</div>
+                                    </div>
+                                    <div class="heatmap-grid-container">
+                                        <div class="heatmap-x-labels" id="heatmap-hours-labels"></div>
+                                        <div class="heatmap-grid" id="heatmap-grid-cells"></div>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <!-- Bar Chart 2: Group (Factory) -->
-                            <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px; min-height: 360px;">
-                                <div style="font-weight: 600; color: var(--text); font-size: 14px;">سهم قطعی کارخانجات (ساعت)</div>
-                                <div style="position: relative; height: 260px; width: 100%;">
-                                    <canvas id="chart-groups"></canvas>
-                                </div>
-                            </div>
-
-                            <!-- Horizontal Bar Chart 3: Top 10 Cameras -->
-                            <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px; min-height: 360px;">
-                                <div style="font-weight: 600; color: var(--text); font-size: 14px;">۱۰ دوربین با بیشترین قطعی (ساعت)</div>
-                                <div style="position: relative; height: 260px; width: 100%;">
-                                    <canvas id="chart-top-cameras"></canvas>
-                                </div>
-                            </div>
-
-                            <!-- Pie/Doughnut Chart 4: Camera Online/Offline -->
-                            <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px; min-height: 360px;">
-                                <div style="font-weight: 600; color: var(--text); font-size: 14px;">وضعیت پایداری فعلی دوربین‌ها</div>
-                                <div style="position: relative; height: 260px; width: 100%; display: flex; align-items: center; justify-content: center;">
-                                    <canvas id="chart-status"></canvas>
+                                <div class="heatmap-legend" style="margin-top: 12px;">
+                                    <span>بدون قطعی</span>
+                                    <span class="legend-box level-0"></span>
+                                    <span class="legend-box level-1"></span>
+                                    <span class="legend-box level-2"></span>
+                                    <span class="legend-box level-3"></span>
+                                    <span class="legend-box level-4"></span>
+                                    <span>بیشترین قطعی</span>
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div id="report-heatmap-section">
-                        <div class="panel-header">نقشه حرارتی قطعی‌ها (۳۰ روز گذشته)</div>
-                    <div class="card" style="margin-top: 12px; padding: 16px; overflow-x: auto;">
-                        <div class="heatmap-wrapper">
-                            <div class="heatmap-y-labels">
-                                <div>شنبه</div>
-                                <div>یکشنبه</div>
-                                <div>دوشنبه</div>
-                                <div>سه‌شنبه</div>
-                                <div>چهارشنبه</div>
-                                <div>پنج‌شنبه</div>
-                                <div>جمعه</div>
-                            </div>
-                            <div class="heatmap-grid-container">
-                                <div class="heatmap-x-labels" id="heatmap-hours-labels"></div>
-                                <div class="heatmap-grid" id="heatmap-grid-cells"></div>
-                            </div>
-                        </div>
-                        <div class="heatmap-legend" style="margin-top: 12px;">
-                            <span>بدون قطعی</span>
-                            <span class="legend-box level-0"></span>
-                            <span class="legend-box level-1"></span>
-                            <span class="legend-box level-2"></span>
-                            <span class="legend-box level-3"></span>
-                            <span class="legend-box level-4"></span>
-                            <span>بیشترین قطعی</span>
-                        </div>
-                    </div>
-                    </div>
 
                     <div id="report-list-section" style="margin-top: 24px;">
                         <div class="report-block">
@@ -407,6 +375,53 @@
                             </div>
                             <div id="rep-task-list" class="report-list">
                                 <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
+                            </div>
+                        </div>
+                    </div>
+                    </div> <!-- End of tab-report-gen -->
+
+                    <!-- Chart Tab Contents -->
+                    <div id="tab-chart-trend" class="chart-tab-content" style="display: none;">
+                        <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">روند قطعی‌ها در بازه زمانی (ساعت)</div>
+                            <div style="position: relative; height: 360px; width: 100%;">
+                                <canvas id="chart-trend"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-chart-causes" class="chart-tab-content" style="display: none;">
+                        <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">علت‌های اصلی قطعی‌ها</div>
+                            <div style="position: relative; height: 360px; width: 100%; display: flex; align-items: center; justify-content: center;">
+                                <canvas id="chart-causes"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-chart-groups" class="chart-tab-content" style="display: none;">
+                        <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">سهم قطعی کارخانجات (ساعت)</div>
+                            <div style="position: relative; height: 360px; width: 100%;">
+                                <canvas id="chart-groups"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-chart-top" class="chart-tab-content" style="display: none;">
+                        <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">۱۰ دوربین با بیشترین قطعی (ساعت)</div>
+                            <div style="position: relative; height: 360px; width: 100%;">
+                                <canvas id="chart-top-cameras"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-chart-status" class="chart-tab-content" style="display: none;">
+                        <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">وضعیت پایداری فعلی دوربین‌ها</div>
+                            <div style="position: relative; height: 360px; width: 100%; display: flex; align-items: center; justify-content: center;">
+                                <canvas id="chart-status"></canvas>
                             </div>
                         </div>
                     </div>
