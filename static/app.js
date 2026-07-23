@@ -678,8 +678,23 @@ async function loadSettings() {
                 </div>`;
             });
 
-            html += `</div>
-                <div class="settings-action-row">
+            html += `</div>`;
+
+            if (engKey === 'Outages') {
+                html += `
+                <div class="form-field-group span-2" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px;">
+                    <label class="form-label" style="font-weight: bold; font-size: 14px;">مدیریت علت‌های قطعی (رفع ابهام)</label>
+                    <div style="display: flex; gap: 8px; margin-top: 10px; margin-bottom: 15px;">
+                        <input id="new-cause-name" class="form-input" placeholder="علت جدید (مثال: قطع فیبر نوری)" style="flex: 1;">
+                        <button class="btn btn-primary" onclick="addOutageCause()" style="padding: 8px 16px;">افزودن علت</button>
+                    </div>
+                    <div id="causes-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>`;
+            }
+
+            html += `<div class="settings-action-row">
                     <button class="btn btn-primary" onclick="apply()">ذخیره و اعمال تنظیمات</button>
                 </div>
             </div>`;
@@ -710,6 +725,10 @@ async function loadSettings() {
     }
     const activeTab = document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || defaultTab;
     switchSettingsTab(activeTab);
+    
+    if (window.currentUser && window.currentUser.role === 'admin') {
+        loadOutageCauses();
+    }
 }
 
 function switchSettingsTab(tabId) {
@@ -774,6 +793,62 @@ function updateOutageDaysValue() {
     const hiddenInput = document.getElementById('OUTAGE_ANALYSIS_DAYS');
     if (hiddenInput) {
         hiddenInput.value = selected.join(',');
+    }
+}
+
+async function loadOutageCauses() {
+    const list = document.getElementById('causes-list');
+    if (!list) return;
+    
+    try {
+        const res = await apiFetch(`/api/outage-causes`);
+        const causes = await res.json();
+        
+        list.innerHTML = causes.map(c => {
+            const statusText = c.is_active ? '' : ' (غیرفعال شده)';
+            const actionBtn = `<button class="btn btn-ghost" onclick="deleteOutageCause(${c.id})" style="color: var(--danger); padding: 2px 8px; font-size: 11px;">حذف</button>`;
+            return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+                <span style="font-size: 13px; ${c.is_active ? '' : 'color: var(--text-muted); text-decoration: line-through;'}">${c.name}${statusText}</span>
+                ${c.is_active ? actionBtn : ''}
+            </div>`;
+        }).join('');
+    } catch(e) {
+        console.error('Error loading outage causes:', e);
+    }
+}
+
+async function addOutageCause() {
+    const input = document.getElementById('new-cause-name');
+    const name = input.value.trim();
+    if (!name) return showToast('نام علت را وارد کنید', 'error');
+    
+    try {
+        const res = await apiFetch(`/api/outage-causes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'خطا در ثبت علت');
+        }
+        showToast('علت جدید با موفقیت اضافه شد');
+        input.value = '';
+        loadOutageCauses();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+async function deleteOutageCause(id) {
+    if (!await showConfirm('آیا از حذف/غیرفعال‌سازی این علت قطعی اطمینان دارید؟')) return;
+    try {
+        const res = await apiFetch(`/api/outage-causes/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        showToast(data.message);
+        loadOutageCauses();
+    } catch (e) {
+        showToast(e.message, 'error');
     }
 }
 
@@ -3773,9 +3848,11 @@ function renderScheduledTasks() {
             ? `<div class="task-error">${t.last_error}</div>`
             : '';
 
-        const runBtn = isRunning
-            ? `<button class="btn btn-ghost" disabled style="opacity: 0.5; padding: 4px 10px; font-size: 12px;">اجرا</button>`
-            : `<button class="btn btn-ghost" onclick="confirmRunTask('${t.id}', '${t.name}')" style="color: #22c55e; padding: 4px 10px; font-size: 12px;">اجرا</button>`;
+        const runBtn = t.id === 'analyze_outages'
+            ? ''
+            : (isRunning
+                ? `<button class="btn btn-ghost" disabled style="opacity: 0.5; padding: 4px 10px; font-size: 12px;">اجرا</button>`
+                : `<button class="btn btn-ghost" onclick="confirmRunTask('${t.id}', '${t.name}')" style="color: #22c55e; padding: 4px 10px; font-size: 12px;">اجرا</button>`);
 
         const stopBtn = isRunning
             ? `<button class="btn btn-ghost" onclick="stopTask('${t.id}')" style="color: #ef4444; padding: 4px 10px; font-size: 12px;">توقف</button>`
@@ -4039,6 +4116,10 @@ async function loadOutageExplanations() {
     try {
         const res = await apiFetch(`${API}/outage-explanations`);
         outagesCache = await res.json();
+        
+        // Populate the group filter dynamically
+        populateOutageGroupFilter();
+        
         renderOutagesList();
     } catch (e) {
         console.error('Error loading outages:', e);
@@ -4046,18 +4127,71 @@ async function loadOutageExplanations() {
     }
 }
 
+function populateOutageGroupFilter() {
+    const sel = document.getElementById('outage-filter-group');
+    if (!sel) return;
+    
+    // Clear dynamic options (keep first one "همه کارخانه‌ها")
+    while (sel.options.length > 1) {
+        sel.remove(1);
+    }
+    
+    // Find unique group names from cache
+    const groups = [...new Set(outagesCache.map(o => o.group_name).filter(Boolean))];
+    groups.sort();
+    
+    groups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g;
+        opt.textContent = g;
+        sel.appendChild(opt);
+    });
+}
+
+function filterOutages() {
+    renderOutagesList();
+}
+
 function renderOutagesList() {
     const list = document.getElementById('outage-explanations-list');
     if (!list) return;
-    if (outagesCache.length === 0) {
-        list.innerHTML = '<tr><td colspan="12" class="empty-state" style="text-align: center; padding: 20px;">هیچ قطعی مشخص‌نشده‌ای یافت نشد</td></tr>';
+    
+    // Get filter values
+    const filterGroupVal = document.getElementById('outage-filter-group').value;
+    const filterStatusVal = document.getElementById('outage-filter-status').value;
+    const filterDaysVal = document.getElementById('outage-filter-days').value;
+    
+    let filtered = outagesCache;
+    
+    // 1. Group Filter
+    if (filterGroupVal) {
+        filtered = filtered.filter(o => o.group_name === filterGroupVal);
+    }
+    
+    // 2. Status Filter
+    if (filterStatusVal === 'pending') {
+        filtered = filtered.filter(o => o.status === 'pending');
+    }
+    
+    // 3. Days Filter
+    if (filterDaysVal !== 'all') {
+        const days = parseInt(filterDaysVal);
+        const cutoff = new Date().getTime() - (days * 24 * 3600 * 1000);
+        filtered = filtered.filter(o => {
+            const startMs = new Date(o.start_time).getTime();
+            return startMs >= cutoff;
+        });
+    }
+    
+    if (filtered.length === 0) {
+        list.innerHTML = '<tr><td colspan="12" class="empty-state" style="text-align: center; padding: 20px;">هیچ قطعی یافت نشد</td></tr>';
         return;
     }
     
     const role = window.currentUser ? window.currentUser.role : 'group_view';
     const canExplain = role === 'admin' || role === 'it_manager' || role === 'group_control';
     
-    list.innerHTML = outagesCache.map(o => {
+    list.innerHTML = filtered.map(o => {
         let statusBadge = '';
         let actionBtn = '';
         
@@ -4093,12 +4227,27 @@ function renderOutagesList() {
     }).join('');
 }
 
-function openExplanationModal(id) {
+async function openExplanationModal(id) {
     const o = outagesCache.find(x => x.id === id);
     if (!o) return;
     
     document.getElementById('exp-outage-id').value = id;
-    document.getElementById('exp-type').value = 'قطعی برق';
+    
+    // Populate active causes dynamically from database
+    try {
+        const res = await apiFetch(`/api/outage-causes`);
+        const causes = await res.json();
+        const sel = document.getElementById('exp-type');
+        if (sel) {
+            sel.innerHTML = causes
+                .filter(c => c.is_active)
+                .map(c => `<option value="${c.name}">${c.name}</option>`)
+                .join('');
+        }
+    } catch (e) {
+        console.error('Error fetching causes for modal:', e);
+    }
+    
     document.getElementById('exp-detail').value = '';
     
     const modal = document.getElementById('explanationModal');

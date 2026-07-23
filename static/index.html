@@ -507,12 +507,42 @@
         <!-- OUTAGES VIEW -->
         <section id="outages" class="view">
             <div class="card" style="margin-bottom: 20px;">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
                     <h3>رفع ابهام قطعی‌های دوربین‌ها</h3>
                     <button class="btn btn-ghost" onclick="loadOutageExplanations()" style="padding: 6px 12px;">
                         بارگذاری مجدد
                     </button>
                 </div>
+                
+                <!-- Filters Row -->
+                <div class="filters-row" style="display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px; background: var(--surface-2); border-bottom: 1px solid var(--border); align-items: center;">
+                    <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
+                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">کارخانه / گروه</label>
+                        <select id="outage-filter-group" class="form-input" onchange="filterOutages()" style="padding: 6px 12px; font-size: 13px; width: 100%;">
+                            <option value="">همه کارخانه‌ها</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
+                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">وضعیت رفع ابهام</label>
+                        <select id="outage-filter-status" class="form-input" onchange="filterOutages()" style="padding: 6px 12px; font-size: 13px; width: 100%;">
+                            <option value="all">همه</option>
+                            <option value="pending" selected>رفع ابهام نشده‌ها</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
+                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">بازه زمانی شروع قطعی</label>
+                        <select id="outage-filter-days" class="form-input" onchange="filterOutages()" style="padding: 6px 12px; font-size: 13px; width: 100%;">
+                            <option value="all">همه زمان‌ها</option>
+                            <option value="1">امروز (۲۴ ساعت اخیر)</option>
+                            <option value="3">۳ روز اخیر</option>
+                            <option value="7">۷ روز اخیر</option>
+                            <option value="30">۳۰ روز اخیر</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="table-container" style="overflow-x: auto; margin-top: 15px;">
                     <table class="table" style="width: 100%; border-collapse: collapse; text-align: right; min-width: 900px;">
                         <thead>

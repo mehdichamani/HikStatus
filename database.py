@@ -78,7 +78,7 @@ class DowntimeEvent(SQLModel, table=True):
 class OutageExplanation(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     camera_id: int = Field(foreign_key="camera.id")
-    downtime_event_id: int = Field(foreign_key="downtimeevent.id")
+    downtime_event_id: Optional[int] = Field(default=None, foreign_key="downtimeevent.id")
     group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
     start_time: datetime
     end_time: Optional[datetime] = None
@@ -88,6 +88,11 @@ class OutageExplanation(SQLModel, table=True):
     explanation_detail: Optional[str] = None
     explained_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     explained_at: Optional[datetime] = None
+
+class OutageCause(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(unique=True, index=True)
+    is_active: bool = Field(default=True)
 
 class Log(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -574,7 +579,7 @@ def migration_013_add_outage_explanation(conn: sqlite3.Connection):
             CREATE TABLE outageexplanation (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 camera_id INTEGER NOT NULL,
-                downtime_event_id INTEGER NOT NULL,
+                downtime_event_id INTEGER,
                 group_id INTEGER,
                 start_time TIMESTAMP NOT NULL,
                 end_time TIMESTAMP,
@@ -606,10 +611,62 @@ def rollback_013_add_outage_explanation(conn: sqlite3.Connection):
 
 
 # ---------------------------------------------------------------------------
+# Migration 014 – OutageCause table
+# ---------------------------------------------------------------------------
+
+def migration_014_add_outage_cause(conn: sqlite3.Connection):
+    """Recreate outageexplanation to make downtime_event_id nullable, and create outagecause table."""
+    conn.execute("DROP TABLE IF EXISTS outageexplanation")
+    conn.execute("""
+        CREATE TABLE outageexplanation (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            camera_id INTEGER NOT NULL,
+            downtime_event_id INTEGER,
+            group_id INTEGER,
+            start_time TIMESTAMP NOT NULL,
+            end_time TIMESTAMP,
+            created_at TIMESTAMP NOT NULL,
+            assigned_deadline TIMESTAMP NOT NULL,
+            explanation_type TEXT,
+            explanation_detail TEXT,
+            explained_by_user_id INTEGER,
+            explained_at TIMESTAMP,
+            FOREIGN KEY(camera_id) REFERENCES camera(id),
+            FOREIGN KEY(downtime_event_id) REFERENCES downtimeevent(id),
+            FOREIGN KEY(group_id) REFERENCES nvrgroup(id),
+            FOREIGN KEY(explained_by_user_id) REFERENCES user(id)
+        )
+    """)
+    logger.info("[migration 014] Recreated outageexplanation table to support nullable downtime_event_id")
+
+    if not _table_exists(conn, "outagecause"):
+        conn.execute("""
+            CREATE TABLE outagecause (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                is_active BOOLEAN DEFAULT 1
+            )
+        """)
+        logger.info("[migration 014] Created outagecause table")
+        
+    # Seed default values
+    defaults = ["قطعی برق", "تعمیرات", "حوادث عمرانی", "مشکلات دیگر"]
+    for d in defaults:
+        conn.execute("INSERT OR IGNORE INTO outagecause (name, is_active) VALUES (?, 1)", (d,))
+    conn.commit()
+
+
+def rollback_014_add_outage_cause(conn: sqlite3.Connection):
+    if _table_exists(conn, "outagecause"):
+        conn.execute("DROP TABLE outagecause")
+        logger.info("[rollback 014] Dropped outagecause table")
+
+
+# ---------------------------------------------------------------------------
 # Migration registry
 # ---------------------------------------------------------------------------
 
-CURRENT_MIGRATION_VERSION = 13
+CURRENT_MIGRATION_VERSION = 14
 
 
 MIGRATIONS = {
@@ -626,6 +683,7 @@ MIGRATIONS = {
     11: ("add_performance_indexes", migration_011_add_performance_indexes),
     12: ("add_user_2fa_fields", migration_012_add_user_2fa_fields),
     13: ("add_outage_explanation", migration_013_add_outage_explanation),
+    14: ("add_outage_cause", migration_014_add_outage_cause),
 }
 
 ROLLBACKS = {
@@ -642,6 +700,7 @@ ROLLBACKS = {
     11: rollback_011_add_performance_indexes,
     12: rollback_012_add_user_2fa_fields,
     13: rollback_013_add_outage_explanation,
+    14: rollback_014_add_outage_cause,
 }
 
 

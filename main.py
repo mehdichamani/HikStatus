@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from sqlmodel import Session, select, col
-from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, OutageExplanation, User, UserAlertSettings, UserSession, MapPlan, ScheduledTask, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
+from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, OutageExplanation, OutageCause, User, UserAlertSettings, UserSession, MapPlan, ScheduledTask, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
 from scheduler import scheduler
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
@@ -1953,9 +1953,8 @@ def get_outage_explanations(session: Session = Depends(get_session), user: dict 
         group = groups.get(o.group_id)
         user_obj = users.get(o.explained_by_user_id) if o.explained_by_user_id else None
         
-        eff_end = o.end_time or now
-        duration = eff_end - o.start_time
-        duration_hours = round(duration.total_seconds() / 3600, 1)
+        total_mins = calculate_downtime_range(session, o.camera_id, o.start_time, o.end_time)
+        duration_hours = round(total_mins / 60, 1)
         
         shamsi_start = format_shamsi_datetime(o.start_time)
         shamsi_end = format_shamsi_datetime(o.end_time) if o.end_time else "همچنان قطع"
@@ -2006,8 +2005,9 @@ def submit_outage_explanation(id: int, payload: OutageExplanationSubmit, session
     if now > outage.assigned_deadline:
         raise HTTPException(status_code=400, detail="مهلت رفع ابهام این قطعی به پایان رسیده است")
         
-    VALID_TYPES = ["قطعی برق", "تعمیرات", "حوادث عمرانی", "مشکلات دیگر"]
-    if payload.explanation_type not in VALID_TYPES:
+    # Check if the explanation_type is a valid active cause in the database
+    cause = session.exec(select(OutageCause).where(OutageCause.name == payload.explanation_type, OutageCause.is_active == True)).first()
+    if not cause:
         raise HTTPException(status_code=400, detail="علت قطعی نامعتبر است")
         
     outage.explanation_type = payload.explanation_type
@@ -2019,6 +2019,55 @@ def submit_outage_explanation(id: int, payload: OutageExplanationSubmit, session
     session.commit()
     
     return {"status": "ok", "message": "رفع ابهام قطعی با موفقیت انجام شد"}
+
+# --- Outage Causes Management API ---
+class OutageCauseCreate(BaseModel):
+    name: str
+
+@app.get("/api/outage-causes")
+def get_outage_causes(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    return session.exec(select(OutageCause)).all()
+
+@app.post("/api/outage-causes")
+def create_outage_cause(payload: OutageCauseCreate, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="نام علت نمی‌تواند خالی باشد")
+    
+    # Check duplicate
+    existing = session.exec(select(OutageCause).where(OutageCause.name == name)).first()
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            session.add(existing)
+            session.commit()
+            return existing
+        else:
+            raise HTTPException(status_code=400, detail="این علت قطعی قبلاً ثبت شده است")
+            
+    cause = OutageCause(name=name, is_active=True)
+    session.add(cause)
+    session.commit()
+    session.refresh(cause)
+    return cause
+
+@app.delete("/api/outage-causes/{id}")
+def delete_outage_cause(id: int, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    cause = session.get(OutageCause, id)
+    if not cause:
+        raise HTTPException(status_code=404, detail="علت قطعی یافت نشد")
+        
+    # Check if used in any OutageExplanation
+    used = session.exec(select(OutageExplanation).where(OutageExplanation.explanation_type == cause.name)).first()
+    if used:
+        cause.is_active = False
+        session.add(cause)
+        session.commit()
+        return {"status": "disabled", "message": "این علت قبلاً در ثبت قطعی‌ها استفاده شده است؛ بنابراین غیرفعال گردید تا در انتخاب‌های جدید نمایش داده نشود."}
+    else:
+        session.delete(cause)
+        session.commit()
+        return {"status": "deleted", "message": "علت قطعی با موفقیت حذف شد."}
 
 class ChangePasswordRequest(BaseModel):
     new_password: str

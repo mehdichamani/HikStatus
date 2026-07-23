@@ -959,79 +959,65 @@ async def task_capture_camera_snapshots():
     if cameras:
         logger.info(f"Capturing snapshots for {len(cameras)} cameras in parallel...")
         await asyncio.gather(*[capture_one(cam) for cam in cameras])
-
-async def task_analyze_outages():
+async def task_analyze_outages(override_now: Optional[datetime] = None):
     from database import Settings, DowntimeEvent, Camera, NVR, OutageExplanation
     from sqlmodel import select
     from datetime import datetime, timedelta
+    from typing import Optional
     
     logger.info("Starting definite outages analysis task...")
-    now = datetime.now()
+    now = override_now or datetime.now()
     
     with Session(engine) as session:
         # 1. Read config
-        # N: Minimum hours of downtime to check
+        # N: Minimum hours of downtime to check (parsed as float for decimal support)
         min_hours_cfg = session.get(Settings, "OUTAGE_MIN_HOURS_TO_EXPLAIN")
-        min_hours = int(min_hours_cfg.value) if min_hours_cfg else 2
+        try:
+            min_hours = float(min_hours_cfg.value) if min_hours_cfg else 2.0
+        except ValueError:
+            min_hours = 2.0
         
         # Deadline for it_manager to explain (hours)
         deadline_hours_cfg = session.get(Settings, "OUTAGE_EXPLANATION_DEADLINE_HOURS")
         deadline_hours = int(deadline_hours_cfg.value) if deadline_hours_cfg else 24
         
-        # Last analysis run time
-        last_run_cfg = session.get(Settings, "OUTAGE_LAST_ANALYSIS_TIME")
-        if last_run_cfg and last_run_cfg.value:
-            try:
-                last_run = datetime.fromisoformat(last_run_cfg.value)
-            except Exception:
-                last_run = now - timedelta(days=1)
-        else:
-            last_run = now - timedelta(days=1)
-            
-        logger.info(f"Analyzing outages between {last_run} and {now} (threshold >= {min_hours} hours)")
+        # We analyze the past 24 hours ending at execution time ('now')
+        start_dt = now - timedelta(hours=24)
+        end_dt = now
         
-        # Find all DowntimeEvents that overlap with the [last_run, now] interval
-        # An event overlaps if start_time < now and (end_time is None or end_time > last_run)
-        events = session.exec(
-            select(DowntimeEvent).where(
-                DowntimeEvent.start_time < now,
-                (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time > last_run)
-            )
-        ).all()
+        logger.info(f"Analyzing outages in the past 24 hours between {start_dt} and {end_dt} (threshold >= {min_hours} hours)")
         
+        # Find all cameras and check aggregate downtime
+        cameras = session.exec(select(Camera)).all()
         added_count = 0
-        for evt in events:
-            # Check if this event already exists in OutageExplanation
-            existing = session.exec(
-                select(OutageExplanation).where(OutageExplanation.downtime_event_id == evt.id)
-            ).first()
-            if existing:
-                # If end_time has changed (camera reconnected), update it in OutageExplanation
-                if evt.end_time != existing.end_time:
-                    existing.end_time = evt.end_time
-                    session.add(existing)
-                continue
-                
-            # Calculate actual outage duration up to 'now' or 'end_time'
-            effective_end = evt.end_time or now
-            duration = effective_end - evt.start_time
-            
-            if duration.total_seconds() >= min_hours * 3600:
-                # Load camera to find group_id via NVR
-                camera = session.get(Camera, evt.camera_id)
-                if not camera:
+        
+        # Local import of calculate_downtime_range to avoid circular dependency
+        from main import calculate_downtime_range
+        
+        for camera in cameras:
+            total_mins = calculate_downtime_range(session, camera.id, start_dt, end_dt)
+            if total_mins >= min_hours * 60:
+                # Check if we already have an OutageExplanation for this camera in this specific 24h block
+                existing = session.exec(
+                    select(OutageExplanation).where(
+                        OutageExplanation.camera_id == camera.id,
+                        OutageExplanation.start_time == start_dt,
+                        OutageExplanation.end_time == end_dt
+                    )
+                ).first()
+                if existing:
                     continue
-                    
+                
                 nvr = session.get(NVR, camera.nvr_ip)
                 group_id = nvr.group_id if nvr else None
                 
-                # Register outage explanation record
+                # Register outage explanation record for the daily aggregate
                 outage_exp = OutageExplanation(
-                    camera_id=evt.camera_id,
-                    downtime_event_id=evt.id,
+                    camera_id=camera.id,
+                    downtime_event_id=None,
                     group_id=group_id,
-                    start_time=evt.start_time,
-                    end_time=evt.end_time,
+                    start_time=start_dt,
+                    end_time=end_dt,
                     created_at=now,
                     assigned_deadline=now + timedelta(hours=deadline_hours),
                     explanation_type=None,
@@ -1043,6 +1029,7 @@ async def task_analyze_outages():
                 added_count += 1
                 
         # 3. Update last run configuration
+        last_run_cfg = session.get(Settings, "OUTAGE_LAST_ANALYSIS_TIME")
         if not last_run_cfg:
             last_run_cfg = Settings(key="OUTAGE_LAST_ANALYSIS_TIME", value=now.isoformat(), description="Last time outages were analyzed")
         else:
