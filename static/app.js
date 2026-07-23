@@ -1620,6 +1620,11 @@ let chartGroupsInstance = null;
 let chartTopCamerasInstance = null;
 let chartStatusInstance = null;
 
+function getChartColor(varName, fallback) {
+    const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    return val || fallback;
+}
+
 async function loadAndRenderCharts(s, e) {
     const chartsSection = document.getElementById('report-charts-section');
     if (chartsSection) {
@@ -1648,8 +1653,8 @@ function renderTrendChart(chartData) {
         chartTrendInstance.destroy();
     }
     
-    const textColor = 'var(--text)';
-    const gridColor = 'var(--border)';
+    const textColor = getChartColor('--text', '#f1f5f9');
+    const gridColor = getChartColor('--border', '#2a2a36');
     
     chartTrendInstance = new Chart(ctx, {
         type: 'line',
@@ -1708,7 +1713,7 @@ function renderCausesChart(chartData) {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { labels: { color: 'var(--text)', font: { family: 'inherit' } } }
+                    legend: { labels: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } } }
                 }
             }
         });
@@ -1723,7 +1728,7 @@ function renderCausesChart(chartData) {
                 data: chartData.data,
                 backgroundColor: ['#f43f5e', '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#eab308'],
                 borderWidth: 1,
-                borderColor: 'var(--surface-1)'
+                borderColor: getChartColor('--surface', '#12121a')
             }]
         },
         options: {
@@ -1732,7 +1737,7 @@ function renderCausesChart(chartData) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { color: 'var(--text)', font: { family: 'inherit' } }
+                    labels: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
                 }
             }
         }
@@ -1768,12 +1773,12 @@ function renderGroupsChart(chartData) {
             },
             scales: {
                 x: {
-                    grid: { color: 'var(--border)' },
-                    ticks: { color: 'var(--text)', font: { family: 'inherit' } }
+                    grid: { color: getChartColor('--border', '#2a2a36') },
+                    ticks: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
                 },
                 y: {
-                    grid: { color: 'var(--border)' },
-                    ticks: { color: 'var(--text)', font: { family: 'inherit' } },
+                    grid: { color: getChartColor('--border', '#2a2a36') },
+                    ticks: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } },
                     beginAtZero: true
                 }
             }
@@ -1811,13 +1816,13 @@ function renderTopCamerasChart(chartData) {
             },
             scales: {
                 x: {
-                    grid: { color: 'var(--border)' },
-                    ticks: { color: 'var(--text)', font: { family: 'inherit' } },
+                    grid: { color: getChartColor('--border', '#2a2a36') },
+                    ticks: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } },
                     beginAtZero: true
                 },
                 y: {
-                    grid: { color: 'var(--border)' },
-                    ticks: { color: 'var(--text)', font: { family: 'inherit' } }
+                    grid: { color: getChartColor('--border', '#2a2a36') },
+                    ticks: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
                 }
             }
         }
@@ -1840,7 +1845,7 @@ function renderStatusChart(chartData) {
                 data: chartData.data,
                 backgroundColor: ['#22c55e', '#ef4444'],
                 borderWidth: 1,
-                borderColor: 'var(--surface-1)'
+                borderColor: getChartColor('--surface', '#12121a')
             }]
         },
         options: {
@@ -1849,7 +1854,7 @@ function renderStatusChart(chartData) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { color: 'var(--text)', font: { family: 'inherit' } }
+                    labels: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
                 }
             }
         }
