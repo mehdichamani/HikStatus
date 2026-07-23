@@ -1,4 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/static/Vazirmatn.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
     --bg: #0a0a0f;
@@ -988,6 +994,8 @@ body {
     width: 100%;
     transition: var(--transition);
     outline: none;
+    direction: ltr;
+    text-align: left;
 }
 
 .form-input:focus {
