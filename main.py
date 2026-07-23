@@ -240,7 +240,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(AuthMiddleware)
 
+import threading
+
 _login_attempts = {}
+_rate_limit_lock = threading.Lock()
 
 def get_admin_credentials():
     username = os.environ.get("ADMIN_USER", "admin")
@@ -261,7 +264,7 @@ def verify_admin_password(input_password: str, env_password_val: str) -> tuple[b
                 pass
     if is_hash:
         return verify_password(input_password, env_password_val), False
-    return input_password == env_password_val, True
+    return secrets.compare_digest(input_password, env_password_val), True
 
 
 def create_session_token():
@@ -269,12 +272,13 @@ def create_session_token():
 
 def check_rate_limit(ip):
     now = datetime.now()
-    if ip not in _login_attempts:
-        _login_attempts[ip] = []
-    _login_attempts[ip] = [t for t in _login_attempts[ip] if (now - t).seconds < 60]
-    if len(_login_attempts[ip]) >= 5:
-        return False
-    _login_attempts[ip].append(now)
+    with _rate_limit_lock:
+        if ip not in _login_attempts:
+            _login_attempts[ip] = []
+        _login_attempts[ip] = [t for t in _login_attempts[ip] if (now - t).seconds < 60]
+        if len(_login_attempts[ip]) >= 5:
+            return False
+        _login_attempts[ip].append(now)
     return True
 
 @app.get("/api/health")
@@ -343,7 +347,7 @@ def require_auth(request: Request, response: Response, db: Session = Depends(get
         db.add(session_record)
         db.commit()
         db.refresh(session_record)
-        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+        response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
         
     return {
         "username": session_record.username,
@@ -445,7 +449,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         db.add(session_record)
         db.commit()
         
-        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+        response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "role": "admin", "password_is_plain": password_is_plain}
 
     # Check database users
@@ -483,7 +487,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         db.add(session_record)
         db.commit()
         
-        response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+        response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "role": db_user.role, "group_id": db_user.group_id}
 
     raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
@@ -533,7 +537,7 @@ def login_2fa(payload: Login2FARequest, response: Response, db: Session = Depend
     db.add(session_record)
     db.commit()
     
-    response.set_cookie(key="session_token", value=token, httponly=True, samesite="lax", max_age=30 * 86400)
+    response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
     
     ret = {"status": "ok", "role": role, "group_id": group_id}
     if role == "admin":
@@ -769,7 +773,7 @@ async def stop_task_immediately(task_id: str, user: dict = Depends(require_auth)
         raise HTTPException(status_code=400, detail="تسک در حال اجرا نیست")
     return {"status": "stopped"}
 
-@app.post("/api/data/purge", dependencies=[Depends(require_auth)])
+@app.post("/api/data/purge", dependencies=[Depends(require_admin)])
 async def purge_database(session: Session = Depends(get_session)):
     seed_database(session)
     invalidate_config_cache()
@@ -777,7 +781,7 @@ async def purge_database(session: Session = Depends(get_session)):
     return {"status": "ok"}
 
 
-@app.get("/api/data/backup", dependencies=[Depends(require_auth)])
+@app.get("/api/data/backup", dependencies=[Depends(require_admin)])
 def backup_database():
     if not os.path.exists(sqlite_file_name):
         raise HTTPException(status_code=404, detail="Database file not found")
@@ -861,17 +865,11 @@ def export_config_json(session: Session = Depends(get_session)):
     nvrs = session.exec(select(NVR)).all()
     nvrs_list = []
     for n in nvrs:
-        decrypted_pass = ""
-        if n.password:
-            try:
-                decrypted_pass = decrypt_password(n.password)
-            except Exception:
-                decrypted_pass = n.password
         nvrs_list.append({
             "ip": n.ip,
             "name": n.name,
             "user": n.user,
-            "password": decrypted_pass,
+            "password": "",
             "enabled": n.enabled,
             "group_id": n.group_id,
             "rtsp_port": n.rtsp_port
@@ -917,6 +915,9 @@ def export_config_json(session: Session = Depends(get_session)):
 
 @app.post("/api/config/import", dependencies=[Depends(require_admin)])
 async def import_config_json(request: Request, session: Session = Depends(get_session)):
+    cl = request.headers.get("content-length")
+    if cl and int(cl) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="حجم فایل بیش از حد مجاز (۱۰ مگابایت) است")
     try:
         body = await request.json()
     except Exception:
@@ -1193,6 +1194,9 @@ def get_group_plans(id: int, session: Session = Depends(get_session), user: dict
 
 @app.post("/api/groups/{id}/plans")
 async def upload_group_plan(id: int, file: UploadFile = File(...), name: str = "", session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    if file.size and file.size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="حجم فایل بیش از حد مجاز (۵ مگابایت) است")
+
     g = session.get(NVRGroup, id)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -1536,6 +1540,8 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
     encoded_pass = quote(decrypted_pass, safe='')
     rtsp_url = f"rtsp://{nvr.user}:{encoded_pass}@{rtsp_host}/Streaming/Channels/{rtsp_chan}"
     
+    import os
+    import signal
     import subprocess
     from fastapi.responses import StreamingResponse
     
@@ -1549,7 +1555,7 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
             "-r", "15",
             "-"
         ]
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
         buffer = b""
         try:
             while True:
@@ -1570,16 +1576,22 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
         except GeneratorExit:
             pass
         finally:
-            process.terminate()
             try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                 process.wait(timeout=3)
             except Exception:
-                process.kill()
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except Exception:
+                    pass
             
     return StreamingResponse(gen_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 @app.post("/api/map/upload")
 async def upload_map(file: UploadFile = File(...), user: dict = Depends(require_admin)):
+    if file.size and file.size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="حجم فایل بیش از حد مجاز (۵ مگابایت) است")
+
     os.makedirs("static", exist_ok=True)
     ext = file.filename.split(".")[-1].lower()
     if ext not in ["png", "jpg", "jpeg", "svg"]:

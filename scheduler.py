@@ -40,6 +40,7 @@ class TaskScheduler:
         self.active_tasks: dict[str, asyncio.Task] = {}
         self.running = False
         self.loop_task: Optional[asyncio.Task] = None
+        self._trigger_lock = asyncio.Lock()
         
     async def start(self):
         if self.running:
@@ -174,14 +175,15 @@ class TaskScheduler:
             await self._broadcast_status(task_id, "Idle")
             
     async def trigger_task_now(self, task_id: str):
-        with Session(engine) as session:
-            db_task = session.get(ScheduledTask, task_id)
-            if not db_task:
-                return False
-            if db_task.status == "Running":
-                return False
-                
-        self.active_tasks[task_id] = asyncio.create_task(self._run_task_wrapper(task_id))
+        async with self._trigger_lock:
+            with Session(engine) as session:
+                db_task = session.get(ScheduledTask, task_id)
+                if not db_task:
+                    return False
+                if db_task.status == "Running":
+                    return False
+
+            self.active_tasks[task_id] = asyncio.create_task(self._run_task_wrapper(task_id))
         return True
         
     async def stop_task_now(self, task_id: str):

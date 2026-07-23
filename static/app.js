@@ -355,6 +355,19 @@ function toggleReportBlock(header) {
     }
 }
 
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/[&<>'"]/g,
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag)
+    );
+}
+
 function createCard(c) {
     const stClass = c.status === 'Online' ? 'status-online' : 'status-offline';
     const meta = encodeURIComponent(JSON.stringify(c));
@@ -370,8 +383,8 @@ function createCard(c) {
                 <span class="${recDotClass}" title="${isRecording ? 'در حال ضبط' : 'ضبط غیرفعال'}"></span>
             </div>
             <div class="cam-card-info">
-                <div class="cam-card-name">${c.name}</div>
-                <div class="cam-card-meta">CH ${c.channel_id}</div>
+                <div class="cam-card-name">${escapeHTML(c.name)}</div>
+                <div class="cam-card-meta">CH ${escapeHTML(String(c.channel_id))}</div>
             </div>
             ${star}
         </div>
