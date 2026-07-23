@@ -1,9 +1,11 @@
+from typing import Optional
 import asyncio
 import requests
 import xml.etree.ElementTree as ET
 import os
 from io import BytesIO
 from datetime import datetime, timedelta
+
 from requests.auth import HTTPDigestAuth
 from sqlmodel import Session, select
 from database import engine, NVR, Camera, Log, Settings, DowntimeEvent, UserSession
@@ -963,7 +965,8 @@ async def task_analyze_outages(override_now: Optional[datetime] = None):
     from database import Settings, DowntimeEvent, Camera, NVR, OutageExplanation
     from sqlmodel import select
     from datetime import datetime, timedelta
-    from typing import Optional
+
+
     
     logger.info("Starting definite outages analysis task...")
     now = override_now or datetime.now()
