@@ -476,46 +476,15 @@ const settingLabels = {
 async function loadSettings(activeTabOverride = null) {
     const role = window.currentUser ? window.currentUser.role : 'group_view';
 
-    // 1. Immediately render navigation links so there's no blank sidebar
-    const nav = document.getElementById('config-nav');
-    if (role === 'admin') {
-        nav.innerHTML = `
-            <button data-tab="sec-groups" onclick="switchSettingsTab('sec-groups')">کارخانه‌ها / گروه‌ها</button>
-            <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
-            <button data-tab="sec-users" onclick="switchSettingsTab('sec-users')">مدیریت کاربران</button>
-            <button data-tab="sec-logs" onclick="switchSettingsTab('sec-logs')">لاگ</button>
-            <button data-tab="grp-Email" onclick="switchSettingsTab('grp-Email')">تنظیمات ایمیل</button>
-            <button data-tab="grp-Telegram" onclick="switchSettingsTab('grp-Telegram')">تنظیمات تلگرام</button>
-            <button data-tab="grp-Outages" onclick="switchSettingsTab('grp-Outages')">تنظیمات قطعی‌ها</button>
-            <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
-            <button data-tab="sec-tasks" onclick="switchSettingsTab('sec-tasks')">وظایف زمان‌بندی‌شده</button>
-            <button data-tab="sec-system" onclick="switchSettingsTab('sec-system')">کنترل سیستم</button>
-            <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
-        `;
-    } else if (role === 'group_control' || role === 'it_manager') {
-        nav.innerHTML = `
-            <button data-tab="sec-nvr" onclick="switchSettingsTab('sec-nvr')">NVRها</button>
-            <button data-tab="sec-my-alerts" onclick="switchSettingsTab('sec-my-alerts')">تنظیمات اعلان شخصی من</button>
-            <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
-            <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
-        `;
-    } else { // inspector, group_view
-        nav.innerHTML = `
-            <button data-tab="sec-my-alerts" onclick="switchSettingsTab('sec-my-alerts')">تنظیمات اعلان شخصی من</button>
-            <button data-tab="grp-Browser" onclick="switchSettingsTab('grp-Browser')">اعلان مرورگر</button>
-            <button data-tab="sec-about" onclick="switchSettingsTab('sec-about')">درباره ما</button>
-        `;
-    }
+    // 1. Immediately render the settings list menu
+    renderSettingsMenu(role);
 
-    // 2. Determine default tab and display active tab layout immediately
-    let defaultTab = 'sec-nvr';
-    if (role === 'admin') {
-        defaultTab = 'sec-groups';
-    } else if (role === 'group_view') {
-        defaultTab = 'sec-about';
+    // 2. Determine display based on activeTabOverride
+    if (activeTabOverride) {
+        switchSettingsTab(activeTabOverride);
+    } else {
+        goBackToSettingsMenu();
     }
-    const activeTab = activeTabOverride || document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || defaultTab;
-    switchSettingsTab(activeTab);
 
     // 3. Parallelize fetches to load data instantly
     let settingsPromise = Promise.resolve([]);
@@ -568,9 +537,14 @@ async function loadSettings(activeTabOverride = null) {
             const hasTestBtn = ['Email', 'Telegram'].includes(engKey);
 
             let html = `<div class="card" id="grp-${engKey}" style="display: none;">
-                <div class="card-header">
+                <div class="settings-card-header">
+                    <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
                     <h3>تنظیمات ${grp}</h3>
-                    ${hasTestBtn ? `<button class="btn btn-ghost" style="padding:4px 12px; font-size:11px" onclick="testConn('${engKey.toLowerCase()}')">تست اتصال</button>` : ''}
+                    ${hasTestBtn ? `<button class="btn btn-ghost" style="padding:4px 12px; font-size:11px; margin-right: auto;" onclick="testConn('${engKey.toLowerCase()}')">تست اتصال</button>` : ''}
                 </div>`;
 
             // 1. Add Master toggle if it exists
@@ -667,8 +641,10 @@ async function loadSettings(activeTabOverride = null) {
         renderNVRRow(n)
     ).join('');
 
-    // Re-run tab activation to populate content lists (logs, groups, etc.) with new cache
-    switchSettingsTab(activeTab);
+    // Re-run active tab rendering if an override is active
+    if (activeTabOverride) {
+        switchSettingsTab(activeTabOverride);
+    }
     
     if (window.currentUser && window.currentUser.role === 'admin') {
         loadOutageCauses();
@@ -713,9 +689,13 @@ async function apply() {
 }
 
 function switchSettingsTab(tabId) {
-    document.querySelectorAll('.settings-nav button').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
-    });
+    // Hide menu list container
+    const menuCon = document.getElementById('settings-menu-container');
+    if (menuCon) menuCon.style.display = 'none';
+
+    // Show details container
+    const detailsCon = document.getElementById('settings-detail-container');
+    if (detailsCon) detailsCon.style.display = 'block';
 
     const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
     tabs.forEach(id => {
@@ -745,23 +725,128 @@ function switchSettingsTab(tabId) {
     }
 }
 
-async function saveAll() {
-    for (const s of settingsCache) {
-        const el = document.getElementById(s.key);
-        if (el) {
-            let val = el.value;
-            if (el.type === 'checkbox') val = el.checked ? 'true' : 'false';
-            if (val !== s.value) {
-                await apiFetch(`${API}/settings/${s.key}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: s.key, value: val })
-                });
-            }
+function goBackToSettingsMenu() {
+    // Hide details container
+    const detailsCon = document.getElementById('settings-detail-container');
+    if (detailsCon) detailsCon.style.display = 'none';
+
+    // Hide all card tabs
+    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
+    tabs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    // Show menu list container
+    const menuCon = document.getElementById('settings-menu-container');
+    if (menuCon) menuCon.style.display = 'block';
+}
+
+function renderSettingsMenu(role) {
+    const menuList = document.getElementById('settings-menu-list');
+    if (!menuList) return;
+
+    const allItems = {
+        'sec-groups': {
+            title: 'کارخانه‌ها / گروه‌ها',
+            desc: 'تعریف و مدیریت کارخانجات و گروه‌های مانیتورینگ تحت پوشش',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+            roles: ['admin']
+        },
+        'sec-nvr': {
+            title: 'دستگاه‌های NVR',
+            desc: 'مدیریت اطلاعات و اتصالات ضبط‌کننده‌های ویدئویی شبکه (NVRs)',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`,
+            roles: ['admin', 'group_control', 'it_manager']
+        },
+        'sec-users': {
+            title: 'مدیریت کاربران',
+            desc: 'تعریف و ویرایش حساب‌ها، کلمه‌های عبور و سطوح دسترسی کارکنان',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>`,
+            roles: ['admin']
+        },
+        'grp-Email': {
+            title: 'تنظیمات ایمیل',
+            desc: 'پیکربندی سرور خروجی SMTP و فهرست گیرندگان هشدارهای ایمیلی',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
+            roles: ['admin']
+        },
+        'grp-Telegram': {
+            title: 'تنظیمات تلگرام',
+            desc: 'پیکربندی توکن ربات اطلاع‌رسان و شناسه‌های گفتگوی کانال/گروه',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`,
+            roles: ['admin']
+        },
+        'grp-Outages': {
+            title: 'تنظیمات قطعی‌ها',
+            desc: 'تنظیم مهلت ثبت علت قطعی دوربین‌ها و زمان‌بندی تحلیل خودکار',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+            roles: ['admin']
+        },
+        'grp-Browser': {
+            title: 'اعلان‌های مرورگر',
+            desc: 'فعال‌سازی پخش هشدار صوتی و نوتیفیکیشن دسکتاپ هنگام تغییر وضعیت',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+            roles: ['admin', 'group_control', 'it_manager', 'inspector', 'group_view']
+        },
+        'sec-my-alerts': {
+            title: 'اعلان‌های شخصی من',
+            desc: 'پیکربندی گیرندگان هشدار شخصی شما (ایمیل و چت‌آیدی تلگرام)',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+            roles: ['group_control', 'it_manager', 'inspector', 'group_view']
+        },
+        'sec-tasks': {
+            title: 'وظایف زمان‌بندی‌شده',
+            desc: 'پایش و تحریک دستی وظایف دوره‌ای سیستم (پاکسازی، گزارش‌گیری و...)',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+            roles: ['admin']
+        },
+        'sec-logs': {
+            title: 'لاگ‌های سیستم',
+            desc: 'مشاهده رویدادها، خطاهای ارتباطی و لاگ ارسال هشدارهای سیستمی',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+            roles: ['admin']
+        },
+        'sec-system': {
+            title: 'کنترل سیستم',
+            desc: 'اعمال تنظیمات و راه‌اندازی مانیتور، پشتیبان‌گیری و عملیات دیتابیس',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+            roles: ['admin']
+        },
+        'sec-about': {
+            title: 'درباره ما',
+            desc: 'مشخصات فنی و راه‌های ارتباطی با تیم طراح و توسعه‌دهنده سامانه',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+            roles: ['admin', 'group_control', 'it_manager', 'inspector', 'group_view']
+        }
+    };
+
+    let html = '';
+    for (const [id, item] of Object.entries(allItems)) {
+        if (item.roles.includes(role)) {
+            html += `
+                <div class="settings-menu-item" onclick="switchSettingsTab('${id}')">
+                    <div class="settings-menu-item-left">
+                        <div class="settings-menu-item-icon">
+                            ${item.icon}
+                        </div>
+                        <div class="settings-menu-item-text">
+                            <span class="settings-menu-item-title">${item.title}</span>
+                            <span class="settings-menu-item-desc">${item.desc}</span>
+                        </div>
+                    </div>
+                    <div class="settings-menu-item-chevron">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                    </div>
+                </div>
+            `;
         }
     }
-    showToast('ذخیره شد');
+    menuList.innerHTML = html;
 }
+
 
 function updateOutageDaysValue() {
     const chks = document.querySelectorAll('.day-select-chk');
@@ -833,12 +918,6 @@ async function deleteOutageCause(id) {
     }
 }
 
-async function apply() {
-    await saveAll();
-    await apiFetch(`${API}/monitor/restart`, { method: 'POST' });
-    showToast('ریستارت شد');
-    setTimeout(() => location.reload(), 500);
-}
 
 
 async function testConn(type) {
@@ -974,6 +1053,10 @@ async function toggleNVRenabled(ip, enabled) {
 function renderGroupsList() {
     const list = document.getElementById('group-list');
     if (!list) return;
+    if (!groupCache || !Array.isArray(groupCache)) {
+        list.innerHTML = '<div style="padding: 15px; text-align: center; color: var(--text-muted); font-size: 13px;">در حال بارگذاری کارخانه‌ها...</div>';
+        return;
+    }
     list.innerHTML = groupCache.map(g => `
         <div class="list-item" id="group-row-${g.id}">
             <div class="list-item-info">
