@@ -809,17 +809,18 @@ async def stop_task_immediately(task_id: str, user: dict = Depends(require_auth)
 
 @app.post("/api/data/purge", dependencies=[Depends(require_admin)])
 async def purge_database(session: Session = Depends(get_session)):
-    log_event(session, category="System", action="DATABASE_PURGE", details="دیتابیس سیستم به تنظیمات اولیه ریست شد", level="CRITICAL", actor_username="admin")
     seed_database(session)
+    log_event(session, category="System", action="DATABASE_PURGE", details="دیتابیس سیستم به تنظیمات اولیه ریست گردید", level="CRITICAL", actor_username="admin")
     invalidate_config_cache()
     await restart_monitor()
     return {"status": "ok"}
 
 
 @app.get("/api/data/backup", dependencies=[Depends(require_admin)])
-def backup_database():
+def backup_database(session: Session = Depends(get_session)):
     if not os.path.exists(sqlite_file_name):
         raise HTTPException(status_code=404, detail="Database file not found")
+    log_event(session, category="System", action="DATABASE_BACKUP", details="فایل پشتیبان کامل دیتابیس دانلود شد", level="INFO", actor_username="admin")
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"hikstatus_backup_{timestamp}.db"
@@ -863,12 +864,13 @@ async def restore_database(request: Request, file: UploadFile = File(...)):
     invalidate_config_cache()
     await restart_monitor()
     with Session(engine) as session:
-        log_event(session, category="System", action="DATABASE_RESTORE", details="فایل پشتیبان دیتابیس بازیابی گردید", level="CRITICAL", actor_username="admin")
+        log_event(session, category="System", action="DATABASE_RESTORE", details="فایل پشتیبان دیتابیس بازیابی (Restore) گردید", level="CRITICAL", actor_username="admin")
     return {"status": "ok"}
 
 
 @app.get("/api/config/export", dependencies=[Depends(require_admin)])
 def export_config_json(session: Session = Depends(get_session)):
+    log_event(session, category="Config", action="CONFIG_EXPORT", details="پیکربندی سیستم به صورت فایل JSON دانلود گردید", level="INFO", actor_username="admin")
     # 1. Settings
     settings = session.exec(select(Settings)).all()
     settings_dict = {s.key: s.value for s in settings}
@@ -1076,6 +1078,7 @@ async def import_config_json(request: Request, session: Session = Depends(get_se
 
     invalidate_config_cache()
     await restart_monitor()
+    log_event(session, category="Config", action="CONFIG_IMPORT", details="پیکربندی جدید از فایل JSON وارد (Import) گردید", level="CRITICAL", actor_username="admin")
     return {"status": "ok"}
 
 
