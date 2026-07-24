@@ -331,6 +331,13 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         limiter.release("global:ws")
 
+def is_request_secure(request: Request) -> bool:
+    if request.url.scheme == "https":
+        return True
+    if request.headers.get("x-forwarded-proto") == "https":
+        return True
+    return False
+
 def require_auth(request: Request, response: Response, db: Session = Depends(get_session)) -> dict:
     """Returns {username, role, group_id, user_id} or raises 401."""
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
@@ -366,7 +373,7 @@ def require_auth(request: Request, response: Response, db: Session = Depends(get
         db.add(session_record)
         db.commit()
         db.refresh(session_record)
-        response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
+        response.set_cookie(key="session_token", value=token, httponly=True, secure=is_request_secure(request), samesite="lax", max_age=30 * 86400)
         
     return {
         "username": session_record.username,
@@ -477,7 +484,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         db.commit()
         
         log_event(db, category="Security", action="LOGIN_SUCCESS", details=f"ورود موفق کاربر مدیر ({payload.username})", level="INFO", actor_username=payload.username, actor_ip=client_ip)
-        response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
+        response.set_cookie(key="session_token", value=token, httponly=True, secure=is_request_secure(request), samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "role": "admin", "password_is_plain": password_is_plain}
 
     # Check database users
@@ -516,7 +523,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         db.commit()
         
         log_event(db, category="Security", action="LOGIN_SUCCESS", details=f"ورود موفق کاربر ({db_user.username})", level="INFO", actor_username=db_user.username, actor_ip=client_ip, group_id=db_user.group_id)
-        response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
+        response.set_cookie(key="session_token", value=token, httponly=True, secure=is_request_secure(request), samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "role": db_user.role, "group_id": db_user.group_id}
 
     log_event(db, category="Security", action="LOGIN_FAILED", details=f"تلاش ناموفق برای ورود با نام کاربری ({payload.username})", level="WARNING", actor_username=payload.username, actor_ip=client_ip)
@@ -568,7 +575,7 @@ def login_2fa(payload: Login2FARequest, request: Request, response: Response, db
     db.add(session_record)
     db.commit()
     
-    response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
+    response.set_cookie(key="session_token", value=token, httponly=True, secure=is_request_secure(request), samesite="lax", max_age=30 * 86400)
     
     ret = {"status": "ok", "role": role, "group_id": group_id}
     if role == "admin":
