@@ -308,6 +308,7 @@
             errorMsg.classList.remove('show');
             btn.classList.add('loading');
             btn.disabled = true;
+            let redirecting = false;
 
             try {
                 const res = await fetch('/api/auth/login', {
@@ -340,6 +341,7 @@
                     } else {
                         localStorage.removeItem('admin_plain_password');
                     }
+                    redirecting = true;
                     window.location.href = '/';
                 } else {
                     const data = await res.json();
@@ -350,8 +352,10 @@
                 errorMsg.textContent = 'خطا در اتصال به سرور';
                 errorMsg.classList.add('show');
             } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
+                if (!redirecting) {
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                }
             }
         }
 
@@ -370,6 +374,7 @@
             errorMsg.classList.remove('show');
             btn.classList.add('loading');
             btn.disabled = true;
+            let redirecting = false;
 
             try {
                 const res = await fetch('/api/auth/login/2fa', {
@@ -391,6 +396,7 @@
                     } else {
                         localStorage.removeItem('admin_plain_password');
                     }
+                    redirecting = true;
                     window.location.href = '/';
                 } else {
                     const data = await res.json();
@@ -401,8 +407,10 @@
                 errorMsg.textContent = 'خطا در اتصال به سرور';
                 errorMsg.classList.add('show');
             } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
+                if (!redirecting) {
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                }
             }
         }
 
