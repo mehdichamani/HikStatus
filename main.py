@@ -1981,11 +1981,14 @@ def get_reports_charts(start: float, end: float, session: Session = Depends(get_
         
     now = datetime.now()
     
+    # Group events by camera to avoid O(N^2) complexity
+    events_by_camera = {}
+    for e in events:
+        events_by_camera.setdefault(e.camera_id, []).append(e)
+
     def calculate_downtime_in_memory(cam_id, start_ts, end_ts):
         total_minutes = 0
-        for e in events:
-            if e.camera_id != cam_id:
-                continue
+        for e in events_by_camera.get(cam_id, []):
             e_end = e.end_time or now
             overlap_start = max(e.start_time, start_ts)
             overlap_end = min(e_end, end_ts)
