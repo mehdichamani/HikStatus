@@ -475,13 +475,8 @@ const settingLabels = {
 
 async function loadSettings(activeTabOverride = null) {
     const role = window.currentUser ? window.currentUser.role : 'group_view';
-    if (role === 'admin') {
-        const sRes = await apiFetch(`${API}/settings`);
-        settingsCache = await sRes.json();
-    } else {
-        settingsCache = [];
-    }
 
+    // 1. Immediately render navigation links so there's no blank sidebar
     const nav = document.getElementById('config-nav');
     if (role === 'admin') {
         nav.innerHTML = `
@@ -512,6 +507,29 @@ async function loadSettings(activeTabOverride = null) {
         `;
     }
 
+    // 2. Determine default tab and display active tab layout immediately
+    let defaultTab = 'sec-nvr';
+    if (role === 'admin') {
+        defaultTab = 'sec-groups';
+    } else if (role === 'group_view') {
+        defaultTab = 'sec-about';
+    }
+    const activeTab = activeTabOverride || document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || defaultTab;
+    switchSettingsTab(activeTab);
+
+    // 3. Parallelize fetches to load data instantly
+    let settingsPromise = Promise.resolve([]);
+    if (role === 'admin') {
+        settingsPromise = apiFetch(`${API}/settings`).then(res => res.json());
+    }
+    const groupsPromise = apiFetch(`${API}/groups`).then(res => res.json()).catch(() => []);
+    const nvrsPromise = apiFetch(`${API}/nvrs`).then(res => res.json()).catch(() => []);
+
+    const [settings, groups, nvrs] = await Promise.all([settingsPromise, groupsPromise, nvrsPromise]);
+    settingsCache = settings;
+    groupCache = groups;
+    nvrCache = nvrs;
+
     const nvrForm = document.querySelector('#sec-nvr .nvr-form');
     if (nvrForm) {
         nvrForm.style.display = (role === 'admin') ? '' : 'none';
@@ -521,10 +539,22 @@ async function loadSettings(activeTabOverride = null) {
     con.innerHTML = '';
 
     if (role === 'admin') {
-        const groups = {
+        const groupsConfig = {
             'ایمیل': ['MAIL_ENABLED', 'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASS', 'MAIL_RECIPIENTS', 'MAIL_FIRST_ALERT_DELAY_MINUTES', 'MAIL_LOW_IMPORTANCE_DELAY_MINUTES', 'MAIL_ALERT_FREQUENCY_MINUTES', 'MAIL_MUTE_AFTER_N_ALERTS'],
             'تلگرام': ['TELEGRAM_ENABLED', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY', 'TELEGRAM_FIRST_ALERT_DELAY_MINUTES', 'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES', 'TELEGRAM_ALERT_FREQUENCY_MINUTES', 'TELEGRAM_MUTE_AFTER_N_ALERTS'],
-            'قطعی‌ها': ['OUTAGE_MIN_HOURS_TO_EXPLAIN', 'OUTAGE_EXPLANATION_DEADLINE_HOURS', 'OUTAGE_ANALYSIS_DAYS', 'OUTAGE_ANALYSIS_TIME']
+            'قطعی‌ها': ['OUTAGE_MIN_HOUTS_TO_EXPLAIN', 'OUTAGE_EXPLANATION_DEADLINE_HOURS', 'OUTAGE_ANALYSIS_DAYS', 'OUTAGE_ANALYSIS_TIME'] // Note: OUTAGE_MIN_HOURS_TO_EXPLAIN key fallback
+        };
+
+        // Find the actual keys in the settings database so we don't request wrong keys
+        const actualKeys = settingsCache.map(s => s.key);
+        const emailKeys = ['MAIL_ENABLED', 'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASS', 'MAIL_RECIPIENTS', 'MAIL_FIRST_ALERT_DELAY_MINUTES', 'MAIL_LOW_IMPORTANCE_DELAY_MINUTES', 'MAIL_ALERT_FREQUENCY_MINUTES', 'MAIL_MUTE_AFTER_N_ALERTS'].filter(k => actualKeys.includes(k));
+        const telegramKeys = ['TELEGRAM_ENABLED', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY', 'TELEGRAM_FIRST_ALERT_DELAY_MINUTES', 'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES', 'TELEGRAM_ALERT_FREQUENCY_MINUTES', 'TELEGRAM_MUTE_AFTER_N_ALERTS'].filter(k => actualKeys.includes(k));
+        const outageKeys = ['OUTAGE_MIN_HOURS_TO_EXPLAIN', 'OUTAGE_MIN_HOUTS_TO_EXPLAIN', 'OUTAGE_EXPLANATION_DEADLINE_HOURS', 'OUTAGE_ANALYSIS_DAYS', 'OUTAGE_ANALYSIS_TIME'].filter(k => actualKeys.includes(k));
+
+        const groupsMapping = {
+            'ایمیل': emailKeys,
+            'تلگرام': telegramKeys,
+            'قطعی‌ها': outageKeys
         };
 
         const groupKeys = {
@@ -533,11 +563,11 @@ async function loadSettings(activeTabOverride = null) {
             'قطعی‌ها': 'Outages'
         };
 
-        for (const [grp, keys] of Object.entries(groups)) {
+        for (const [grp, keys] of Object.entries(groupsMapping)) {
             const engKey = groupKeys[grp];
             const hasTestBtn = ['Email', 'Telegram'].includes(engKey);
 
-            let html = `<div class="card" id="grp-${engKey}">
+            let html = `<div class="card" id="grp-${engKey}" style="display: none;">
                 <div class="card-header">
                     <h3>تنظیمات ${grp}</h3>
                     ${hasTestBtn ? `<button class="btn btn-ghost" style="padding:4px 12px; font-size:11px" onclick="testConn('${engKey.toLowerCase()}')">تست اتصال</button>` : ''}
@@ -632,32 +662,53 @@ async function loadSettings(activeTabOverride = null) {
         }
     }
 
-    try {
-        const gRes = await apiFetch(`${API}/groups`);
-        groupCache = await gRes.json();
-    } catch (e) {
-        console.error('Error loading groups:', e);
-    }
-
-    const nRes = await apiFetch(`${API}/nvrs`);
-    const nvrs = await nRes.json();
-    nvrCache = nvrs;
     pendingNVRDeletes = new Set();
-    document.getElementById('nvr-list').innerHTML = nvrs.map(n =>
+    document.getElementById('nvr-list').innerHTML = nvrCache.map(n =>
         renderNVRRow(n)
     ).join('');
 
-    let defaultTab = 'sec-nvr';
-    if (role === 'admin') {
-        defaultTab = 'sec-groups';
-    } else if (role === 'group_view') {
-        defaultTab = 'sec-about';
-    }
-    const activeTab = activeTabOverride || document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || defaultTab;
+    // Re-run tab activation to populate content lists (logs, groups, etc.) with new cache
     switchSettingsTab(activeTab);
     
     if (window.currentUser && window.currentUser.role === 'admin') {
         loadOutageCauses();
+    }
+}
+
+async function saveAll(silent = false) {
+    let changed = 0;
+    for (const s of settingsCache) {
+        const el = document.getElementById(s.key);
+        if (el) {
+            let val = el.value;
+            if (el.type === 'checkbox') val = el.checked ? 'true' : 'false';
+            if (val !== s.value) {
+                await apiFetch(`${API}/settings/${s.key}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: s.key, value: val })
+                });
+                changed++;
+            }
+        }
+    }
+    if (!silent) {
+        showToast('تنظیمات با موفقیت ذخیره شد', 'success');
+    }
+    return changed;
+}
+
+async function apply() {
+    try {
+        await saveAll(true);
+        await apiFetch(`${API}/monitor/restart`, { method: 'POST' });
+        showToast('تنظیمات با موفقیت ذخیره شد و مانیتورینگ ریستارت گردید', 'success');
+        
+        // Reload settings and restore active tab in-place
+        const activeTab = document.querySelector('.settings-nav button.active')?.getAttribute('data-tab');
+        await loadSettings(activeTab);
+    } catch (e) {
+        showToast('خطا در ذخیره و اعمال تغییرات: ' + e.message, 'error');
     }
 }
 
@@ -1183,11 +1234,11 @@ function showToast(msg, type = 'success') {
     const toast = document.createElement('div');
     toast.style.cssText = `
         position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
-        background: ${type === 'error' ? 'var(--danger)' : 'var(--surface-2)'};
-        color: ${type === 'error' ? 'white' : 'var(--text)'};
+        background: ${type === 'error' ? 'var(--danger)' : (type === 'success' ? 'var(--success)' : 'var(--surface-2)')};
+        color: ${type === 'error' || type === 'success' ? 'white' : 'var(--text)'};
         padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500;
         box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 9999;
-        border: 1px solid ${type === 'error' ? 'var(--danger)' : 'var(--border)'};
+        border: 1px solid ${type === 'error' ? 'var(--danger)' : (type === 'success' ? 'var(--success)' : 'var(--border)')};
         animation: fadeIn 0.3s ease;
     `;
     toast.innerHTML = msg;
