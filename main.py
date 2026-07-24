@@ -493,7 +493,8 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
     raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
 
 @app.post("/api/auth/login/2fa")
-def login_2fa(payload: Login2FARequest, response: Response, db: Session = Depends(get_session)):
+@rate_limit(5, 60)
+def login_2fa(payload: Login2FARequest, request: Request, response: Response, db: Session = Depends(get_session)):
     try:
         decrypted = decrypt_password(payload.temp_token)
         data = json.loads(decrypted)
@@ -588,7 +589,8 @@ def setup_2fa(user: dict = Depends(require_auth), db: Session = Depends(get_sess
     }
 
 @app.post("/api/auth/2fa/verify-setup")
-def verify_2fa_setup(payload: Verify2FASetupRequest, user: dict = Depends(require_auth), db: Session = Depends(get_session)):
+@rate_limit(5, 60)
+def verify_2fa_setup(payload: Verify2FASetupRequest, request: Request, user: dict = Depends(require_auth), db: Session = Depends(get_session)):
     import pyotp
     username = user["username"]
     user_id = user["user_id"]
@@ -623,7 +625,8 @@ def verify_2fa_setup(payload: Verify2FASetupRequest, user: dict = Depends(requir
     return {"status": "ok", "message": "ورود دو مرحله‌ای با موفقیت فعال شد"}
 
 @app.post("/api/auth/2fa/disable")
-def disable_2fa(payload: Disable2FARequest, user: dict = Depends(require_auth), db: Session = Depends(get_session)):
+@rate_limit(5, 60)
+def disable_2fa(payload: Disable2FARequest, request: Request, user: dict = Depends(require_auth), db: Session = Depends(get_session)):
     username = user["username"]
     user_id = user["user_id"]
     role = user["role"]
