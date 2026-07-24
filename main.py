@@ -2198,6 +2198,11 @@ def update_my_alerts(payload: AlertSettingsUpdate, session: Session = Depends(ge
     if u_id is None:
         raise HTTPException(status_code=400, detail="مدیر سیستم از تنظیمات عمومی استفاده می‌کند")
         
+    if payload.mail_recipients and "," in payload.mail_recipients:
+        raise HTTPException(status_code=400, detail="فقط وارد کردن یک ایمیل مجاز است")
+    if payload.telegram_chat_ids and "," in payload.telegram_chat_ids:
+        raise HTTPException(status_code=400, detail="فقط وارد کردن یک شناسه تلگرام مجاز است")
+
     alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u_id)).first()
     if not alert_settings:
         alert_settings = UserAlertSettings(user_id=u_id)

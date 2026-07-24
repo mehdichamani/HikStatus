@@ -169,7 +169,8 @@ def send_email_batch(subject, lines, alert_type="warning", group_id=None):
             for u in users:
                 alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
                 if alert_settings and alert_settings.mail_enabled and alert_settings.mail_recipients:
-                    recipients = [r.strip() for r in alert_settings.mail_recipients.split(",") if r.strip()]
+                    # Pick only the first item in case database still has commas
+                    recipients = [r.strip() for r in alert_settings.mail_recipients.split(",") if r.strip()][:1]
                     if recipients:
                         body = get_email_body(subject, lines, alert_type)
                         res = send_email_raw(conf, subject, body, recipients)
@@ -251,7 +252,8 @@ def send_telegram_batch(header, lines, alert_type="warning", group_id=None):
             for u in users:
                 alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
                 if alert_settings and alert_settings.telegram_enabled and alert_settings.telegram_chat_ids:
-                    chat_ids = [c.strip() for c in alert_settings.telegram_chat_ids.split(",") if c.strip()]
+                    # Pick only the first item in case database still has commas
+                    chat_ids = [c.strip() for c in alert_settings.telegram_chat_ids.split(",") if c.strip()][:1]
                     if chat_ids:
                         msg = get_telegram_message(header, lines, alert_type)
                         res = send_telegram_raw(conf, msg, chat_ids)
