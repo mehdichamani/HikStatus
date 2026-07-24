@@ -2800,4 +2800,57 @@ jdp-container .jdp-btn-close:hover {
     color: var(--primary-hover);
 }
 
+/* ===== RESPONSIVE NVR CARDS ===== */
+#nvr-list {
+    max-height: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 2px;
+}
+
+@media (max-width: 767px) {
+    #nvr-list .list-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 16px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 8px;
+    }
+    #nvr-list .list-item:last-child {
+        margin-bottom: 0;
+    }
+    #nvr-list .list-item-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        width: 100%;
+    }
+    #nvr-list .list-item-info select {
+        width: 100% !important;
+        margin-right: 0 !important;
+        margin-top: 4px;
+        height: 36px !important;
+    }
+    #nvr-list .list-item-info span {
+        margin-right: 0 !important;
+    }
+    #nvr-list .list-item-ip {
+        font-size: 12.5px;
+    }
+    #nvr-list .list-item > div:last-child {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+        margin-top: 6px;
+    }
+}
+
+
 

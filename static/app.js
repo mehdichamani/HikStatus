@@ -641,6 +641,18 @@ async function loadSettings(activeTabOverride = null) {
         renderNVRRow(n)
     ).join('');
 
+    // Populate group options in Add NVR form dropdown
+    const nvrGroupSelect = document.getElementById('nvrGroup');
+    if (nvrGroupSelect) {
+        if (!groupCache || !Array.isArray(groupCache)) {
+            nvrGroupSelect.innerHTML = '<option value="">بدون کارخانه (بدون گروه)</option>';
+        } else {
+            nvrGroupSelect.innerHTML = '<option value="">بدون کارخانه (بدون گروه)</option>' + groupCache.map(g => 
+                `<option value="${g.id}">${g.name}</option>`
+            ).join('');
+        }
+    }
+
     // Re-run active tab rendering if an override is active
     if (activeTabOverride) {
         switchSettingsTab(activeTabOverride);
@@ -935,18 +947,22 @@ async function addNVR() {
     const u = document.getElementById('nvrUser').value.trim();
     const p = document.getElementById('nvrPass').value;
     const rtspPort = parseInt(document.getElementById('nvrRtspPort').value) || 554;
+    const groupEl = document.getElementById('nvrGroup');
+    const groupId = groupEl && groupEl.value ? parseInt(groupEl.value) : null;
+    
     if (!ip || !u) return showToast('IP و نام کاربری الزامی است', 'error');
 
     await apiFetch(`${API}/nvrs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name || null, ip, user: u, password: p || null, enabled: true, rtsp_port: rtspPort })
+        body: JSON.stringify({ name: name || null, ip, user: u, password: p || null, enabled: true, rtsp_port: rtspPort, group_id: groupId })
     });
     document.getElementById('nvrName').value = '';
     document.getElementById('nvrIp').value = '';
     document.getElementById('nvrUser').value = '';
     document.getElementById('nvrPass').value = '';
     document.getElementById('nvrRtspPort').value = '554';
+    if (groupEl) groupEl.value = '';
     loadSettings();
 }
 
