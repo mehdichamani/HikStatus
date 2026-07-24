@@ -20,9 +20,13 @@
 <body>
 
     <!-- Initial Loading Screen -->
-    <div id="initial-loading-screen" style="position: fixed; inset: 0; background: var(--bg, #0a0a0f); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; opacity: 1; transition: opacity 0.4s ease, visibility 0.4s;">
-        <div style="width: 48px; height: 48px; border: 4px solid var(--border, #2a2a36); border-top-color: var(--primary, #6366f1); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        <p style="font-family: 'Vazirmatn', sans-serif; font-size: 14px; color: var(--text-secondary, #94a3b8);">در حال بارگذاری سامانه...</p>
+    <div id="initial-loading-screen"
+        style="position: fixed; inset: 0; background: var(--bg, #0a0a0f); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; opacity: 1; transition: opacity 0.4s ease, visibility 0.4s;">
+        <div
+            style="width: 48px; height: 48px; border: 4px solid var(--border, #2a2a36); border-top-color: var(--primary, #6366f1); border-radius: 50%; animation: spin 1s linear infinite;">
+        </div>
+        <p style="font-family: 'Vazirmatn', sans-serif; font-size: 14px; color: var(--text-secondary, #94a3b8);">در حال
+            بارگذاری سامانه...</p>
     </div>
 
     <!-- Connection Drop Warning Banner -->
@@ -42,11 +46,10 @@
     <!-- Top Header -->
     <header class="app-header">
         <div class="header-content">
-            <div class="header-brand">
+            <div class="header-brand" onclick="showAboutUs()" style="cursor: pointer;" title="درباره ما">
                 <img src="/static/logo.webp" alt="لوگو" class="header-logo">
                 <div class="header-text">
                     <h1>HikStatus</h1>
-                    <p>سامانه مانیتورینگ دوربین‌ها</p>
                 </div>
             </div>
             <div class="header-actions">
@@ -54,37 +57,49 @@
                     <span class="pulse-dot"></span>
                     <span>فعال</span>
                 </div>
-                
+
                 <!-- Kiosk Mode Toggle -->
-                <button class="btn-icon" onclick="toggleKiosk()" title="حالت کیوسک (تمام‌صفحه)" style="flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                <button class="btn-icon" onclick="toggleKiosk()" title="حالت کیوسک (تمام‌صفحه)"
+                    style="flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+                        </path>
                     </svg>
                 </button>
 
                 <!-- Global Search -->
                 <div class="global-search-container" style="position: relative;">
-                    <button class="btn-icon" onclick="toggleGlobalSearch(event)" id="btn-global-search" style="flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="btn-icon" onclick="toggleGlobalSearch(event)" id="btn-global-search"
+                        style="flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <circle cx="11" cy="11" r="8"></circle>
                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
                     </button>
                     <!-- Dropdown search overlay -->
-                    <div id="global-search-dropdown" class="hidden" style="position: absolute; top: calc(100% + 8px); left: 0; width: 320px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); z-index: 1000; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-                        <input type="text" id="global-search-input" placeholder="جستجوی دوربین، IP یا کارخانه..." oninput="onGlobalSearch(this.value)" style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 8px 12px; width: 100%; outline: none; font-family: inherit; font-size: 13px;">
-                        <div id="global-search-results" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
-                            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">عبارتی وارد کنید...</div>
+                    <div id="global-search-dropdown" class="hidden"
+                        style="position: absolute; top: calc(100% + 8px); left: 0; width: 320px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); z-index: 1000; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <input type="text" id="global-search-input" placeholder="جستجوی دوربین، IP یا کارخانه..."
+                            oninput="onGlobalSearch(this.value)"
+                            style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 8px 12px; width: 100%; outline: none; font-family: inherit; font-size: 13px;">
+                        <div id="global-search-results"
+                            style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+                            <div
+                                style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+                                عبارتی وارد کنید...</div>
                         </div>
                     </div>
                 </div>
 
-                <button class="btn btn-ghost" onclick="openProfileModal()" id="btn-profile" style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button class="btn-icon" onclick="openProfileModal()" id="btn-profile" title="پروفایل کاربری"
+                    style="flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                     </svg>
-                    <span id="header-username">پروفایل</span>
                 </button>
             </div>
         </div>
@@ -141,12 +156,15 @@
 
         <!-- DASHBOARD VIEW -->
         <section id="dash" class="view active">
-            <div class="dash-toolbar-top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px;">
-                <div class="stats-row-combined" style="margin-bottom: 0; flex: 1; display: flex; gap: 12px; flex-wrap: wrap;">
+            <div class="dash-toolbar-top"
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px;">
+                <div class="stats-row-combined"
+                    style="margin-bottom: 0; flex: 1; display: flex; gap: 12px; flex-wrap: wrap;">
                     <!-- Camera Status Combined Card -->
                     <div class="stat-card-combined">
                         <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
                                 <circle cx="12" cy="12" r="10" />
                                 <path d="M12 6v6l4 2" />
                             </svg>
@@ -168,7 +186,8 @@
                     <!-- NVR Status Card -->
                     <div class="stat-card-combined" id="nvr-status-card">
                         <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
                                 <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
                                 <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
                                 <line x1="6" y1="6" x2="6.01" y2="6" />
@@ -192,8 +211,10 @@
                     <!-- Factory Summary Card -->
                     <div class="stat-card-combined" id="factory-summary-card">
                         <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" />
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path
+                                    d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" />
                             </svg>
                             <span class="stat-combined-title">کارخانه‌ها</span>
                         </div>
@@ -207,22 +228,28 @@
                 </div>
                 <div class="dash-actions-toolbar">
                     <!-- Filter chips -->
-                    <button class="chip active" id="filter-cam-all" onclick="setDashCamFilter('all')" title="همه دوربین‌ها">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="chip active" id="filter-cam-all" onclick="setDashCamFilter('all')"
+                        title="همه دوربین‌ها">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <rect x="3" y="3" width="7" height="7" />
                             <rect x="14" y="3" width="7" height="7" />
                             <rect x="3" y="14" width="7" height="7" />
                             <rect x="14" y="14" width="7" height="7" />
                         </svg>
                     </button>
-                    <button class="chip" id="filter-cam-online" onclick="setDashCamFilter('online')" title="دوربین‌های متصل">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="chip" id="filter-cam-online" onclick="setDashCamFilter('online')"
+                        title="دوربین‌های متصل">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                             <polyline points="22 4 12 14.01 9 11.01" />
                         </svg>
                     </button>
-                    <button class="chip" id="filter-cam-offline" onclick="setDashCamFilter('offline')" title="دوربین‌های قطع شده">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="chip" id="filter-cam-offline" onclick="setDashCamFilter('offline')"
+                        title="دوربین‌های قطع شده">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <circle cx="12" cy="12" r="10" />
                             <line x1="15" y1="9" x2="9" y2="15" />
                             <line x1="9" y1="9" x2="15" y2="15" />
@@ -231,7 +258,8 @@
 
                     <!-- Refresh Button -->
                     <button class="chip" onclick="fetchDash()" title="بروزرسانی">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <polyline points="23 4 23 10 17 10" />
                             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
                         </svg>
@@ -269,20 +297,27 @@
             <div class="panel-row">
                 <aside class="panel-side">
                     <nav id="charts-nav" class="settings-nav">
-                        <button data-tab="tab-report-gen" class="active" onclick="switchChartTab('tab-report-gen')">ساخت گزارش</button>
-                        <button data-tab="tab-chart-trend" onclick="switchChartTab('tab-chart-trend')">روند زمانی</button>
-                        <button data-tab="tab-chart-causes" onclick="switchChartTab('tab-chart-causes')">علل قطعی</button>
-                        <button data-tab="tab-chart-groups" onclick="switchChartTab('tab-chart-groups')">سهم کارخانجات</button>
-                        <button data-tab="tab-chart-top" onclick="switchChartTab('tab-chart-top')">دوربین‌های پرخطر</button>
-                        <button data-tab="tab-chart-status" onclick="switchChartTab('tab-chart-status')">وضعیت فعلی</button>
+                        <button data-tab="tab-report-gen" class="active" onclick="switchChartTab('tab-report-gen')">ساخت
+                            گزارش</button>
+                        <button data-tab="tab-chart-trend" onclick="switchChartTab('tab-chart-trend')">روند
+                            زمانی</button>
+                        <button data-tab="tab-chart-causes" onclick="switchChartTab('tab-chart-causes')">علل
+                            قطعی</button>
+                        <button data-tab="tab-chart-groups" onclick="switchChartTab('tab-chart-groups')">سهم
+                            کارخانجات</button>
+                        <button data-tab="tab-chart-top" onclick="switchChartTab('tab-chart-top')">دوربین‌های
+                            پرخطر</button>
+                        <button data-tab="tab-chart-status" onclick="switchChartTab('tab-chart-status')">وضعیت
+                            فعلی</button>
                     </nav>
                 </aside>
                 <div class="panel-main panel-scroll">
-                    
+
                     <div id="tab-report-gen" class="chart-tab-content" style="display: block;">
                         <div class="card" style="padding: 20px; margin-bottom: 24px;">
                             <div class="panel-header" style="margin-bottom: 15px;">ساخت گزارش و نقشه حرارتی</div>
-                            <div class="settings-fields-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                            <div class="settings-fields-grid"
+                                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
                                 <div class="side-section" style="margin: 0;">
                                     <label class="form-label">محدوده زمانی</label>
                                     <div class="preset-btns">
@@ -293,16 +328,21 @@
                                 </div>
                                 <div class="side-section" style="margin: 0;">
                                     <label class="form-label">زمان شروع</label>
-                                    <input type="text" id="startDt" class="form-input" data-jdp placeholder="انتخاب تاریخ و زمان شروع">
+                                    <input type="text" id="startDt" class="form-input" data-jdp
+                                        placeholder="انتخاب تاریخ و زمان شروع">
                                 </div>
                                 <div class="side-section" style="margin: 0;">
                                     <label class="form-label">زمان پایان</label>
-                                    <input type="text" id="endDt" class="form-input" data-jdp placeholder="انتخاب تاریخ و زمان پایان">
+                                    <input type="text" id="endDt" class="form-input" data-jdp
+                                        placeholder="انتخاب تاریخ و زمان پایان">
                                 </div>
                             </div>
-                            <div style="display:flex; gap:8px; flex-wrap:wrap; border-top: 1px solid var(--border); padding-top: 15px;">
-                                <button class="btn btn-primary" onclick="genReport()">ساخت گزارش و بروزرسانی نمودارها</button>
-                                <button id="btn-toggle-heatmap" class="btn btn-ghost" style="display:none;" onclick="toggleReportSection()">نقشه حرارتی</button>
+                            <div
+                                style="display:flex; gap:8px; flex-wrap:wrap; border-top: 1px solid var(--border); padding-top: 15px;">
+                                <button class="btn btn-primary" onclick="genReport()">ساخت گزارش و بروزرسانی
+                                    نمودارها</button>
+                                <button id="btn-toggle-heatmap" class="btn btn-ghost" style="display:none;"
+                                    onclick="toggleReportSection()">نقشه حرارتی</button>
                             </div>
                         </div>
 
@@ -336,61 +376,74 @@
                             </div>
                         </div>
 
-                    <div id="report-list-section" style="margin-top: 24px;">
-                        <div class="report-block">
-                            <div class="panel-header" onclick="toggleReportBlock(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-                                <span>گزارش قطعی دوربین‌ها</span>
-                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform var(--transition); transform: rotate(0deg);">
-                                    <polyline points="6 9 12 15 18 9" />
-                                </svg>
+                        <div id="report-list-section" style="margin-top: 24px;">
+                            <div class="report-block">
+                                <div class="panel-header" onclick="toggleReportBlock(this)"
+                                    style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                    <span>گزارش قطعی دوربین‌ها</span>
+                                    <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2"
+                                        style="transition: transform var(--transition); transform: rotate(0deg);">
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </div>
+                                <div id="rep-list" class="report-list">
+                                    <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
+                                </div>
                             </div>
-                            <div id="rep-list" class="report-list">
-                                <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
-                            </div>
-                        </div>
 
-                        <div class="report-block" style="margin-top: 24px;">
-                            <div class="panel-header" onclick="toggleReportBlock(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-                                <span>رویدادهای قطع و وصل NVR</span>
-                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform var(--transition); transform: rotate(0deg);">
-                                    <polyline points="6 9 12 15 18 9" />
-                                </svg>
+                            <div class="report-block" style="margin-top: 24px;">
+                                <div class="panel-header" onclick="toggleReportBlock(this)"
+                                    style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                    <span>رویدادهای قطع و وصل NVR</span>
+                                    <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2"
+                                        style="transition: transform var(--transition); transform: rotate(0deg);">
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </div>
+                                <div id="rep-nvr-list" class="report-list">
+                                    <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
+                                </div>
                             </div>
-                            <div id="rep-nvr-list" class="report-list">
-                                <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
-                            </div>
-                        </div>
 
-                        <div class="report-block" style="margin-top: 24px;">
-                            <div class="panel-header" onclick="toggleReportBlock(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-                                <span>خطاهای احراز هویت (رمز اشتباه) NVR</span>
-                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform var(--transition); transform: rotate(0deg);">
-                                    <polyline points="6 9 12 15 18 9" />
-                                </svg>
+                            <div class="report-block" style="margin-top: 24px;">
+                                <div class="panel-header" onclick="toggleReportBlock(this)"
+                                    style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                    <span>خطاهای احراز هویت (رمز اشتباه) NVR</span>
+                                    <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2"
+                                        style="transition: transform var(--transition); transform: rotate(0deg);">
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </div>
+                                <div id="rep-auth-list" class="report-list">
+                                    <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
+                                </div>
                             </div>
-                            <div id="rep-auth-list" class="report-list">
-                                <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
-                            </div>
-                        </div>
 
-                        <div class="report-block" style="margin-top: 24px;">
-                            <div class="panel-header" onclick="toggleReportBlock(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-                                <span>گزارش اجرای تسک‌های زمان‌بندی شده</span>
-                                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform var(--transition); transform: rotate(0deg);">
-                                    <polyline points="6 9 12 15 18 9" />
-                                </svg>
-                            </div>
-                            <div id="rep-task-list" class="report-list">
-                                <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
+                            <div class="report-block" style="margin-top: 24px;">
+                                <div class="panel-header" onclick="toggleReportBlock(this)"
+                                    style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+                                    <span>گزارش اجرای تسک‌های زمان‌بندی شده</span>
+                                    <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2"
+                                        style="transition: transform var(--transition); transform: rotate(0deg);">
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </div>
+                                <div id="rep-task-list" class="report-list">
+                                    <div class="empty-state">محدوده زمانی را انتخاب کنید</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
                     </div> <!-- End of tab-report-gen -->
 
                     <!-- Chart Tab Contents -->
                     <div id="tab-chart-trend" class="chart-tab-content" style="display: none;">
                         <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
-                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">روند قطعی‌ها در بازه زمانی (ساعت)</div>
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">روند قطعی‌ها در بازه
+                                زمانی (ساعت)</div>
                             <div style="position: relative; height: 360px; width: 100%;">
                                 <canvas id="chart-trend"></canvas>
                             </div>
@@ -399,8 +452,10 @@
 
                     <div id="tab-chart-causes" class="chart-tab-content" style="display: none;">
                         <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
-                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">علت‌های اصلی قطعی‌ها</div>
-                            <div style="position: relative; height: 360px; width: 100%; display: flex; align-items: center; justify-content: center;">
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">علت‌های اصلی قطعی‌ها
+                            </div>
+                            <div
+                                style="position: relative; height: 360px; width: 100%; display: flex; align-items: center; justify-content: center;">
                                 <canvas id="chart-causes"></canvas>
                             </div>
                         </div>
@@ -408,7 +463,8 @@
 
                     <div id="tab-chart-groups" class="chart-tab-content" style="display: none;">
                         <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
-                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">سهم قطعی کارخانجات (ساعت)</div>
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">سهم قطعی کارخانجات
+                                (ساعت)</div>
                             <div style="position: relative; height: 360px; width: 100%;">
                                 <canvas id="chart-groups"></canvas>
                             </div>
@@ -417,7 +473,8 @@
 
                     <div id="tab-chart-top" class="chart-tab-content" style="display: none;">
                         <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
-                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">۱۰ دوربین با بیشترین قطعی (ساعت)</div>
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">۱۰ دوربین با بیشترین
+                                قطعی (ساعت)</div>
                             <div style="position: relative; height: 360px; width: 100%;">
                                 <canvas id="chart-top-cameras"></canvas>
                             </div>
@@ -426,8 +483,10 @@
 
                     <div id="tab-chart-status" class="chart-tab-content" style="display: none;">
                         <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
-                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">وضعیت پایداری فعلی دوربین‌ها</div>
-                            <div style="position: relative; height: 360px; width: 100%; display: flex; align-items: center; justify-content: center;">
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">وضعیت پایداری فعلی
+                                دوربین‌ها</div>
+                            <div
+                                style="position: relative; height: 360px; width: 100%; display: flex; align-items: center; justify-content: center;">
                                 <canvas id="chart-status"></canvas>
                             </div>
                         </div>
@@ -442,7 +501,8 @@
                 <aside class="panel-side">
                     <div class="side-section">
                         <label class="form-label">کارخانه / گروه</label>
-                        <select id="map-group-select" class="form-input" style="font-size:13px; padding:8px 10px;" onchange="onMapGroupChange(this.value)">
+                        <select id="map-group-select" class="form-input" style="font-size:13px; padding:8px 10px;"
+                            onchange="onMapGroupChange(this.value)">
                             <option value="">همه دوربین‌ها</option>
                         </select>
                     </div>
@@ -461,8 +521,7 @@
                         <div id="map-plan-tabs" style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px;"></div>
                         <input type="file" id="mapUploadInput" style="display:none" accept="image/*"
                             onchange="uploadGroupPlan(this)">
-                        <button class="btn btn-ghost w-100"
-                            id="btn-upload-plan"
+                        <button class="btn btn-ghost w-100" id="btn-upload-plan"
                             style="display:none; align-items:center; justify-content:center"
                             onclick="document.getElementById('mapUploadInput').click()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -494,48 +553,71 @@
                     </div>
 
                     <!-- Camera FOV Settings Sidebar Section -->
-                    <div class="side-section" id="map-fov-section" style="display: none; background: rgba(99, 102, 241, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.15); margin-bottom: 12px; direction: rtl;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <strong style="color: var(--text-primary); font-size: 13px;" id="map-fov-cam-name">تنظیم محدوده دید دوربین</strong>
-                            <button class="btn-close" onclick="closeMapFovSection()" style="width: 20px; height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-muted); cursor: pointer;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <div class="side-section" id="map-fov-section"
+                        style="display: none; background: rgba(99, 102, 241, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.15); margin-bottom: 12px; direction: rtl;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong style="color: var(--text-primary); font-size: 13px;" id="map-fov-cam-name">تنظیم
+                                محدوده دید دوربین</strong>
+                            <button class="btn-close" onclick="closeMapFovSection()"
+                                style="width: 20px; height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-muted); cursor: pointer;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
                                     <line x1="18" y1="6" x2="6" y2="18" />
                                     <line x1="6" y1="6" x2="18" y2="18" />
                                 </svg>
                             </button>
                         </div>
-                        
-                        <div class="settings-toggle-header" style="padding: 0; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+
+                        <div class="settings-toggle-header"
+                            style="padding: 0; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                             <span class="toggle-label" style="font-size: 12px;">فعال‌سازی محدوده دید (FOV)</span>
                             <label class="toggle">
-                                <input type="checkbox" id="sidebar-fov-enable" onchange="toggleSidebarFov(this.checked)">
+                                <input type="checkbox" id="sidebar-fov-enable"
+                                    onchange="toggleSidebarFov(this.checked)">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
-                        
+
                         <div id="sidebar-fov-sliders" style="display: none;">
-                            <div class="form-field-group" style="margin-bottom: 10px; display: flex; flex-direction: column;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <div class="form-field-group"
+                                style="margin-bottom: 10px; display: flex; flex-direction: column;">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                     <span class="form-label" style="margin: 0; font-size: 11px;">جهت زاویه</span>
-                                    <span id="lbl-sidebar-angle" style="color: var(--primary-hover); font-weight: bold; font-size: 12px;">0°</span>
+                                    <span id="lbl-sidebar-angle"
+                                        style="color: var(--primary-hover); font-weight: bold; font-size: 12px;">0°</span>
                                 </div>
-                                <input type="range" id="sidebar-fov-angle" min="0" max="360" value="0" style="width: 100%; accent-color: var(--primary);" oninput="updateSidebarFovVal('angle', this.value)">
+                                <input type="range" id="sidebar-fov-angle" min="0" max="360" value="0"
+                                    style="width: 100%; accent-color: var(--primary);"
+                                    oninput="updateSidebarFovVal('angle', this.value)">
                             </div>
-                            
-                            <div class="form-field-group" style="margin-bottom: 10px; display: flex; flex-direction: column;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+
+                            <div class="form-field-group"
+                                style="margin-bottom: 10px; display: flex; flex-direction: column;">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                     <span class="form-label" style="margin: 0; font-size: 11px;">شعاع برد (فاصله)</span>
-                                    <span id="lbl-sidebar-radius" style="color: var(--primary-hover); font-weight: bold; font-size: 12px;">50</span>
+                                    <span id="lbl-sidebar-radius"
+                                        style="color: var(--primary-hover); font-weight: bold; font-size: 12px;">50</span>
                                 </div>
-                                <input type="range" id="sidebar-fov-radius" min="5" max="500" value="50" style="width: 100%; accent-color: var(--primary);" oninput="updateSidebarFovVal('radius', this.value)">
+                                <input type="range" id="sidebar-fov-radius" min="5" max="500" value="50"
+                                    style="width: 100%; accent-color: var(--primary);"
+                                    oninput="updateSidebarFovVal('radius', this.value)">
                             </div>
-                            
-                            <div class="form-field-group" style="margin-bottom: 10px; display: flex; flex-direction: column;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                    <span class="form-label" style="margin: 0; font-size: 11px;">زاویه پخش (وسعت دید)</span>
-                                    <span id="lbl-sidebar-spread" style="color: var(--primary-hover); font-weight: bold; font-size: 12px;">60°</span>
+
+                            <div class="form-field-group"
+                                style="margin-bottom: 10px; display: flex; flex-direction: column;">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <span class="form-label" style="margin: 0; font-size: 11px;">زاویه پخش (وسعت
+                                        دید)</span>
+                                    <span id="lbl-sidebar-spread"
+                                        style="color: var(--primary-hover); font-weight: bold; font-size: 12px;">60°</span>
                                 </div>
-                                <input type="range" id="sidebar-fov-spread" min="10" max="180" value="60" style="width: 100%; accent-color: var(--primary);" oninput="updateSidebarFovVal('spread', this.value)">
+                                <input type="range" id="sidebar-fov-spread" min="10" max="180" value="60"
+                                    style="width: 100%; accent-color: var(--primary);"
+                                    oninput="updateSidebarFovVal('spread', this.value)">
                             </div>
                         </div>
                     </div>
@@ -573,33 +655,41 @@
         <!-- OUTAGES VIEW -->
         <section id="outages" class="view">
             <div class="card" style="margin-bottom: 20px;">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+                <div class="card-header"
+                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
                     <h3>رفع ابهام قطعی‌های دوربین‌ها</h3>
                     <button class="btn btn-ghost" onclick="loadOutageExplanations()" style="padding: 6px 12px;">
                         بارگذاری مجدد
                     </button>
                 </div>
-                
+
                 <!-- Filters Row -->
-                <div class="filters-row" style="display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px; background: var(--surface-2); border-bottom: 1px solid var(--border); align-items: center;">
+                <div class="filters-row"
+                    style="display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px; background: var(--surface-2); border-bottom: 1px solid var(--border); align-items: center;">
                     <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
-                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">کارخانه / گروه</label>
-                        <select id="outage-filter-group" class="form-input" onchange="filterOutages()" style="padding: 6px 12px; font-size: 13px; width: 100%;">
+                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">کارخانه /
+                            گروه</label>
+                        <select id="outage-filter-group" class="form-input" onchange="filterOutages()"
+                            style="padding: 6px 12px; font-size: 13px; width: 100%;">
                             <option value="">همه کارخانه‌ها</option>
                         </select>
                     </div>
-                    
+
                     <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
-                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">وضعیت رفع ابهام</label>
-                        <select id="outage-filter-status" class="form-input" onchange="filterOutages()" style="padding: 6px 12px; font-size: 13px; width: 100%;">
+                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">وضعیت رفع
+                            ابهام</label>
+                        <select id="outage-filter-status" class="form-input" onchange="filterOutages()"
+                            style="padding: 6px 12px; font-size: 13px; width: 100%;">
                             <option value="all">همه</option>
                             <option value="pending" selected>رفع ابهام نشده‌ها</option>
                         </select>
                     </div>
 
                     <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
-                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">بازه زمانی شروع قطعی</label>
-                        <select id="outage-filter-days" class="form-input" onchange="filterOutages()" style="padding: 6px 12px; font-size: 13px; width: 100%;">
+                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">بازه زمانی شروع
+                            قطعی</label>
+                        <select id="outage-filter-days" class="form-input" onchange="filterOutages()"
+                            style="padding: 6px 12px; font-size: 13px; width: 100%;">
                             <option value="all">همه زمان‌ها</option>
                             <option value="1">امروز (۲۴ ساعت اخیر)</option>
                             <option value="3">۳ روز اخیر</option>
@@ -610,19 +700,26 @@
                 </div>
 
                 <div class="table-container" style="overflow-x: auto; margin-top: 15px;">
-                    <table class="table" style="width: 100%; border-collapse: collapse; text-align: right; min-width: 900px;">
+                    <table class="table"
+                        style="width: 100%; border-collapse: collapse; text-align: right; min-width: 900px;">
                         <thead>
                             <tr style="border-bottom: 2px solid var(--border);">
-                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">نام دوربین</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">نام دوربین
+                                </th>
                                 <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">IP</th>
                                 <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">کارخانه</th>
-                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">زمان شروع</th>
-                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">زمان پایان</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">زمان شروع
+                                </th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">زمان پایان
+                                </th>
                                 <th style="padding: 12px; text-align: center;">مدت (ساعت)</th>
-                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">مهلت رفع ابهام</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">مهلت رفع
+                                    ابهام</th>
                                 <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">علت قطعی</th>
-                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">توضیحات رفع ابهام</th>
-                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">ثبت‌کننده</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">توضیحات رفع
+                                    ابهام</th>
+                                <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">ثبت‌کننده
+                                </th>
                                 <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">وضعیت</th>
                                 <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">عملیات</th>
                             </tr>
@@ -655,11 +752,13 @@
                         <div class="card-header">
                             <h3>مدیریت کارخانه‌ها / گروه‌ها</h3>
                         </div>
-                        <div class="nvr-form" style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border);">
+                        <div class="nvr-form"
+                            style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border);">
                             <input id="groupName" class="form-input" placeholder="نام کارخانه (مثلاً کارخانه تبریز)">
                             <input id="groupDesc" class="form-input" placeholder="توضیحات (اختیاری)" style="flex: 2;">
                             <button class="btn btn-primary btn-icon-only" onclick="addGroup()">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19" />
                                     <line x1="5" y1="12" x2="19" y2="12" />
                                 </svg>
@@ -678,7 +777,8 @@
                             <input id="nvrIp" class="form-input" placeholder="آدرس IP">
                             <input id="nvrUser" class="form-input form-input-sm" placeholder="نام کاربری">
                             <input id="nvrPass" class="form-input form-input-sm" type="password" placeholder="رمز عبور">
-                            <input id="nvrRtspPort" class="form-input form-input-sm" type="number" placeholder="پورت RTSP" value="554" style="width: 100px;">
+                            <input id="nvrRtspPort" class="form-input form-input-sm" type="number"
+                                placeholder="پورت RTSP" value="554" style="width: 100px;">
                             <button class="btn btn-primary btn-icon-only" onclick="addNVR()">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
@@ -698,24 +798,35 @@
                         <div class="card-header">
                             <h3>لاگ‌های سیستم</h3>
                         </div>
-                        <div class="panel-row" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px;">
-                            <aside class="panel-side" style="width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; background: transparent; padding: 0; border: none; box-shadow: none;">
-                                <div class="search-box" style="margin: 0; width: 100%; display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--border); padding: 8px 12px; border-radius: var(--radius-sm);">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-muted); flex-shrink: 0;">
+                        <div class="panel-row"
+                            style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px;">
+                            <aside class="panel-side"
+                                style="width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; background: transparent; padding: 0; border: none; box-shadow: none;">
+                                <div class="search-box"
+                                    style="margin: 0; width: 100%; display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--border); padding: 8px 12px; border-radius: var(--radius-sm);">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="color: var(--text-muted); flex-shrink: 0;">
                                         <circle cx="11" cy="11" r="8" />
                                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                     </svg>
-                                    <input id="logSearch" placeholder="جستجو..." onkeyup="delayLogSearch()" style="background: transparent; border: none; color: var(--text); outline: none; width: 100%; font-family: inherit; font-size: 13px;">
+                                    <input id="logSearch" placeholder="جستجو..." onkeyup="delayLogSearch()"
+                                        style="background: transparent; border: none; color: var(--text); outline: none; width: 100%; font-family: inherit; font-size: 13px;">
                                 </div>
                                 <div class="filter-chips" style="display: flex; flex-direction: column; gap: 6px;">
-                                    <button class="chip active" onclick="setFilter(this, '')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">همه</button>
-                                    <button class="chip" onclick="setFilter(this, 'Camera')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">دوربین</button>
-                                    <button class="chip" onclick="setFilter(this, 'NVR')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">NVR</button>
-                                    <button class="chip" onclick="setFilter(this, 'Telegram')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">تلگرام</button>
-                                    <button class="chip" onclick="setFilter(this, 'Mail')" style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">ایمیل</button>
+                                    <button class="chip active" onclick="setFilter(this, '')"
+                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">همه</button>
+                                    <button class="chip" onclick="setFilter(this, 'Camera')"
+                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">دوربین</button>
+                                    <button class="chip" onclick="setFilter(this, 'NVR')"
+                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">NVR</button>
+                                    <button class="chip" onclick="setFilter(this, 'Telegram')"
+                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">تلگرام</button>
+                                    <button class="chip" onclick="setFilter(this, 'Mail')"
+                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">ایمیل</button>
                                 </div>
                             </aside>
-                            <div class="panel-main" id="logScroll" style="flex: 1; min-height: 400px; max-height: 500px; overflow-y: auto; padding-left: 10px;">
+                            <div class="panel-main" id="logScroll"
+                                style="flex: 1; min-height: 400px; max-height: 500px; overflow-y: auto; padding-left: 10px;">
                                 <table class="data-table">
                                     <thead>
                                         <tr>
@@ -727,7 +838,8 @@
                                     </thead>
                                     <tbody id="log-list"></tbody>
                                 </table>
-                                <div id="logLoader" class="loader hidden" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px 0;">
+                                <div id="logLoader" class="loader hidden"
+                                    style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px 0;">
                                     <div class="spinner"></div>
                                     <span>درحال بارگذاری...</span>
                                 </div>
@@ -744,20 +856,25 @@
                             <h3>تنظیمات اعلان مرورگر</h3>
                         </div>
                         <div style="padding: 20px;">
-                            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
-                                برای دریافت اعلان‌های دسکتاپ هنگام قطع یا وصل شدن دوربین‌ها، تنظیمات زیر را پیکربندی کنید.
+                            <p
+                                style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
+                                برای دریافت اعلان‌های دسکتاپ هنگام قطع یا وصل شدن دوربین‌ها، تنظیمات زیر را پیکربندی
+                                کنید.
                             </p>
-                            
+
                             <!-- Master Toggles -->
-                            <div class="settings-toggle-header" style="padding: 0; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 15px;">
+                            <div class="settings-toggle-header"
+                                style="padding: 0; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 15px;">
                                 <span class="toggle-label">فعال‌سازی اعلان‌های دسکتاپ</span>
                                 <label class="toggle">
-                                    <input type="checkbox" id="BROWSER_ALERT_ENABLED" onchange="toggleBrowserAlerts(this)">
+                                    <input type="checkbox" id="BROWSER_ALERT_ENABLED"
+                                        onchange="toggleBrowserAlerts(this)">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            
-                            <div class="settings-toggle-header" style="padding: 0; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 20px;">
+
+                            <div class="settings-toggle-header"
+                                style="padding: 0; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 20px;">
                                 <span class="toggle-label">بی‌صدا کردن تمامی صداها (Mute)</span>
                                 <label class="toggle">
                                     <input type="checkbox" id="BROWSER_ALERT_MUTED" onchange="toggleGlobalMute(this)">
@@ -766,64 +883,96 @@
                             </div>
 
                             <!-- Granular Notification Settings -->
-                            <h4 style="color: var(--text-primary); margin-bottom: 12px; font-size: 14px;">اعلان به تفکیک دسته‌بندی:</h4>
-                            
-                            <div class="settings-fields-grid" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <h4 style="color: var(--text-primary); margin-bottom: 12px; font-size: 14px;">اعلان به تفکیک
+                                دسته‌بندی:</h4>
+
+                            <div class="settings-fields-grid"
+                                style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                                 <!-- Category 1: Critical (Offline) -->
-                                <div style="background: rgba(220, 53, 69, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(220, 53, 69, 0.15);">
-                                    <strong style="color: #ef4444; font-size: 13px; display: block; margin-bottom: 10px;">🔴 رویدادهای بحرانی (قطع دوربین / NVR)</strong>
+                                <div
+                                    style="background: rgba(220, 53, 69, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(220, 53, 69, 0.15);">
+                                    <strong
+                                        style="color: #ef4444; font-size: 13px; display: block; margin-bottom: 10px;">🔴
+                                        رویدادهای بحرانی (قطع دوربین / NVR)</strong>
                                     <div style="display: flex; flex-direction: column; gap: 10px;">
-                                        <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 12px;">
+                                        <label
+                                            style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 12px;">
                                             <span>نمایش اعلان دسکتاپ</span>
-                                            <input type="checkbox" id="BROWSER_NOTIFY_CRITICAL_ENABLED" onchange="toggleCategoryNotify('critical', this)" checked>
+                                            <input type="checkbox" id="BROWSER_NOTIFY_CRITICAL_ENABLED"
+                                                onchange="toggleCategoryNotify('critical', this)" checked>
                                         </label>
-                                        <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 12px;">
+                                        <label
+                                            style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 12px;">
                                             <span>پخش صدای هشدار (آژیر)</span>
-                                            <input type="checkbox" id="BROWSER_SOUND_CRITICAL_ENABLED" onchange="toggleCategorySound('critical', this)" checked>
+                                            <input type="checkbox" id="BROWSER_SOUND_CRITICAL_ENABLED"
+                                                onchange="toggleCategorySound('critical', this)" checked>
                                         </label>
-                                        <button class="btn btn-ghost" onclick="testSound('critical')" style="font-size: 11px; padding: 4px 10px; margin-top: 5px;">🎵 تست صدا</button>
+                                        <button class="btn btn-ghost" onclick="testSound('critical')"
+                                            style="font-size: 11px; padding: 4px 10px; margin-top: 5px;">🎵 تست
+                                            صدا</button>
                                     </div>
                                 </div>
 
                                 <!-- Category 2: Recovery (Online) -->
-                                <div style="background: rgba(40, 167, 69, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(40, 167, 69, 0.15);">
-                                    <strong style="color: #10b981; font-size: 13px; display: block; margin-bottom: 10px;">🟢 رویدادهای بازیابی (وصل مجدد)</strong>
+                                <div
+                                    style="background: rgba(40, 167, 69, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(40, 167, 69, 0.15);">
+                                    <strong
+                                        style="color: #10b981; font-size: 13px; display: block; margin-bottom: 10px;">🟢
+                                        رویدادهای بازیابی (وصل مجدد)</strong>
                                     <div style="display: flex; flex-direction: column; gap: 10px;">
-                                        <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 12px;">
+                                        <label
+                                            style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 12px;">
                                             <span>نمایش اعلان دسکتاپ</span>
-                                            <input type="checkbox" id="BROWSER_NOTIFY_RECOVERY_ENABLED" onchange="toggleCategoryNotify('recovery', this)" checked>
+                                            <input type="checkbox" id="BROWSER_NOTIFY_RECOVERY_ENABLED"
+                                                onchange="toggleCategoryNotify('recovery', this)" checked>
                                         </label>
-                                        <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 12px;">
+                                        <label
+                                            style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 12px;">
                                             <span>پخش صدای ملایم (چایم)</span>
-                                            <input type="checkbox" id="BROWSER_SOUND_RECOVERY_ENABLED" onchange="toggleCategorySound('recovery', this)" checked>
+                                            <input type="checkbox" id="BROWSER_SOUND_RECOVERY_ENABLED"
+                                                onchange="toggleCategorySound('recovery', this)" checked>
                                         </label>
-                                        <button class="btn btn-ghost" onclick="testSound('recovery')" style="font-size: 11px; padding: 4px 10px; margin-top: 5px;">🎵 تست صدا</button>
+                                        <button class="btn btn-ghost" onclick="testSound('recovery')"
+                                            style="font-size: 11px; padding: 4px 10px; margin-top: 5px;">🎵 تست
+                                            صدا</button>
                                     </div>
                                 </div>
 
                                 <!-- Category 3: Warning (Telegram/Mail Failures) -->
-                                <div style="background: rgba(255, 193, 7, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(255, 193, 7, 0.15); grid-column: span 2;">
-                                    <strong style="color: #f59e0b; font-size: 13px; display: block; margin-bottom: 10px;">🟡 خطاهای سیستمی (عدم ارسال تلگرام / ایمیل)</strong>
-                                    <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 20px;">
-                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px;">
-                                            <input type="checkbox" id="BROWSER_NOTIFY_WARNING_ENABLED" onchange="toggleCategoryNotify('warning', this)" checked>
+                                <div
+                                    style="background: rgba(255, 193, 7, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(255, 193, 7, 0.15); grid-column: span 2;">
+                                    <strong
+                                        style="color: #f59e0b; font-size: 13px; display: block; margin-bottom: 10px;">🟡
+                                        خطاهای سیستمی (عدم ارسال تلگرام / ایمیل)</strong>
+                                    <div
+                                        style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 20px;">
+                                        <label
+                                            style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px;">
+                                            <input type="checkbox" id="BROWSER_NOTIFY_WARNING_ENABLED"
+                                                onchange="toggleCategoryNotify('warning', this)" checked>
                                             <span>نمایش اعلان دسکتاپ</span>
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px;">
-                                            <input type="checkbox" id="BROWSER_SOUND_WARNING_ENABLED" onchange="toggleCategorySound('warning', this)" checked>
+                                        <label
+                                            style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px;">
+                                            <input type="checkbox" id="BROWSER_SOUND_WARNING_ENABLED"
+                                                onchange="toggleCategorySound('warning', this)" checked>
                                             <span>پخش صدای هشدار سیستم (دینگ)</span>
                                         </label>
-                                        <button class="btn btn-ghost" onclick="testSound('warning')" style="font-size: 11px; padding: 4px 10px;">🎵 تست صدا</button>
+                                        <button class="btn btn-ghost" onclick="testSound('warning')"
+                                            style="font-size: 11px; padding: 4px 10px;">🎵 تست صدا</button>
                                     </div>
                                 </div>
                             </div>
 
-                            <div style="border-top: 1px solid var(--border); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                            <div
+                                style="border-top: 1px solid var(--border); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
                                 <div class="form-field-group" style="margin: 0;">
-                                    <label class="form-label" style="display:inline-block; margin-left: 8px;">وضعیت مجوز مرورگر:</label>
+                                    <label class="form-label" style="display:inline-block; margin-left: 8px;">وضعیت مجوز
+                                        مرورگر:</label>
                                     <span id="browser-permission-status" style="font-weight: bold;">بررسی...</span>
                                 </div>
-                                <button class="btn btn-primary" onclick="testBrowserNotification()" style="font-size: 12px; padding: 8px 16px;">🔔 تست اعلان مرورگر</button>
+                                <button class="btn btn-primary" onclick="testBrowserNotification()"
+                                    style="font-size: 12px; padding: 8px 16px;">🔔 تست اعلان مرورگر</button>
                             </div>
                         </div>
                     </div>
@@ -836,25 +985,37 @@
                                 <h3>پشتیبان‌گیری و بازیابی پایگاه داده</h3>
                             </div>
                             <div style="padding: 20px;">
-                                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px; line-height: 1.7;">
-                                    می‌توانید از پایگاه داده فعلی یک فایل پشتیبان دریافت کنید یا یک فایل پشتیبان قبلی را بازیابی کنید.
+                                <p
+                                    style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px; line-height: 1.7;">
+                                    می‌توانید از پایگاه داده فعلی یک فایل پشتیبان دریافت کنید یا یک فایل پشتیبان قبلی را
+                                    بازیابی کنید.
                                     پس از بازیابی، مانیتور به‌صورت خودکار راه‌اندازی مجدد می‌شود.
                                 </p>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                    <a id="btn-backup" href="/api/data/backup" download class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                    <a id="btn-backup" href="/api/data/backup" download class="btn btn-primary"
+                                        style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="7 10 12 15 17 10" />
+                                            <line x1="12" y1="15" x2="12" y2="3" />
                                         </svg>
                                         <span>دریافت پشتیبان</span>
                                     </a>
-                                    <button class="btn" onclick="document.getElementById('restore-file-input').click()" style="display: inline-flex; align-items: center; gap: 8px; background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border);">
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                                    <button class="btn" onclick="document.getElementById('restore-file-input').click()"
+                                        style="display: inline-flex; align-items: center; gap: 8px; background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border);">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="17 8 12 3 7 8" />
+                                            <line x1="12" y1="3" x2="12" y2="15" />
                                         </svg>
                                         <span>بازیابی از فایل</span>
                                     </button>
-                                    <input type="file" id="restore-file-input" accept=".db" style="display:none" onchange="restoreDatabase(this)">
-                                    <span id="restore-status" style="font-size: 12px; color: var(--text-secondary);"></span>
+                                    <input type="file" id="restore-file-input" accept=".db" style="display:none"
+                                        onchange="restoreDatabase(this)">
+                                    <span id="restore-status"
+                                        style="font-size: 12px; color: var(--text-secondary);"></span>
                                 </div>
                             </div>
                         </div>
@@ -865,24 +1026,36 @@
                                 <h3>مدیریت تنظیمات با فایل JSON</h3>
                             </div>
                             <div style="padding: 20px;">
-                                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px; line-height: 1.7;">
-                                    می‌توانید تمامی تنظیمات برنامه، لیست NVRها، گروه‌ها و کاربران را در قالب یک فایل JSON خروجی بگیرید یا از فایل تنظیمات JSON بارگذاری کنید.
+                                <p
+                                    style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px; line-height: 1.7;">
+                                    می‌توانید تمامی تنظیمات برنامه، لیست NVRها، گروه‌ها و کاربران را در قالب یک فایل
+                                    JSON خروجی بگیرید یا از فایل تنظیمات JSON بارگذاری کنید.
                                 </p>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                    <a id="btn-export-json" href="/api/config/export" download class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                    <a id="btn-export-json" href="/api/config/export" download class="btn btn-primary"
+                                        style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="7 10 12 15 17 10" />
+                                            <line x1="12" y1="15" x2="12" y2="3" />
                                         </svg>
                                         <span>خروجی گرفتن از تنظیمات (JSON)</span>
                                     </a>
-                                    <button class="btn" onclick="document.getElementById('import-json-input').click()" style="display: inline-flex; align-items: center; gap: 8px; background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border);">
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                                    <button class="btn" onclick="document.getElementById('import-json-input').click()"
+                                        style="display: inline-flex; align-items: center; gap: 8px; background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border);">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="17 8 12 3 7 8" />
+                                            <line x1="12" y1="3" x2="12" y2="15" />
                                         </svg>
                                         <span>بارگذاری تنظیمات (JSON)</span>
                                     </button>
-                                    <input type="file" id="import-json-input" accept=".json" style="display:none" onchange="importJsonConfig(this)">
-                                    <span id="import-json-status" style="font-size: 12px; color: var(--text-secondary);"></span>
+                                    <input type="file" id="import-json-input" accept=".json" style="display:none"
+                                        onchange="importJsonConfig(this)">
+                                    <span id="import-json-status"
+                                        style="font-size: 12px; color: var(--text-secondary);"></span>
                                 </div>
                             </div>
                         </div>
@@ -893,12 +1066,18 @@
                                 <h3>اعمال تغییرات و ریستارت مانیتور</h3>
                             </div>
                             <div style="padding: 20px;">
-                                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
-                                    برای اعمال نهایی تمامی تنظیمات ذخیره‌شده و راه‌اندازی مجدد ماژول پایش دوربین‌ها، روی دکمه زیر کلیک کنید. این عمل تنظیمات را در شبکه اعمال کرده و مانیتورینگ را از نو راه‌اندازی می‌کند.
+                                <p
+                                    style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
+                                    برای اعمال نهایی تمامی تنظیمات ذخیره‌شده و راه‌اندازی مجدد ماژول پایش دوربین‌ها، روی
+                                    دکمه زیر کلیک کنید. این عمل تنظیمات را در شبکه اعمال کرده و مانیتورینگ را از نو
+                                    راه‌اندازی می‌کند.
                                 </p>
-                                <button class="btn btn-primary" onclick="apply()" style="display: inline-flex; align-items: center; gap: 8px;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                                <button class="btn btn-primary" onclick="apply()"
+                                    style="display: inline-flex; align-items: center; gap: 8px;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path
+                                            d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                                     </svg>
                                     <span>اعمال تغییرات و ریستارت</span>
                                 </button>
@@ -913,10 +1092,16 @@
                             <div style="display: flex; flex-direction: column;">
                                 <div class="danger-row">
                                     <div style="text-align: right; margin-bottom: 8px;">
-                                        <p class="danger-text" style="font-weight: 600; color: var(--danger); margin-bottom: 4px;">ریست کامل و پاکسازی پایگاه داده</p>
-                                        <p class="danger-warning" style="font-size: 12px; color: var(--text-secondary);">تمامی دوربین‌ها، NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات حذف شده و پایگاه داده خام ایجاد می‌شود.</p>
+                                        <p class="danger-text"
+                                            style="font-weight: 600; color: var(--danger); margin-bottom: 4px;">ریست
+                                            کامل و پاکسازی پایگاه داده</p>
+                                        <p class="danger-warning"
+                                            style="font-size: 12px; color: var(--text-secondary);">تمامی دوربین‌ها،
+                                            NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات حذف شده و پایگاه داده خام ایجاد
+                                            می‌شود.</p>
                                     </div>
-                                    <button class="btn btn-danger" onclick="purgeDatabase()" style="white-space: nowrap; margin-top: 8px;">حذف کامل داده‌ها و ریست</button>
+                                    <button class="btn btn-danger" onclick="purgeDatabase()"
+                                        style="white-space: nowrap; margin-top: 8px;">حذف کامل داده‌ها و ریست</button>
                                 </div>
                             </div>
                         </div>
@@ -927,7 +1112,8 @@
                         <div class="card-header">
                             <h3>مدیریت کاربران</h3>
                         </div>
-                        <div class="nvr-form" style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border);">
+                        <div class="nvr-form"
+                            style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border);">
                             <input id="userName" class="form-input" placeholder="نام کاربری">
                             <input id="userPass" class="form-input" type="password" placeholder="رمز عبور">
                             <select id="userRole" class="form-input" style="flex: 1.5; min-width: 150px;">
@@ -940,9 +1126,11 @@
                             <select id="userGroup" class="form-input" style="flex: 1.2; min-width: 130px;">
                                 <option value="">بدون گروه</option>
                             </select>
-                            <input id="userAccessGroups" class="form-input" placeholder="آیدی کارخانه‌ها (مثال: 1,2)" style="display: none; flex: 1.2; min-width: 140px;">
+                            <input id="userAccessGroups" class="form-input" placeholder="آیدی کارخانه‌ها (مثال: 1,2)"
+                                style="display: none; flex: 1.2; min-width: 140px;">
                             <button class="btn btn-primary btn-icon-only" onclick="addUser()">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19" />
                                     <line x1="5" y1="12" x2="19" y2="12" />
                                 </svg>
@@ -957,11 +1145,14 @@
                             <h3>تنظیمات اعلان شخصی من</h3>
                         </div>
                         <div style="padding: 20px;">
-                            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
-                                آدرس ایمیل و شناسه‌های تلگرام خود را برای دریافت مستقیم اعلان‌های کارخانه / گروه خود وارد کنید.
+                            <p
+                                style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
+                                آدرس ایمیل و شناسه‌های تلگرام خود را برای دریافت مستقیم اعلان‌های کارخانه / گروه خود
+                                وارد کنید.
                             </p>
-                            
-                            <div class="settings-toggle-header" style="padding: 0; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 15px;">
+
+                            <div class="settings-toggle-header"
+                                style="padding: 0; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 15px;">
                                 <span class="toggle-label">فعال‌سازی اعلان‌های ایمیل شخصی</span>
                                 <label class="toggle">
                                     <input type="checkbox" id="myMailEnabled">
@@ -970,10 +1161,12 @@
                             </div>
                             <div class="form-field-group span-2" style="margin-bottom: 20px;">
                                 <label class="form-label">گیرندگان ایمیل (با کاما جدا کنید)</label>
-                                <input class="form-input" id="myMailRecipients" placeholder="user@kavehglass.com, another@kavehglass.com">
+                                <input class="form-input" id="myMailRecipients"
+                                    placeholder="user@kavehglass.com, another@kavehglass.com">
                             </div>
 
-                            <div class="settings-toggle-header" style="padding: 0; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 15px; margin-top: 25px;">
+                            <div class="settings-toggle-header"
+                                style="padding: 0; padding-bottom: 15px; border-bottom: 1px solid var(--border); margin-bottom: 15px; margin-top: 25px;">
                                 <span class="toggle-label">فعال‌سازی اعلان‌های تلگرام شخصی</span>
                                 <label class="toggle">
                                     <input type="checkbox" id="myTelegramEnabled">
@@ -984,9 +1177,11 @@
                                 <label class="form-label">شناسه‌های چت تلگرام (با کاما جدا کنید)</label>
                                 <input class="form-input" id="myTelegramChatIds" placeholder="12345678, -98765432">
                             </div>
-                            
-                            <div class="settings-action-row" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
-                                <button class="btn btn-primary" onclick="saveMyAlerts()">ذخیره تنظیمات اعلان شخصی</button>
+
+                            <div class="settings-action-row"
+                                style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+                                <button class="btn btn-primary" onclick="saveMyAlerts()">ذخیره تنظیمات اعلان
+                                    شخصی</button>
                             </div>
                         </div>
                     </div>
@@ -996,7 +1191,8 @@
                             <h3>کارهای زمان‌بندی‌شده</h3>
                         </div>
                         <div style="padding: 20px;">
-                            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
+                            <p
+                                style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
                                 در این بخش می‌توانید وظایف دوره‌ای سیستم را مدیریت و زمان‌بندی کنید.
                             </p>
                             <div id="tasks-container" class="tasks-container"></div>
@@ -1005,28 +1201,52 @@
 
                     <!-- ABOUT US SECTION -->
                     <div class="card" id="sec-about" style="display: none; max-width: 100%; overflow: hidden;">
-                        <img src="/static/banner.webp" alt="بنر درباره ما" style="width: 100%; height: auto; display: block; border-bottom: 1px solid var(--border);">
+                        <img src="/static/banner.webp" alt="بنر درباره ما"
+                            style="width: 100%; height: auto; display: block; border-bottom: 1px solid var(--border);">
                         <div style="padding: 24px; direction: rtl; text-align: right; line-height: 1.8;">
-                            <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">درباره ما</h2>
+                            <h2
+                                style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">
+                                درباره ما</h2>
                             <p style="margin-bottom: 16px; font-size: 14px; color: var(--text-secondary);">
-                                این سامانه به منظور مانیتورینگ برخط و مستمر وضعیت اتصال و کارکرد دوربین‌های مداربسته و تجهیزات ضبط تصاویر (NVRها) در سطح شرکت طراحی و پیاده‌سازی شده است. با استفاده از این ابزار، هرگونه قطعی یا ناپایداری در شبکه نظارت تصویری به سرعت شناسایی و گزارش می‌شود تا پایداری و امنیت سیستم‌ها همواره حفظ گردد.
+                                این سامانه به منظور مانیتورینگ برخط و مستمر وضعیت اتصال و کارکرد دوربین‌های مداربسته و
+                                تجهیزات ضبط تصاویر (NVRها) در سطح شرکت طراحی و پیاده‌سازی شده است. با استفاده از این
+                                ابزار، هرگونه قطعی یا ناپایداری در شبکه نظارت تصویری به سرعت شناسایی و گزارش می‌شود تا
+                                پایداری و امنیت سیستم‌ها همواره حفظ گردد.
                             </p>
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 24px;">
-                                <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary); flex-shrink: 0;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 24px;">
+                                <h3
+                                    style="font-size: 15px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="color: var(--primary); flex-shrink: 0;">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                        <polyline points="15 3 21 3 21 9" />
+                                        <line x1="10" y1="14" x2="21" y2="3" />
+                                    </svg>
                                     وب‌سایت و مستندات سامانه
                                 </h3>
                                 <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
-                                    جهت مشاهده توضیحات تکمیلی، کاتالوگ محصولات و اطلاعات بیشتر درباره سامانه به وب‌سایت مراجعه کنید.
+                                    جهت مشاهده توضیحات تکمیلی، کاتالوگ محصولات و اطلاعات بیشتر درباره سامانه به وب‌سایت
+                                    مراجعه کنید.
                                 </p>
-                                <a href="https://hikstatus.unrealteam.workers.dev" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none; padding: 8px 16px; border: 1px solid var(--primary); border-radius: var(--radius-sm); transition: all 0.2s ease;">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                <a href="https://hikstatus.unrealteam.workers.dev" target="_blank"
+                                    rel="noopener noreferrer"
+                                    style="display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none; padding: 8px 16px; border: 1px solid var(--primary); border-radius: var(--radius-sm); transition: all 0.2s ease;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                        <polyline points="15 3 21 3 21 9" />
+                                        <line x1="10" y1="14" x2="21" y2="3" />
+                                    </svg>
                                     مشاهده وب‌سایت HikStatus
                                 </a>
                             </div>
                             <div style="border-top: 1px solid var(--border); padding-top: 16px; margin-top: 24px;">
-                                <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">تیم طراحی و توسعه</h3>
-                                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--text-secondary);">
+                                <h3
+                                    style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">
+                                    تیم طراحی و توسعه</h3>
+                                <div
+                                    style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--text-secondary);">
                                     <div><strong>توسعه‌دهندگان:</strong> افشین نجاری و مهدی چمنی</div>
                                     <div><strong>واحد:</strong> واحد فناوری اطلاعات و ارتباطات (IT)</div>
                                     <div><strong>سازمان:</strong> گروه صنعتی شیشه کاوه | شرکت اروم شیشه ساچی</div>
@@ -1057,44 +1277,58 @@
                 <div class="modal-grid-layout">
                     <!-- Snapshot Column -->
                     <div class="snapshot-column" style="display: flex; flex-direction: column; gap: 8px;">
-                        <div class="snapshot-container" id="m-snap-container" style="display:none; text-align: center; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); position: relative; aspect-ratio: 4/3; width: 100%;">
-                            <img id="m-snap-img" src="" style="width: 100%; height: 100%; object-fit: contain; display: block;" alt="Camera Snapshot">
-                            <div id="m-snap-loader" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color: #fff; font-size: 14px;">در حال دریافت تصویر...</div>
+                        <div class="snapshot-container" id="m-snap-container"
+                            style="display:none; text-align: center; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); position: relative; aspect-ratio: 4/3; width: 100%;">
+                            <img id="m-snap-img" src=""
+                                style="width: 100%; height: 100%; object-fit: contain; display: block;"
+                                alt="Camera Snapshot">
+                            <div id="m-snap-loader"
+                                style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color: #fff; font-size: 14px;">
+                                در حال دریافت تصویر...</div>
                         </div>
                     </div>
 
                     <!-- Info Column -->
                     <div class="info-column" style="display: flex; flex-direction: column; gap: 12px;">
-                        
+
                         <!-- Grid info cards -->
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-                            
+
                             <!-- Card: Factory -->
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
                                 <span style="font-size: 10px; color: var(--text-secondary);">نام کارخانه</span>
-                                <span id="m-factory" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                                <span id="m-factory"
+                                    style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
                             </div>
 
                             <!-- Card: NVR -->
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
                                 <span style="font-size: 10px; color: var(--text-secondary);">دستگاه NVR</span>
-                                <span class="mono" id="m-nvr" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                                <span class="mono" id="m-nvr"
+                                    style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
                             </div>
 
                             <!-- Card: Camera IP -->
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
                                 <span style="font-size: 10px; color: var(--text-secondary);">آدرس IP دوربین</span>
-                                <span class="mono" id="m-cam-ip" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                                <span class="mono" id="m-cam-ip"
+                                    style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
                             </div>
 
                             <!-- Card: Channel -->
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
                                 <span style="font-size: 10px; color: var(--text-secondary);">کانال روی NVR</span>
-                                <span class="mono" id="m-cam-ch" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                                <span class="mono" id="m-cam-ch"
+                                    style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
                             </div>
 
                             <!-- Card: Importance -->
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
                                 <span style="font-size: 10px; color: var(--text-secondary);">اهمیت دوربین</span>
                                 <div>
                                     <span id="m-imp" class="badge" style="font-size: 11px; padding: 2px 6px;">-</span>
@@ -1102,33 +1336,45 @@
                             </div>
 
                             <!-- Card: Model -->
-                            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                            <div
+                                style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
                                 <span style="font-size: 10px; color: var(--text-secondary);">مدل دستگاه</span>
-                                <span class="mono" id="m-model" style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+                                <span class="mono" id="m-model"
+                                    style="font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
                             </div>
 
                         </div>
 
                         <!-- Section: Stability Stats -->
-                        <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface);">
-                            <span style="font-size: 11px; font-weight: bold; color: var(--text-secondary); border-bottom: 1px solid var(--border); padding-bottom: 4px; display: block; margin-bottom: 2px;">پایداری و قطعی</span>
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                        <div
+                            style="border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface);">
+                            <span
+                                style="font-size: 11px; font-weight: bold; color: var(--text-secondary); border-bottom: 1px solid var(--border); padding-bottom: 4px; display: block; margin-bottom: 2px;">پایداری
+                                و قطعی</span>
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
                                 <span style="color: var(--text-secondary);">قطعی ۱ ساعت اخیر:</span>
                                 <span class="text-danger" id="m-d1" style="font-weight: 600;">-</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
                                 <span style="color: var(--text-secondary);">قطعی ۲۴ ساعت اخیر:</span>
                                 <span class="text-danger" id="m-d24" style="font-weight: 600;">-</span>
                             </div>
                         </div>
 
                         <!-- Section: Recording Stats -->
-                        <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface);">
-                            <span style="font-size: 11px; font-weight: bold; color: var(--text-secondary); border-bottom: 1px solid var(--border); padding-bottom: 4px; display: block; margin-bottom: 2px;">وضعیت ضبط تصاویر (شبانه‌روزی)</span>
-                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; font-size: 12px;">
+                        <div
+                            style="border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface);">
+                            <span
+                                style="font-size: 11px; font-weight: bold; color: var(--text-secondary); border-bottom: 1px solid var(--border); padding-bottom: 4px; display: block; margin-bottom: 2px;">وضعیت
+                                ضبط تصاویر (شبانه‌روزی)</span>
+                            <div
+                                style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; font-size: 12px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span style="color: var(--text-secondary);">تنظیمات:</span>
-                                    <span id="m-rec-config" class="badge" style="font-size: 11px; padding: 2px 6px;">-</span>
+                                    <span id="m-rec-config" class="badge"
+                                        style="font-size: 11px; padding: 2px 6px;">-</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span style="color: var(--text-secondary);">ضبط ۲۴ ساعت اخیر:</span>
@@ -1140,10 +1386,12 @@
                                 </div>
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span style="color: var(--text-secondary);">مدت کل:</span>
-                                    <span class="mono" id="m-duration" style="font-weight: 500; direction: rtl;">-</span>
+                                    <span class="mono" id="m-duration"
+                                        style="font-weight: 500; direction: rtl;">-</span>
                                 </div>
                             </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px dashed var(--border); padding-top: 6px; margin-top: 2px; align-items: center;">
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px dashed var(--border); padding-top: 6px; margin-top: 2px; align-items: center;">
                                 <span style="color: var(--text-secondary);">قدیمی‌ترین فایل موجود:</span>
                                 <span class="mono" id="m-oldest" style="font-weight: 500;">-</span>
                             </div>
@@ -1169,13 +1417,20 @@
             </div>
             <div class="modal-body">
                 <p style="font-size: 14px; line-height: 1.8; color: var(--text); margin-bottom: 12px;">
-                    رمز عبور ادمین در فایل <code style="background:var(--surface-2); padding:2px 6px; border-radius:4px;">.env</code> به صورت <strong style="color: var(--danger);">خام (هش نشده)</strong> ذخیره شده است.
+                    رمز عبور ادمین در فایل <code
+                        style="background:var(--surface-2); padding:2px 6px; border-radius:4px;">.env</code> به صورت
+                    <strong style="color: var(--danger);">خام (هش نشده)</strong> ذخیره شده است.
                 </p>
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
                     لطفاً هرچه سریع‌تر رمز عبور را هش کنید. برای راهنمای کامل روی لینک زیر کلیک کنید:
                 </p>
-                <a href="/static/admin-password-help.html" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none; padding: 8px 14px; border: 1px solid var(--primary); border-radius: var(--radius-sm); transition: 0.2s;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                <a href="/static/admin-password-help.html" target="_blank"
+                    style="display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none; padding: 8px 14px; border: 1px solid var(--primary); border-radius: var(--radius-sm); transition: 0.2s;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
                     راهنمای تغییر رمز عبور
                 </a>
             </div>
@@ -1207,45 +1462,55 @@
                     <span class="info-label">سطح دسترسی</span>
                     <span class="info-value badge" id="p-role">-</span>
                 </div>
-                
+
                 <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
                     <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--text-primary);">تغییر رمز عبور</h3>
-                    
+
                     <div class="form-field-group" style="margin-bottom: 12px;">
                         <label class="form-label">رمز عبور جدید</label>
                         <input type="password" id="p-new-pass" class="form-input" placeholder="رمز عبور جدید">
                     </div>
                     <div class="form-field-group" style="margin-bottom: 16px;">
                         <label class="form-label">تکرار رمز عبور جدید</label>
-                        <input type="password" id="p-new-pass-confirm" class="form-input" placeholder="تکرار رمز عبور جدید">
+                        <input type="password" id="p-new-pass-confirm" class="form-input"
+                            placeholder="تکرار رمز عبور جدید">
                     </div>
-                    
+
                     <button class="btn btn-primary w-100" onclick="changeMyPassword()">تغییر رمز عبور</button>
                 </div>
 
                 <!-- Two-Factor Authentication Section -->
                 <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
-                    <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--text-primary);">تایید دو مرحله‌ای (2FA)</h3>
-                    
+                    <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--text-primary);">تایید دو مرحله‌ای
+                        (2FA)</h3>
+
                     <!-- If 2FA is Disabled -->
                     <div id="p-2fa-disabled-section">
-                        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px;">
-                            با فعال‌سازی تایید دو مرحله‌ای، امنیت حساب خود را افزایش دهید. برای ورود، علاوه بر رمز عبور، به کد تولید شده توسط اپلیکیشن‌های Authenticator (مانند Google Authenticator) نیاز خواهید داشت.
+                        <p
+                            style="font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px;">
+                            با فعال‌سازی تایید دو مرحله‌ای، امنیت حساب خود را افزایش دهید. برای ورود، علاوه بر رمز عبور،
+                            به کد تولید شده توسط اپلیکیشن‌های Authenticator (مانند Google Authenticator) نیاز خواهید
+                            داشت.
                         </p>
-                        <button class="btn btn-primary w-100" onclick="start2FASetup()">شروع فعال‌سازی ورود دو مرحله‌ای</button>
+                        <button class="btn btn-primary w-100" onclick="start2FASetup()">شروع فعال‌سازی ورود دو
+                            مرحله‌ای</button>
                     </div>
 
                     <!-- If 2FA Setup is in Progress -->
-                    <div id="p-2fa-setup-section" style="display: none; flex-direction: column; gap: 12px; padding: 12px; background: var(--surface-2); border-radius: var(--radius); border: 1px solid var(--border);">
-                        <p style="font-size: 12px; font-weight: bold; color: var(--primary); margin-bottom: 4px;">مراحل فعال‌سازی:</p>
-                        <ol style="font-size: 12px; color: var(--text-secondary); padding-right: 15px; margin: 0; line-height: 1.8;">
+                    <div id="p-2fa-setup-section"
+                        style="display: none; flex-direction: column; gap: 12px; padding: 12px; background: var(--surface-2); border-radius: var(--radius); border: 1px solid var(--border);">
+                        <p style="font-size: 12px; font-weight: bold; color: var(--primary); margin-bottom: 4px;">مراحل
+                            فعال‌سازی:</p>
+                        <ol
+                            style="font-size: 12px; color: var(--text-secondary); padding-right: 15px; margin: 0; line-height: 1.8;">
                             <li>اپلیکیشن Google Authenticator یا Microsoft Authenticator را در گوشی خود باز کنید.</li>
                             <li>دکمه اسکن بارکد (Scan QR) یا وارد کردن کلید دستی را در برنامه انتخاب کنید.</li>
                             <li>بارکد زیر را اسکن کنید یا کلید متنی را به صورت دستی وارد نمایید.</li>
                         </ol>
-                        
+
                         <!-- QR Code Container -->
-                        <div style="display: flex; justify-content: center; padding: 10px; background: white; border-radius: 8px; width: fit-content; margin: 5px auto;">
+                        <div
+                            style="display: flex; justify-content: center; padding: 10px; background: white; border-radius: 8px; width: fit-content; margin: 5px auto;">
                             <div id="p-2fa-qrcode"></div>
                         </div>
 
@@ -1253,41 +1518,54 @@
                         <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
                             <span style="color: var(--text-secondary);">کلید متنی (در صورت عدم امکان اسکن):</span>
                             <div style="display: flex; gap: 6px; align-items: center;">
-                                <input type="text" id="p-2fa-manual-key" class="form-input mono" style="font-size: 12px; padding: 6px 8px; text-align: center; background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 100%; border-radius: var(--radius-sm);" readonly onclick="this.select()">
-                                <button class="btn btn-ghost" style="padding: 6px 12px; font-size: 11px; border: 1px solid var(--border);" onclick="copy2FAKey()">کپی</button>
+                                <input type="text" id="p-2fa-manual-key" class="form-input mono"
+                                    style="font-size: 12px; padding: 6px 8px; text-align: center; background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 100%; border-radius: var(--radius-sm);"
+                                    readonly onclick="this.select()">
+                                <button class="btn btn-ghost"
+                                    style="padding: 6px 12px; font-size: 11px; border: 1px solid var(--border);"
+                                    onclick="copy2FAKey()">کپی</button>
                             </div>
                         </div>
-                        
+
                         <!-- Step 3: Verification Code -->
                         <div class="form-field-group">
-                            <label class="form-label" style="font-size: 12px; font-weight: bold;">کد ۶ رقمی تولید شده را جهت تست وارد کنید:</label>
-                            <input type="text" id="p-2fa-verification-code" class="form-input mono" placeholder="000000" style="text-align: center; letter-spacing: 4px; font-size: 16px;" maxlength="6">
+                            <label class="form-label" style="font-size: 12px; font-weight: bold;">کد ۶ رقمی تولید شده را
+                                جهت تست وارد کنید:</label>
+                            <input type="text" id="p-2fa-verification-code" class="form-input mono" placeholder="000000"
+                                style="text-align: center; letter-spacing: 4px; font-size: 16px;" maxlength="6">
                         </div>
-                        
+
                         <div style="display: flex; gap: 8px; margin-top: 5px;">
-                            <button class="btn btn-primary" style="flex: 1;" onclick="verify2FAAndEnable()">تایید و فعال‌سازی</button>
-                            <button class="btn btn-ghost" onclick="cancel2FASetup()" style="border: 1px solid var(--border);">انصراف</button>
+                            <button class="btn btn-primary" style="flex: 1;" onclick="verify2FAAndEnable()">تایید و
+                                فعال‌سازی</button>
+                            <button class="btn btn-ghost" onclick="cancel2FASetup()"
+                                style="border: 1px solid var(--border);">انصراف</button>
                         </div>
                     </div>
 
                     <!-- If 2FA is Enabled -->
                     <div id="p-2fa-enabled-section" style="display: none;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #10b981; font-size: 13px;">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <div
+                            style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #10b981; font-size: 13px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5">
                                 <polyline points="20 6 9 17 4 12"></polyline>
                             </svg>
                             <strong>ورود دو مرحله‌ای فعال است.</strong>
                         </div>
-                        
+
                         <div class="form-field-group" style="margin-bottom: 12px;" id="p-2fa-disable-password-group">
                             <label class="form-label">جهت غیرفعال‌سازی، رمز عبور حساب خود را وارد کنید:</label>
-                            <input type="password" id="p-2fa-disable-password" class="form-input" placeholder="رمز عبور فعلی">
+                            <input type="password" id="p-2fa-disable-password" class="form-input"
+                                placeholder="رمز عبور فعلی">
                         </div>
-                        <button class="btn btn-danger w-100" onclick="disable2FA()">غیرفعال‌سازی ورود دو مرحله‌ای</button>
+                        <button class="btn btn-danger w-100" onclick="disable2FA()">غیرفعال‌سازی ورود دو
+                            مرحله‌ای</button>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div class="modal-footer"
+                style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <button class="btn btn-danger" onclick="logout()" style="display: flex; align-items: center; gap: 6px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -1375,7 +1653,7 @@
             </div>
             <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 16px;">
                 <input type="hidden" id="exp-outage-id">
-                
+
                 <div class="form-field-group" style="margin-bottom: 0;">
                     <label class="form-label" for="exp-type">علت قطعی:</label>
                     <select id="exp-type" class="form-input" style="width: 100%;">
@@ -1385,10 +1663,12 @@
                         <option value="مشکلات دیگر">مشکلات دیگر</option>
                     </select>
                 </div>
-                
+
                 <div class="form-field-group" style="margin-bottom: 0;">
                     <label class="form-label" for="exp-detail">توضیحات رفع ابهام:</label>
-                    <textarea id="exp-detail" class="form-input" rows="4" style="width: 100%; font-family: inherit; resize: vertical;" placeholder="توضیحات بیشتر درباره علت قطعی در اینجا وارد شود..."></textarea>
+                    <textarea id="exp-detail" class="form-input" rows="4"
+                        style="width: 100%; font-family: inherit; resize: vertical;"
+                        placeholder="توضیحات بیشتر درباره علت قطعی در اینجا وارد شود..."></textarea>
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px;">

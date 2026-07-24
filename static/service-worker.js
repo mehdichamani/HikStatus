@@ -1,6 +1,5 @@
-const CACHE_NAME = 'hikstatus-cache-v5';
+const CACHE_NAME = 'hikstatus-cache-v6';
 const ASSETS = [
-  '/',
   '/login',
   '/static/style.css',
   '/static/app.js',
@@ -13,7 +12,14 @@ const ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+      // Cache each asset individually so a single failure doesn't break the whole install
+      return Promise.allSettled(
+        ASSETS.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn('SW: failed to cache', url, err.message);
+          })
+        )
+      );
     })
   );
   self.skipWaiting();
@@ -53,7 +59,20 @@ self.addEventListener('fetch', (event) => {
         
         return cachedResponse;
       }
-      return fetch(event.request);
+      // No cache hit — go to network, then cache successful responses
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse.status === 200) {
+          const cloned = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+        }
+        return networkResponse;
+      });
+    }).catch(() => {
+      // Both cache and network failed — return a basic offline response for navigation
+      if (event.request.mode === 'navigate') {
+        return caches.match('/login');
+      }
+      return new Response('', { status: 503, statusText: 'Offline' });
     })
   );
 });

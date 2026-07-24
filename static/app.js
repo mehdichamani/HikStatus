@@ -22,7 +22,7 @@ async function apiFetch(url, options = {}) {
     }
 }
 
-function nav(id) {
+async function nav(id, activeTabOverride = null) {
     document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
     document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(e => e.classList.remove('active'));
 
@@ -40,8 +40,12 @@ function nav(id) {
         genReport();
         fetchAndRenderHeatmap();
     }
-    if (id === 'settings') loadSettings();
+    if (id === 'settings') await loadSettings(activeTabOverride);
     if (id === 'outages') loadOutageExplanations();
+}
+
+function showAboutUs() {
+    nav('settings', 'sec-about');
 }
 
 function closeModal() {
@@ -469,7 +473,7 @@ const settingLabels = {
     'OUTAGE_ANALYSIS_TIME': 'ساعت بررسی قطعی‌ها (مثال: 07:30)',
 };
 
-async function loadSettings() {
+async function loadSettings(activeTabOverride = null) {
     const role = window.currentUser ? window.currentUser.role : 'group_view';
     if (role === 'admin') {
         const sRes = await apiFetch(`${API}/settings`);
@@ -649,7 +653,7 @@ async function loadSettings() {
     } else if (role === 'group_view') {
         defaultTab = 'sec-about';
     }
-    const activeTab = document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || defaultTab;
+    const activeTab = activeTabOverride || document.querySelector('.settings-nav button.active')?.getAttribute('data-tab') || defaultTab;
     switchSettingsTab(activeTab);
     
     if (window.currentUser && window.currentUser.role === 'admin') {
