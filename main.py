@@ -923,9 +923,13 @@ def export_config_json(session: Session = Depends(get_session)):
 
     # 4. Users
     users = session.exec(select(User)).all()
+    user_ids = [u.id for u in users]
+    all_alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id.in_(user_ids))).all() if user_ids else []
+    alerts_by_user_id = {a.user_id: a for a in all_alert_settings}
+
     users_list = []
     for u in users:
-        alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
+        alert_settings = alerts_by_user_id.get(u.id)
         alert_dict = {}
         if alert_settings:
             alert_dict = {
