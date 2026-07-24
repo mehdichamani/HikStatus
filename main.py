@@ -362,8 +362,8 @@ def require_admin(user: dict = Depends(require_auth)):
     return user
 
 def require_control(user: dict = Depends(require_auth)):
-    """admin or group_control or it_manager."""
-    if user["role"] not in ("admin", "group_control", "it_manager"):
+    """admin or it_manager."""
+    if user["role"] not in ("admin", "it_manager"):
         raise HTTPException(status_code=403, detail="دسترسی کنترل الزامی است")
     return user
 
@@ -1102,7 +1102,7 @@ def delete_nvr(ip: str, session: Session = Depends(get_session), user: dict = De
     return {"ok": True}
 
 @app.put("/api/nvrs/{ip}")
-def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: dict = Depends(require_control)):
+def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
     n = session.get(NVR, ip)
     if not n:
         raise HTTPException(status_code=404, detail="NVR not found")

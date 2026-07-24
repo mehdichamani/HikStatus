@@ -778,7 +778,7 @@ function renderSettingsMenu(role) {
             title: 'دستگاه‌های NVR',
             desc: 'مدیریت اطلاعات و اتصالات ضبط‌کننده‌های ویدئویی شبکه (NVRs)',
             icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`,
-            roles: ['admin', 'group_control', 'it_manager']
+            roles: ['admin', 'it_manager']
         },
         'sec-users': {
             title: 'مدیریت کاربران',
@@ -808,13 +808,13 @@ function renderSettingsMenu(role) {
             title: 'اعلان‌های مرورگر',
             desc: 'فعال‌سازی پخش هشدار صوتی و نوتیفیکیشن دسکتاپ هنگام تغییر وضعیت',
             icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
-            roles: ['admin', 'group_control', 'it_manager', 'inspector', 'group_view']
+            roles: ['admin', 'it_manager', 'inspector', 'group_view']
         },
         'sec-my-alerts': {
             title: 'اعلان‌های شخصی من',
             desc: 'پیکربندی گیرندگان هشدار شخصی شما (ایمیل و چت‌آیدی تلگرام)',
             icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
-            roles: ['group_control', 'it_manager', 'inspector', 'group_view']
+            roles: ['it_manager', 'inspector', 'group_view']
         },
         'sec-tasks': {
             title: 'وظایف زمان‌بندی‌شده',
@@ -838,7 +838,7 @@ function renderSettingsMenu(role) {
             title: 'درباره ما',
             desc: 'مشخصات فنی و راه‌های ارتباطی با تیم طراح و توسعه‌دهنده سامانه',
             icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
-            roles: ['admin', 'group_control', 'it_manager', 'inspector', 'group_view']
+            roles: ['admin', 'it_manager', 'inspector', 'group_view']
         }
     };
 
@@ -998,8 +998,7 @@ function renderNVRRow(n, deleted = false) {
     }
 
     const role = window.currentUser ? window.currentUser.role : 'group_view';
-    const currentGroupId = window.currentUser ? window.currentUser.group_id : null;
-    const canEdit = role === 'admin' || (role === 'group_control' && n.group_id === currentGroupId);
+    const canEdit = role === 'admin';
 
     let groupSelectOrLabel = '';
     if (role === 'admin') {
@@ -3601,7 +3600,7 @@ function applyRoleUI() {
         el.style.display = (role === 'admin') ? '' : 'none';
     });
     document.querySelectorAll('[data-view="reports"]').forEach(el => {
-        el.style.display = (role === 'admin' || role === 'group_control' || role === 'inspector') ? '' : 'none';
+        el.style.display = (role === 'admin' || role === 'it_manager' || role === 'inspector') ? '' : 'none';
     });
     document.querySelectorAll('[data-view="outages"]').forEach(el => {
         el.style.display = (role === 'admin' || role === 'it_manager' || role === 'inspector') ? '' : 'none';
@@ -3612,7 +3611,7 @@ function applyRoleUI() {
 
     const editBtn = document.getElementById('btn-edit-positions');
     if (editBtn) {
-        editBtn.style.display = (role === 'admin' || role === 'group_control') ? '' : 'none';
+        editBtn.style.display = (role === 'admin') ? '' : 'none';
     }
 
     const headerUsername = document.getElementById('header-username');
@@ -3623,6 +3622,35 @@ function applyRoleUI() {
 
 // User CRUD management
 let usersCache = [];
+
+function populateInspectorGroupsList() {
+    const listCon = document.getElementById('inspector-groups-list');
+    if (!listCon) return;
+    if (!groupCache || groupCache.length === 0) {
+        listCon.innerHTML = '<span style="font-size: 12px; color: var(--text-muted); grid-column: 1 / -1;">کارخانه‌ای تعریف نشده است</span>';
+        return;
+    }
+    listCon.innerHTML = groupCache.map(g => `
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; background: var(--surface); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);">
+            <input type="checkbox" class="inspector-group-cb" value="${g.id}" onchange="updateInspectorSelectAllState()">
+            <span style="user-select: none;">${g.name}</span>
+        </label>
+    `).join('');
+    updateInspectorSelectAllState();
+}
+
+function toggleAllInspectorGroups(checked) {
+    const checkboxes = document.querySelectorAll('.inspector-group-cb');
+    checkboxes.forEach(cb => cb.checked = checked);
+}
+
+function updateInspectorSelectAllState() {
+    const checkboxes = document.querySelectorAll('.inspector-group-cb');
+    const selectAllCb = document.getElementById('inspector-select-all');
+    if (!selectAllCb || checkboxes.length === 0) return;
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    selectAllCb.checked = allChecked;
+}
 
 async function loadUsers() {
     try {
@@ -3638,22 +3666,24 @@ async function loadUsers() {
             ).join('');
         }
         
-        // Handle User Role change to show/hide group select or access input
+        populateInspectorGroupsList();
+        
+        // Handle User Role change to show/hide group select or inspector access container
         const roleSelect = document.getElementById('userRole');
         if (roleSelect && !roleSelect.dataset.hasListener) {
             roleSelect.dataset.hasListener = 'true';
             roleSelect.addEventListener('change', (e) => {
                 const groupSelect = document.getElementById('userGroup');
-                const accessGroupsInput = document.getElementById('userAccessGroups');
+                const inspectorCon = document.getElementById('inspector-groups-container');
                 if (e.target.value === 'inspector') {
                     if (groupSelect) groupSelect.style.display = 'none';
-                    if (accessGroupsInput) accessGroupsInput.style.display = '';
+                    if (inspectorCon) inspectorCon.style.display = 'block';
                 } else if (e.target.value === 'admin') {
                     if (groupSelect) groupSelect.style.display = 'none';
-                    if (accessGroupsInput) accessGroupsInput.style.display = 'none';
+                    if (inspectorCon) inspectorCon.style.display = 'none';
                 } else {
                     if (groupSelect) groupSelect.style.display = '';
-                    if (accessGroupsInput) accessGroupsInput.style.display = 'none';
+                    if (inspectorCon) inspectorCon.style.display = 'none';
                 }
             });
         }
@@ -3673,8 +3703,7 @@ function renderUsersList() {
         const group = groupCache.find(g => g.id === u.group_id);
         const groupName = group ? group.name : 'بدون گروه';
         const roleLabel = {
-            'admin': 'مدیر کامل',
-            'group_control': 'کنترل گروه',
+            'admin': 'مدیر کامل سیستم',
             'group_view': 'مشاهده گروه',
             'it_manager': 'مسئول آی تی کارخانه',
             'inspector': 'ناظر و بازرس'
@@ -3682,7 +3711,13 @@ function renderUsersList() {
         
         let detailsText = `نقش: ${roleLabel}`;
         if (u.role === 'inspector') {
-            detailsText += ` | دسترسی کارخانه‌ها: ${u.accessible_group_ids || 'همه'}`;
+            if (!u.accessible_group_ids) {
+                detailsText += ` | دسترسی کارخانه‌ها: همه کارخانه‌ها`;
+            } else {
+                const ids = u.accessible_group_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                const names = ids.map(id => groupCache.find(g => g.id === id)?.name || id).join('، ');
+                detailsText += ` | دسترسی کارخانه‌ها: ${names || 'هیچ‌کدام'}`;
+            }
         } else if (u.role !== 'admin') {
             detailsText += ` | کارخانه: ${groupName}`;
         }
@@ -3705,7 +3740,17 @@ async function addUser() {
     const role = document.getElementById('userRole').value;
     const grpVal = document.getElementById('userGroup').value;
     const group_id = (role !== 'inspector' && role !== 'admin' && grpVal) ? parseInt(grpVal) : null;
-    const accessible_group_ids = role === 'inspector' ? document.getElementById('userAccessGroups').value.trim() : null;
+    
+    let accessible_group_ids = null;
+    if (role === 'inspector') {
+        const checkedCbs = Array.from(document.querySelectorAll('.inspector-group-cb:checked')).map(cb => cb.value);
+        const allCbs = document.querySelectorAll('.inspector-group-cb');
+        if (checkedCbs.length > 0 && checkedCbs.length < allCbs.length) {
+            accessible_group_ids = checkedCbs.join(',');
+        } else if (checkedCbs.length === 0) {
+            accessible_group_ids = '0';
+        }
+    }
     
     if (!username || !password) {
         return showToast('نام کاربری و رمز عبور را وارد کنید', 'error');
@@ -3720,7 +3765,7 @@ async function addUser() {
         showToast('کاربر جدید با موفقیت اضافه شد');
         document.getElementById('userName').value = '';
         document.getElementById('userPass').value = '';
-        if (document.getElementById('userAccessGroups')) document.getElementById('userAccessGroups').value = '';
+        toggleAllInspectorGroups(false);
         loadUsers();
     } catch (e) {
         showToast('خطا در افزودن کاربر: ' + e.message, 'error');
@@ -4650,7 +4695,7 @@ function renderOutagesList() {
     }
     
     const role = window.currentUser ? window.currentUser.role : 'group_view';
-    const canExplain = role === 'admin' || role === 'it_manager' || role === 'group_control';
+    const canExplain = role === 'admin' || role === 'it_manager';
     
     list.innerHTML = filtered.map(o => {
         let statusBadge = '';
