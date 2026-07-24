@@ -151,7 +151,20 @@ def send_email_batch(subject, lines, alert_type="warning", group_id=None):
     # 2. Send to IT manager users
     if group_id is not None and lines:
         with Session(engine) as session:
-            users = session.exec(select(User).where(User.group_id == group_id, User.role == "it_manager", User.is_active == True)).all()
+            all_it_users = session.exec(select(User).where(User.role == "it_manager", User.is_active == True)).all()
+            users = []
+            for u in all_it_users:
+                if u.group_id == group_id:
+                    users.append(u)
+                elif u.accessible_group_ids:
+                    try:
+                        ids = [int(x.strip()) for x in u.accessible_group_ids.split(",") if x.strip().isdigit()]
+                        if group_id in ids:
+                            users.append(u)
+                    except Exception:
+                        pass
+                elif u.group_id is None and not u.accessible_group_ids:
+                    users.append(u)
             for u in users:
                 alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
                 if alert_settings and alert_settings.mail_enabled and alert_settings.mail_recipients:
@@ -220,7 +233,20 @@ def send_telegram_batch(header, lines, alert_type="warning", group_id=None):
     # 2. Send to IT manager users
     if group_id is not None and lines:
         with Session(engine) as session:
-            users = session.exec(select(User).where(User.group_id == group_id, User.role == "it_manager", User.is_active == True)).all()
+            all_it_users = session.exec(select(User).where(User.role == "it_manager", User.is_active == True)).all()
+            users = []
+            for u in all_it_users:
+                if u.group_id == group_id:
+                    users.append(u)
+                elif u.accessible_group_ids:
+                    try:
+                        ids = [int(x.strip()) for x in u.accessible_group_ids.split(",") if x.strip().isdigit()]
+                        if group_id in ids:
+                            users.append(u)
+                    except Exception:
+                        pass
+                elif u.group_id is None and not u.accessible_group_ids:
+                    users.append(u)
             for u in users:
                 alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
                 if alert_settings and alert_settings.telegram_enabled and alert_settings.telegram_chat_ids:

@@ -1158,12 +1158,11 @@
                                 <input id="userName" class="form-input" placeholder="نام کاربری" style="flex: 1; min-width: 130px;">
                                 <input id="userPass" class="form-input" type="password" placeholder="رمز عبور" style="flex: 1; min-width: 130px;">
                                 <select id="userRole" class="form-input" style="flex: 1.5; min-width: 150px;">
-                                    <option value="group_view">مشاهده (تنها دوربین‌های گروه خود)</option>
-                                    <option value="it_manager">مسئول آی تی کارخانه (رفع ابهام قطعی‌ها)</option>
-                                    <option value="inspector">ناظر و بازرس (مشاهده قطعی‌های چند کارخانه)</option>
-                                    <option value="admin">مدیر کامل سیستم</option>
+                                    <option value="it_manager">مسئول آی‌تی (پایش + ثبت علت قطعی)</option>
+                                    <option value="inspector">ناظر (مشاهده و گزارش‌گیری)</option>
+                                    <option value="admin">مدیر سیستم (دسترسی کامل)</option>
                                 </select>
-                                <select id="userGroup" class="form-input" style="flex: 1.2; min-width: 130px;">
+                                <select id="userGroup" class="form-input" style="display: none; flex: 1.2; min-width: 130px;">
                                     <option value="">بدون گروه</option>
                                 </select>
                                 <button class="btn btn-primary btn-icon-only" onclick="addUser()" title="افزودن کاربر">
@@ -1174,10 +1173,10 @@
                                 </button>
                             </div>
                             
-                            <!-- Inspector Factory Multi-Select Container -->
-                            <div id="inspector-groups-container" style="display: none; width: 100%; margin-top: 12px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+                            <!-- Factory Multi-Select Container -->
+                            <div id="inspector-groups-container" style="display: block; width: 100%; margin-top: 12px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
                                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed var(--border);">
-                                    <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">انتخاب کارخانه‌های مجاز ناظر:</span>
+                                    <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">انتخاب کارخانه‌های مجاز کاربر:</span>
                                     <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--primary);">
                                         <input type="checkbox" id="inspector-select-all" onchange="toggleAllInspectorGroups(this.checked)">
                                         <span>انتخاب همه</span>

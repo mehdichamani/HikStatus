@@ -371,16 +371,24 @@ def get_user_accessible_groups(user: dict, db: Session) -> list[int] | None:
     """Returns a list of accessible group IDs for the user, or None if the user has access to all."""
     if user["role"] == "admin":
         return None
-    elif user["role"] == "inspector":
+    elif user["role"] in ("inspector", "it_manager"):
         db_user = db.get(User, user["user_id"])
-        if not db_user or not db_user.accessible_group_ids or db_user.accessible_group_ids == "*":
-            return None
-        try:
-            return [int(x.strip()) for x in db_user.accessible_group_ids.split(",") if x.strip().isdigit()]
-        except Exception:
+        if not db_user:
             return []
+        if db_user.accessible_group_ids:
+            if db_user.accessible_group_ids == "*":
+                return None
+            try:
+                ids = [int(x.strip()) for x in db_user.accessible_group_ids.split(",") if x.strip().isdigit()]
+                if ids:
+                    return ids
+            except Exception:
+                pass
+        if db_user.group_id is not None:
+            return [db_user.group_id]
+        return None
     else:
-        if user["group_id"] is not None:
+        if user.get("group_id") is not None:
             return [user["group_id"]]
         return []
 
@@ -1022,7 +1030,7 @@ async def import_config_json(request: Request, session: Session = Depends(get_se
         db_user = User(
             username=u_data["username"],
             password_hash=pass_hash,
-            role=u_data.get("role", "group_view"),
+            role=u_data.get("role", "it_manager"),
             group_id=u_data.get("group_id"),
             is_active=u_data.get("is_active", True)
         )

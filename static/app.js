@@ -3675,7 +3675,7 @@ async function loadUsers() {
             roleSelect.addEventListener('change', (e) => {
                 const groupSelect = document.getElementById('userGroup');
                 const inspectorCon = document.getElementById('inspector-groups-container');
-                if (e.target.value === 'inspector') {
+                if (e.target.value === 'it_manager' || e.target.value === 'inspector') {
                     if (groupSelect) groupSelect.style.display = 'none';
                     if (inspectorCon) inspectorCon.style.display = 'block';
                 } else if (e.target.value === 'admin') {
@@ -3703,14 +3703,13 @@ function renderUsersList() {
         const group = groupCache.find(g => g.id === u.group_id);
         const groupName = group ? group.name : 'بدون گروه';
         const roleLabel = {
-            'admin': 'مدیر کامل سیستم',
-            'group_view': 'مشاهده گروه',
-            'it_manager': 'مسئول آی تی کارخانه',
-            'inspector': 'ناظر و بازرس'
+            'admin': 'مدیر سیستم',
+            'it_manager': 'مسئول آی‌تی',
+            'inspector': 'ناظر'
         }[u.role] || u.role;
         
         let detailsText = `نقش: ${roleLabel}`;
-        if (u.role === 'inspector') {
+        if (u.role === 'inspector' || u.role === 'it_manager') {
             if (!u.accessible_group_ids) {
                 detailsText += ` | دسترسی کارخانه‌ها: همه کارخانه‌ها`;
             } else {
@@ -3739,17 +3738,24 @@ async function addUser() {
     const password = document.getElementById('userPass').value;
     const role = document.getElementById('userRole').value;
     const grpVal = document.getElementById('userGroup').value;
-    const group_id = (role !== 'inspector' && role !== 'admin' && grpVal) ? parseInt(grpVal) : null;
     
     let accessible_group_ids = null;
-    if (role === 'inspector') {
+    let group_id = null;
+    if (role === 'inspector' || role === 'it_manager') {
         const checkedCbs = Array.from(document.querySelectorAll('.inspector-group-cb:checked')).map(cb => cb.value);
         const allCbs = document.querySelectorAll('.inspector-group-cb');
         if (checkedCbs.length > 0 && checkedCbs.length < allCbs.length) {
             accessible_group_ids = checkedCbs.join(',');
+            group_id = parseInt(checkedCbs[0]);
+        } else if (checkedCbs.length === allCbs.length) {
+            accessible_group_ids = null;
+            group_id = checkedCbs[0] ? parseInt(checkedCbs[0]) : null;
         } else if (checkedCbs.length === 0) {
             accessible_group_ids = '0';
+            group_id = null;
         }
+    } else if (role !== 'admin' && grpVal) {
+        group_id = parseInt(grpVal);
     }
     
     if (!username || !password) {
