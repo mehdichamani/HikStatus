@@ -1253,45 +1253,85 @@
                             <h3>مدیریت محدودیت‌ها و سقف‌های سیستمی</h3>
                         </div>
                         
-                        <div class="settings-section" style="max-width: 650px;">
+                        <div class="settings-section" style="max-width: 760px;">
                             <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6;">
-                                تنظیمات و سقف‌های امنیتی، ارتباطی و ماندگاری داده‌ها در این بخش به صورت متمرکز قابل مدیریت هستند.
+                                تنظیمات و سقف‌های امنیتی، ارتباطی و پایش داده‌ها در این بخش به صورت متمرکز قابل ویرایش هستند.
                             </p>
 
-                            <div class="form-group" style="margin-bottom: 16px;">
-                                <label class="form-label" style="font-weight: 600;">سقف اتصال‌های همزمان وب‌سوکت (WebSocket)</label>
-                                <input type="number" id="LIMIT_WS_MAX_CONCURRENT" class="form-input" min="1" max="500" placeholder="20">
-                                <small style="color: var(--text-muted); font-size: 11px;">حداکثر تعداد سشن‌ها/تب‌های همزمان متصل به وب‌سوکت برای کل سامانه</small>
-                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                                
+                                <!-- Limit Card 1: WebSocket -->
+                                <div class="limit-item-card">
+                                    <div class="limit-item-info">
+                                        <strong class="limit-item-title">سقف اتصال‌های همزمان وب‌سوکت (WebSocket)</strong>
+                                        <span class="limit-item-desc">حداکثر تعداد سشن‌ها/تب‌های همزمان متصل به وب‌سوکت برای کل سامانه</span>
+                                    </div>
+                                    <div class="limit-item-input-wrap">
+                                        <input type="number" id="LIMIT_WS_MAX_CONCURRENT" class="form-input limit-num-input" min="1" max="500" placeholder="20">
+                                        <span class="limit-unit-tag">سشن</span>
+                                    </div>
+                                </div>
 
-                            <div class="form-group" style="margin-bottom: 16px;">
-                                <label class="form-label" style="font-weight: 600;">حداکثر تلاش‌های ورود ناموفق در دقیقه</label>
-                                <input type="number" id="LIMIT_LOGIN_MAX_ATTEMPTS" class="form-input" min="1" max="100" placeholder="5">
-                                <small style="color: var(--text-muted); font-size: 11px;">سقف مجاز ورود ناموفق از هر IP پیش از مسدودسازی موقت ۱ دقیقه‌ای</small>
-                            </div>
+                                <!-- Limit Card 2: Login Attempts -->
+                                <div class="limit-item-card">
+                                    <div class="limit-item-info">
+                                        <strong class="limit-item-title">حداکثر تلاش‌های ورود ناموفق در دقیقه</strong>
+                                        <span class="limit-item-desc">سقف مجاز ورود ناموفق از هر IP پیش از مسدودسازی موقت ۱ دقیقه‌ای</span>
+                                    </div>
+                                    <div class="limit-item-input-wrap">
+                                        <input type="number" id="LIMIT_LOGIN_MAX_ATTEMPTS" class="form-input limit-num-input" min="1" max="100" placeholder="5">
+                                        <span class="limit-unit-tag">تلاش</span>
+                                    </div>
+                                </div>
 
-                            <div class="form-group" style="margin-bottom: 16px;">
-                                <label class="form-label" style="font-weight: 600;">تایم‌اوت پینگ اتصال دوربین‌ها (ثانیه)</label>
-                                <input type="number" id="LIMIT_PING_TIMEOUT_SECONDS" class="form-input" min="1" max="30" placeholder="2">
-                                <small style="color: var(--text-muted); font-size: 11px;">حداکثر زمان انتظار برای پاسخ‌دهی پینگ شبکه هر دوربین</small>
-                            </div>
+                                <!-- Limit Card 3: Ping Timeout -->
+                                <div class="limit-item-card">
+                                    <div class="limit-item-info">
+                                        <strong class="limit-item-title">تایم‌اوت پینگ اتصال دوربین‌ها</strong>
+                                        <span class="limit-item-desc">حداکثر زمان انتظار برای پاسخ‌دهی پینگ شبکه هر دوربین</span>
+                                    </div>
+                                    <div class="limit-item-input-wrap">
+                                        <input type="number" id="LIMIT_PING_TIMEOUT_SECONDS" class="form-input limit-num-input" min="1" max="30" placeholder="2">
+                                        <span class="limit-unit-tag">ثانیه</span>
+                                    </div>
+                                </div>
 
-                            <div class="form-group" style="margin-bottom: 16px;">
-                                <label class="form-label" style="font-weight: 600;">تایم‌اوت گرفتن پیش‌نمایش تصویر دوربین (ثانیه)</label>
-                                <input type="number" id="LIMIT_SNAPSHOT_TIMEOUT_SECONDS" class="form-input" min="1" max="60" placeholder="5">
-                                <small style="color: var(--text-muted); font-size: 11px;">مهلت زمان استخراج فریم تصویر Snapshot از استریم دوربین</small>
-                            </div>
+                                <!-- Limit Card 4: Snapshot Timeout -->
+                                <div class="limit-item-card">
+                                    <div class="limit-item-info">
+                                        <strong class="limit-item-title">تایم‌اوت گرفتن پیش‌نمایش تصویر دوربین</strong>
+                                        <span class="limit-item-desc">مهلت زمان استخراج فریم تصویر Snapshot از استریم دوربین</span>
+                                    </div>
+                                    <div class="limit-item-input-wrap">
+                                        <input type="number" id="LIMIT_SNAPSHOT_TIMEOUT_SECONDS" class="form-input limit-num-input" min="1" max="60" placeholder="5">
+                                        <span class="limit-unit-tag">ثانیه</span>
+                                    </div>
+                                </div>
 
-                            <div class="form-group" style="margin-bottom: 16px;">
-                                <label class="form-label" style="font-weight: 600;">سقف درخواست‌های مجاز عمومی API در دقیقه</label>
-                                <input type="number" id="LIMIT_API_RATE_LIMIT_PER_MIN" class="form-input" min="10" max="1000" placeholder="60">
-                                <small style="color: var(--text-muted); font-size: 11px;">حداکثر نرخ درخواست‌های ارسال‌شده از هر آدرس IP به سرور</small>
-                            </div>
+                                <!-- Limit Card 5: API Rate Limit -->
+                                <div class="limit-item-card">
+                                    <div class="limit-item-info">
+                                        <strong class="limit-item-title">سقف درخواست‌های مجاز عمومی API در دقیقه</strong>
+                                        <span class="limit-item-desc">حداکثر نرخ درخواست‌های ارسال‌شده از هر آدرس IP به سرور</span>
+                                    </div>
+                                    <div class="limit-item-input-wrap">
+                                        <input type="number" id="LIMIT_API_RATE_LIMIT_PER_MIN" class="form-input limit-num-input" min="10" max="1000" placeholder="60">
+                                        <span class="limit-unit-tag">در دقیقه</span>
+                                    </div>
+                                </div>
 
-                            <div class="form-group" style="margin-bottom: 24px;">
-                                <label class="form-label" style="font-weight: 600;">مدت زمان نگه‌داری لاگ‌های قطعی و مانیتورینگ (روز)</label>
-                                <input type="number" id="LIMIT_LOG_RETENTION_DAYS" class="form-input" min="7" max="365" placeholder="90">
-                                <small style="color: var(--text-muted); font-size: 11px;">لاگ‌ها و رویدادهای قدیمی‌تر از این تعداد روز به صورت خودکار پاک‌سازی می‌شوند</small>
+                                <!-- Limit Card 6: Log Retention -->
+                                <div class="limit-item-card">
+                                    <div class="limit-item-info">
+                                        <strong class="limit-item-title">مدت زمان نگه‌داری لاگ‌های قطعی و مانیتورینگ</strong>
+                                        <span class="limit-item-desc">لاگ‌ها و رویدادهای قدیمی‌تر از این تعداد روز به صورت خودکار پاک‌سازی می‌شوند</span>
+                                    </div>
+                                    <div class="limit-item-input-wrap">
+                                        <input type="number" id="LIMIT_LOG_RETENTION_DAYS" class="form-input limit-num-input" min="7" max="365" placeholder="90">
+                                        <span class="limit-unit-tag">روز</span>
+                                    </div>
+                                </div>
+
                             </div>
 
                             <div class="settings-action-row">
