@@ -1241,6 +1241,64 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Limits Management Tab -->
+                    <div class="card" id="grp-Limits" style="display: none; width: 100%;">
+                        <div class="settings-card-header">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                            <h3>مدیریت محدودیت‌ها و سقف‌های سیستمی</h3>
+                        </div>
+                        
+                        <div class="settings-section" style="max-width: 650px;">
+                            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6;">
+                                تنظیمات و سقف‌های امنیتی، ارتباطی و ماندگاری داده‌ها در این بخش به صورت متمرکز قابل مدیریت هستند.
+                            </p>
+
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label class="form-label" style="font-weight: 600;">سقف اتصال‌های همزمان وب‌سوکت (WebSocket)</label>
+                                <input type="number" id="LIMIT_WS_MAX_CONCURRENT" class="form-input" min="1" max="500" placeholder="20">
+                                <small style="color: var(--text-muted); font-size: 11px;">حداکثر تعداد سشن‌ها/تب‌های همزمان متصل به وب‌سوکت برای کل سامانه</small>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label class="form-label" style="font-weight: 600;">حداکثر تلاش‌های ورود ناموفق در دقیقه</label>
+                                <input type="number" id="LIMIT_LOGIN_MAX_ATTEMPTS" class="form-input" min="1" max="100" placeholder="5">
+                                <small style="color: var(--text-muted); font-size: 11px;">سقف مجاز ورود ناموفق از هر IP پیش از مسدودسازی موقت ۱ دقیقه‌ای</small>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label class="form-label" style="font-weight: 600;">تایم‌اوت پینگ اتصال دوربین‌ها (ثانیه)</label>
+                                <input type="number" id="LIMIT_PING_TIMEOUT_SECONDS" class="form-input" min="1" max="30" placeholder="2">
+                                <small style="color: var(--text-muted); font-size: 11px;">حداکثر زمان انتظار برای پاسخ‌دهی پینگ شبکه هر دوربین</small>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label class="form-label" style="font-weight: 600;">تایم‌اوت گرفتن پیش‌نمایش تصویر دوربین (ثانیه)</label>
+                                <input type="number" id="LIMIT_SNAPSHOT_TIMEOUT_SECONDS" class="form-input" min="1" max="60" placeholder="5">
+                                <small style="color: var(--text-muted); font-size: 11px;">مهلت زمان استخراج فریم تصویر Snapshot از استریم دوربین</small>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label class="form-label" style="font-weight: 600;">سقف درخواست‌های مجاز عمومی API در دقیقه</label>
+                                <input type="number" id="LIMIT_API_RATE_LIMIT_PER_MIN" class="form-input" min="10" max="1000" placeholder="60">
+                                <small style="color: var(--text-muted); font-size: 11px;">حداکثر نرخ درخواست‌های ارسال‌شده از هر آدرس IP به سرور</small>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 24px;">
+                                <label class="form-label" style="font-weight: 600;">مدت زمان نگه‌داری لاگ‌های قطعی و مانیتورینگ (روز)</label>
+                                <input type="number" id="LIMIT_LOG_RETENTION_DAYS" class="form-input" min="7" max="365" placeholder="90">
+                                <small style="color: var(--text-muted); font-size: 11px;">لاگ‌ها و رویدادهای قدیمی‌تر از این تعداد روز به صورت خودکار پاک‌سازی می‌شوند</small>
+                            </div>
+
+                            <div class="settings-action-row">
+                                <button class="btn btn-primary" onclick="apply()">ذخیره و اعمال تنظیمات</button>
+                            </div>
+                        </div>
+                    </div>
                     <!-- Scheduled Tasks Tab -->
                     <div class="card" id="sec-tasks" style="display: none; width: 100%;">
                         <div class="settings-card-header">

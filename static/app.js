@@ -693,7 +693,7 @@ async function apply() {
         showToast('تنظیمات با موفقیت ذخیره شد و مانیتورینگ ریستارت گردید', 'success');
         
         // Find currently visible tab by checking which card is displayed
-        const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
+        const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'grp-Limits', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
         let activeTab = null;
         for (const id of tabs) {
             const el = document.getElementById(id);
@@ -718,7 +718,7 @@ function switchSettingsTab(tabId) {
     const detailsCon = document.getElementById('settings-detail-container');
     if (detailsCon) detailsCon.style.display = 'block';
 
-    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
+    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'grp-Limits', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -809,6 +809,12 @@ function renderSettingsMenu(role) {
             desc: 'فعال‌سازی پخش هشدار صوتی و نوتیفیکیشن دسکتاپ هنگام تغییر وضعیت',
             icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
             roles: ['admin', 'it_manager', 'inspector', 'group_view']
+        },
+        'grp-Limits': {
+            title: 'مدیریت محدودیت‌ها',
+            desc: 'تنظیم سقف اتصال‌های همزمان، محدودیت‌های امنیتی، تایم‌اوت‌ها و ماندگاری لاگ‌ها',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+            roles: ['admin']
         },
         'sec-my-alerts': {
             title: 'اعلان‌های شخصی من',

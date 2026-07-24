@@ -150,6 +150,12 @@ def seed_defaults():
             "OUTAGE_ANALYSIS_DAYS": ("5,6,0,1,2,3", "روزهای بررسی قطعی در هفته (شنبه=5 تا جمعه=4)"),
             "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
             "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
+            "LIMIT_WS_MAX_CONCURRENT": ("20", "حداکثر تعداد اتصال‌های همزمان وب‌سوکت"),
+            "LIMIT_LOGIN_MAX_ATTEMPTS": ("5", "حداکثر تلاش‌های ورود ناموفق مجاز در دقیقه از یک IP"),
+            "LIMIT_PING_TIMEOUT_SECONDS": ("2", "تایم‌اوت پینگ اتصال دوربین‌ها (ثانیه)"),
+            "LIMIT_SNAPSHOT_TIMEOUT_SECONDS": ("5", "تایم‌اوت دریافت تصویر پیش‌نمایش به ثانیه"),
+            "LIMIT_API_RATE_LIMIT_PER_MIN": ("60", "سقف درخواست‌های مجاز عمومی API در دقیقه"),
+            "LIMIT_LOG_RETENTION_DAYS": ("90", "مدت زمان نگه‌داری لاگ‌های قطعی و مانیتورینگ (روز)"),
         }
 
         for key, (default_val, desc) in defaults.items():
@@ -270,13 +276,24 @@ def verify_admin_password(input_password: str, env_password_val: str) -> tuple[b
 def create_session_token():
     return secrets.token_hex(32)
 
+def get_setting_int(key: str, default: int) -> int:
+    try:
+        with Session(engine) as session:
+            s = session.get(Settings, key)
+            if s and s.value and s.value.isdigit():
+                return int(s.value)
+    except Exception:
+        pass
+    return default
+
 def check_rate_limit(ip):
     now = datetime.now()
+    max_login_attempts = get_setting_int("LIMIT_LOGIN_MAX_ATTEMPTS", 5)
     with _rate_limit_lock:
         if ip not in _login_attempts:
             _login_attempts[ip] = []
         _login_attempts[ip] = [t for t in _login_attempts[ip] if (now - t).seconds < 60]
-        if len(_login_attempts[ip]) >= 5:
+        if len(_login_attempts[ip]) >= max_login_attempts:
             return False
         _login_attempts[ip].append(now)
     return True
@@ -287,7 +304,8 @@ def health_check():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    if not limiter.acquire("global:ws", 5):
+    ws_limit = get_setting_int("LIMIT_WS_MAX_CONCURRENT", 20)
+    if not limiter.acquire("global:ws", ws_limit):
         await websocket.close(code=429)
         return
 

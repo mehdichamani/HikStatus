@@ -886,7 +886,9 @@ async def task_sync_nvr_stats():
 async def task_cleanup_database():
     with Session(engine) as session:
         logger.info("Starting database logs cleanup...")
-        cleanup_old_data(session)
+        retention_setting = session.get(Settings, "LIMIT_LOG_RETENTION_DAYS")
+        days = int(retention_setting.value) if retention_setting and retention_setting.value.isdigit() else 90
+        cleanup_old_data(session, days=days)
         session.commit()
 
 async def task_sync_camera_names():
