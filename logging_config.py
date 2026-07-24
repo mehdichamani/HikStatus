@@ -1,5 +1,6 @@
 import sys
 import os
+from typing import Optional
 from loguru import logger
 
 def setup_logging():
@@ -62,7 +63,6 @@ def log_event(
     Centralized logging function. Log to terminal/files via loguru
     and persist structured audit log to database if session is provided.
     """
-    from typing import Optional
     from database import Log
 
     # 1. Terminal / File logging (loguru)
