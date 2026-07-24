@@ -1,5 +1,6 @@
 import smtplib
 import requests
+import threading
 import jdatetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -278,3 +279,17 @@ def send_telegram_raw(conf, message, chat_ids):
             errors.append(str(e))
             
     return errors[0] if errors else True
+
+def send_change_alert(title, lines, alert_type="warning", group_id=None):
+    """Send both email and telegram alerts in a background thread (non-blocking)."""
+    def _bg_send():
+        try:
+            send_email_batch(title, lines, alert_type=alert_type, group_id=group_id)
+        except Exception as e:
+            logger.error(f"Change alert email error: {e}")
+        try:
+            send_telegram_batch(title, lines, alert_type=alert_type, group_id=group_id)
+        except Exception as e:
+            logger.error(f"Change alert telegram error: {e}")
+
+    threading.Thread(target=_bg_send, daemon=True).start()

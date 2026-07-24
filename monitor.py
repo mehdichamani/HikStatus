@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 
 from requests.auth import HTTPDigestAuth
 from sqlmodel import Session, select
-from database import engine, NVR, Camera, Log, Settings, DowntimeEvent, UserSession
-from alerts import send_email_batch, send_telegram_batch
+from database import engine, NVR, NVRGroup, Camera, CameraChangeEvent, Log, Settings, DowntimeEvent, UserSession
+from alerts import send_email_batch, send_telegram_batch, send_change_alert
 from loguru import logger
 
 _XML_STREAM_THRESHOLD = 1_000_000  # 1MB
@@ -56,6 +56,11 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
     try:
         nvr_obj = db_session.exec(select(NVR).where(NVR.ip == ip)).first()
         nvr_name = nvr_obj.name if (nvr_obj and nvr_obj.name) else ip
+        nvr_group_id = nvr_obj.group_id if nvr_obj else None
+        
+        # Get existing cameras in DB for this NVR
+        existing_cams = db_session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
+        existing_channel_ids = {cam.channel_id: cam for cam in existing_cams}
         
         req_sess = requests.Session()
         req_sess.trust_env = False
@@ -63,8 +68,13 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
         if resp.status_code == 200:
             root = parse_xml_response(resp.content)
             namespace = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
+            
+            nvr_channel_ids = set()
+            added_cameras = []
+            
             for channel in root.findall('ns:InputProxyChannel', namespace):
                 chan_id = channel.find('ns:id', namespace).text
+                nvr_channel_ids.add(chan_id)
                 name_elem = channel.find('ns:name', namespace)
                 chan_name = name_elem.text if name_elem is not None else None
                 
@@ -84,7 +94,7 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
                 final_name = chan_name if chan_name else f"{nvr_name} CH {chan_id}"
                 
                 # Update database
-                db_cam = db_session.exec(select(Camera).where(Camera.nvr_ip == ip, Camera.channel_id == chan_id)).first()
+                db_cam = existing_channel_ids.get(chan_id)
                 if db_cam:
                     db_cam.name = final_name
                     # Also update IP if changed
@@ -94,7 +104,7 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
                         db_cam.model = model
                     db_session.add(db_cam)
                 else:
-                    # If it's not in db, we create it
+                    # New camera detected — not in DB yet
                     new_cam = Camera(
                         name=final_name,
                         ip=cam_ip,
@@ -104,7 +114,54 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
                         model=model
                     )
                     db_session.add(new_cam)
+                    added_cameras.append((chan_id, final_name, cam_ip))
+            
+            # Detect removed cameras: in DB but not in NVR response
+            removed_cameras = []
+            for chan_id, cam in existing_channel_ids.items():
+                if chan_id not in nvr_channel_ids:
+                    removed_cameras.append((chan_id, cam.name, cam.ip))
+            
+            # Log change events for added cameras
+            alert_lines = []
+            for chan_id, cam_name, cam_ip in added_cameras:
+                db_session.add(CameraChangeEvent(
+                    nvr_ip=ip,
+                    camera_name=cam_name,
+                    camera_channel_id=chan_id,
+                    change_type="camera_added",
+                    new_value=f"{cam_name} ({cam_ip})",
+                    group_id=nvr_group_id
+                ))
+                log_event(db_session, "CameraChange", "Added", f"دوربین جدید {cam_name} ({cam_ip}) به {nvr_name} اضافه شد")
+                alert_lines.append(f"➕ دوربین جدید: {cam_name} ({cam_ip}) — کانال {chan_id}")
+                logger.info(f"New camera detected on {nvr_name}: {cam_name} ({cam_ip}) CH {chan_id}")
+            
+            # Log change events for removed cameras
+            for chan_id, cam_name, cam_ip in removed_cameras:
+                db_session.add(CameraChangeEvent(
+                    nvr_ip=ip,
+                    camera_name=cam_name,
+                    camera_channel_id=chan_id,
+                    change_type="camera_removed",
+                    old_value=f"{cam_name} ({cam_ip})",
+                    group_id=nvr_group_id
+                ))
+                log_event(db_session, "CameraChange", "Removed", f"دوربین {cam_name} ({cam_ip}) از {nvr_name} حذف شد")
+                alert_lines.append(f"➖ دوربین حذف‌شده: {cam_name} ({cam_ip}) — کانال {chan_id}")
+                logger.info(f"Camera removed from {nvr_name}: {cam_name} ({cam_ip}) CH {chan_id}")
+            
             db_session.commit()
+            
+            # Send combined alert for all changes on this NVR
+            if alert_lines:
+                group_name = ""
+                if nvr_group_id:
+                    grp = db_session.get(NVRGroup, nvr_group_id)
+                    group_name = f" [{grp.name}]" if grp else ""
+                title = f"تغییرات ساختاری دوربین‌ها — {nvr_name}{group_name}"
+                send_change_alert(title, alert_lines, alert_type="warning", group_id=nvr_group_id)
+            
             return True, f"Successfully synced camera names for {nvr_name}"
         else:
             return False, f"Failed to sync {nvr_name}: HTTP {resp.status_code}"
@@ -348,6 +405,10 @@ def sync_recording_schedule_config(ip, user, password, session=None):
     db_session = session if session is not None else Session(engine)
     
     try:
+        nvr_obj = db_session.exec(select(NVR).where(NVR.ip == ip)).first()
+        nvr_name = nvr_obj.name if (nvr_obj and nvr_obj.name) else ip
+        nvr_group_id = nvr_obj.group_id if nvr_obj else None
+        
         cams = db_session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
         if not cams:
             return
@@ -412,6 +473,23 @@ def sync_recording_schedule_config(ip, user, password, session=None):
         except Exception as e:
             logger.warning(f"Failed to fetch all tracks config at once for {ip}: {e}")
 
+        translation_map = {
+            "Continuous": "مداوم (Continuous)",
+            "CMR": "مداوم (Continuous)",
+            "Motion": "حرکتی (Motion)",
+            "MOTION": "حرکتی (Motion)",
+            "Alarm": "آلارم (Alarm)",
+            "ALARM": "آلارم (Alarm)",
+            "Motion | Alarm": "حرکت و آلارم (Motion/Alarm)",
+            "Motion/Alarm": "حرکت و آلارم (Motion/Alarm)",
+            "ALARMANDMOTION": "حرکت و آلارم (Motion/Alarm)",
+            "EDR": "رویداد (Event)",
+            "Event": "رویداد (Event)",
+            "NONE": "غیرفعال (None)"
+        }
+
+        alert_lines = []
+
         for cam in cams:
             try:
                 chan_int = int(cam.channel_id)
@@ -469,29 +547,65 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                 except Exception as e_single:
                     logger.warning(f"Failed to fetch single track {track_id} for NVR {ip}: {e_single}")
 
+            # Translate new schedule type
+            new_schedule_type = translation_map.get(sched_type, sched_type) if sched_type else None
+
+            # Detect recording changes (only if camera had previous data — skip first sync)
+            old_enabled = cam.recording_scheduled
+            old_type = cam.recording_schedule_type
+
+            if old_enabled is not None and enabled is not None:
+                # Recording enabled/disabled changed
+                if old_enabled != enabled:
+                    old_label = "روشن" if old_enabled else "خاموش"
+                    new_label = "روشن" if enabled else "خاموش"
+                    db_session.add(CameraChangeEvent(
+                        nvr_ip=ip,
+                        camera_name=cam.name,
+                        camera_channel_id=cam.channel_id,
+                        change_type="recording_changed",
+                        old_value=f"ضبط: {old_label}",
+                        new_value=f"ضبط: {new_label}",
+                        group_id=nvr_group_id
+                    ))
+                    log_event(db_session, "RecordingChange", "Changed",
+                              f"وضعیت ضبط {cam.name} تغییر کرد: {old_label} → {new_label}")
+                    alert_lines.append(f"🔄 {cam.name}: ضبط {old_label} → {new_label}")
+                    logger.info(f"Recording state changed for {cam.name} on {nvr_name}: {old_label} -> {new_label}")
+
+                # Recording type changed (only when both are enabled)
+                elif old_enabled and enabled and old_type and new_schedule_type and old_type != new_schedule_type:
+                    db_session.add(CameraChangeEvent(
+                        nvr_ip=ip,
+                        camera_name=cam.name,
+                        camera_channel_id=cam.channel_id,
+                        change_type="recording_changed",
+                        old_value=old_type,
+                        new_value=new_schedule_type,
+                        group_id=nvr_group_id
+                    ))
+                    log_event(db_session, "RecordingChange", "Changed",
+                              f"نوع ضبط {cam.name} تغییر کرد: {old_type} → {new_schedule_type}")
+                    alert_lines.append(f"🔄 {cam.name}: نوع ضبط {old_type} → {new_schedule_type}")
+                    logger.info(f"Recording type changed for {cam.name} on {nvr_name}: {old_type} -> {new_schedule_type}")
+
+            # Apply new values
             cam.recording_scheduled = enabled
-            if sched_type:
-                translation_map = {
-                    "Continuous": "مداوم (Continuous)",
-                    "CMR": "مداوم (Continuous)",
-                    "Motion": "حرکتی (Motion)",
-                    "MOTION": "حرکتی (Motion)",
-                    "Alarm": "آلارم (Alarm)",
-                    "ALARM": "آلارم (Alarm)",
-                    "Motion | Alarm": "حرکت و آلارم (Motion/Alarm)",
-                    "Motion/Alarm": "حرکت و آلارم (Motion/Alarm)",
-                    "ALARMANDMOTION": "حرکت و آلارم (Motion/Alarm)",
-                    "EDR": "رویداد (Event)",
-                    "Event": "رویداد (Event)",
-                    "NONE": "غیرفعال (None)"
-                }
-                cam.recording_schedule_type = translation_map.get(sched_type, sched_type)
-            else:
-                cam.recording_schedule_type = None
+            cam.recording_schedule_type = new_schedule_type
                 
             db_session.add(cam)
             
         db_session.commit()
+
+        # Send combined alert for all recording changes on this NVR
+        if alert_lines:
+            group_name = ""
+            if nvr_group_id:
+                grp = db_session.get(NVRGroup, nvr_group_id)
+                group_name = f" [{grp.name}]" if grp else ""
+            title = f"تغییرات تنظیمات ضبط — {nvr_name}{group_name}"
+            send_change_alert(title, alert_lines, alert_type="warning", group_id=nvr_group_id)
+
     except Exception as outer_err:
         logger.warning(f"Error syncing recording schedule config for NVR {ip}: {outer_err}")
     finally:

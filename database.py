@@ -69,6 +69,17 @@ class Camera(SQLModel, table=True):
     recording_hours_24h: Optional[float] = None
     stats_last_updated: Optional[datetime] = None
 
+class CameraChangeEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nvr_ip: str = Field(index=True)
+    camera_name: Optional[str] = None
+    camera_channel_id: Optional[str] = None
+    change_type: str  # "camera_added" | "camera_removed" | "recording_changed"
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    detected_at: datetime = Field(default_factory=datetime.now)
+    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
+
 class DowntimeEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     camera_id: int = Field(foreign_key="camera.id")
