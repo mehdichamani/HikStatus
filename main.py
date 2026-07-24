@@ -169,13 +169,13 @@ def seed_scheduled_tasks():
             ScheduledTask(
                 id="sync_nvr_configs",
                 name="همگام‌سازی ساختار ضبط NVRها",
-                description="دریافت و ذخیره ساختار ضبط و پایش وضعیت هر دوربین در NVR",
+                description="دریافت تنظیمات برنامه‌ریزی ضبط از NVR (شامل وضعیت روشن/خاموش بودن ضبط و نوع آن: مداوم یا بر اساس حرکت)",
                 interval=3600
             ),
             ScheduledTask(
                 id="sync_nvr_stats",
                 name="همگام‌سازی آمار ضبط NVRها",
-                description="دریافت و ذخیره حجم و ساعت ضبط دوربین‌ها از NVR",
+                description="جستجوی فایل‌های ویدئویی روی هارد NVR جهت محاسبه حجم کل داده‌ها، تاریخ بازه ویدیوها و مجموع ساعات ضبط",
                 interval=7200
             ),
             ScheduledTask(
