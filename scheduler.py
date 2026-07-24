@@ -5,8 +5,8 @@ import time
 from typing import Optional
 from sqlmodel import Session, select
 from database import engine, ScheduledTask, Log
+from logging_config import logger, log_event
 from monitor import task_ping_cameras, task_sync_camera_names, task_sync_nvr_configs, task_sync_nvr_stats, task_cleanup_database, task_capture_camera_snapshots, task_analyze_outages, broadcast
-from loguru import logger
 
 TASK_FUNCTIONS = {
     "ping_cameras": task_ping_cameras,
@@ -168,7 +168,7 @@ class TaskScheduler:
                         details_str = f"پایان اجرای تسک {db_task.name} ({status_fa})"
                         if error_msg:
                             details_str += f" - خطای سیستم: {error_msg}"
-                        session.add(Log(log_type="Task", state=status_str, details=details_str))
+                        log_event(session, category="Task", action=f"TASK_{status_str.upper()}", details=details_str, level="WARNING" if status_str=="Cancelled" else "ERROR", target_type="Task", target_id=db_task.id)
                     
                     session.commit()
             self.active_tasks.pop(task_id, None)

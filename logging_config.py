@@ -45,3 +45,59 @@ def setup_logging():
 
 # Initialize logging when module is imported
 logger = setup_logging()
+
+def log_event(
+    session=None,
+    category: str = "System",
+    action: str = "EVENT",
+    details: str = "",
+    level: str = "INFO",
+    actor_username: Optional[str] = "system",
+    actor_ip: Optional[str] = None,
+    group_id: Optional[int] = None,
+    target_type: Optional[str] = None,
+    target_id: Optional[str] = None
+):
+    """
+    Centralized logging function. Log to terminal/files via loguru
+    and persist structured audit log to database if session is provided.
+    """
+    from typing import Optional
+    from database import Log
+
+    # 1. Terminal / File logging (loguru)
+    msg = f"[{category}:{action}] {details}"
+    if actor_username and actor_username != "system":
+        msg = f"[{actor_username}@{actor_ip or 'local'}] " + msg
+        
+    lvl = (level or "INFO").upper()
+    if lvl in ("ERROR", "CRITICAL"):
+        logger.error(msg)
+    elif lvl == "WARNING":
+        logger.warning(msg)
+    elif lvl == "DEBUG":
+        logger.debug(msg)
+    else:
+        logger.info(msg)
+
+    # 2. Database persistence
+    if session is not None:
+        try:
+            log_record = Log(
+                category=category,
+                level=lvl,
+                action=action,
+                actor_username=actor_username or "system",
+                actor_ip=actor_ip,
+                group_id=group_id,
+                target_type=target_type,
+                target_id=str(target_id) if target_id is not None else None,
+                details=details,
+                log_type=category,
+                state=action or lvl
+            )
+            session.add(log_record)
+            session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to persist log_event to DB: {e}")
+

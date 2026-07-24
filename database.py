@@ -107,10 +107,19 @@ class OutageCause(SQLModel, table=True):
 
 class Log(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    timestamp: datetime = Field(default_factory=datetime.now)
-    log_type: str
-    state: str
+    timestamp: datetime = Field(default_factory=datetime.now, index=True)
+    category: str = Field(default="System", index=True)
+    level: str = Field(default="INFO", index=True)
+    action: Optional[str] = Field(default=None, index=True)
+    actor_username: Optional[str] = Field(default="system", index=True)
+    actor_ip: Optional[str] = None
+    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id", index=True)
+    target_type: Optional[str] = None
+    target_id: Optional[str] = None
     details: str
+    log_type: Optional[str] = Field(default=None)
+    state: Optional[str] = Field(default=None)
+
 
 class Settings(SQLModel, table=True):
     key: str = Field(primary_key=True)
@@ -674,10 +683,47 @@ def rollback_014_add_outage_cause(conn: sqlite3.Connection):
 
 
 # ---------------------------------------------------------------------------
+# Migration 015 – Log table upgrade for audit system
+# ---------------------------------------------------------------------------
+
+def migration_015_upgrade_log_table(conn: sqlite3.Connection):
+    """Upgrade log table with structured audit fields."""
+    cols = _get_columns(conn, "log")
+    additions = {
+        "category": "TEXT DEFAULT 'System'",
+        "level": "TEXT DEFAULT 'INFO'",
+        "action": "TEXT",
+        "actor_username": "TEXT DEFAULT 'system'",
+        "actor_ip": "TEXT",
+        "group_id": "INTEGER",
+        "target_type": "TEXT",
+        "target_id": "TEXT",
+        "log_type": "TEXT",
+        "state": "TEXT",
+    }
+    for name, dtype in additions.items():
+        if name not in cols:
+            conn.execute(f"ALTER TABLE log ADD COLUMN {name} {dtype}")
+            logger.info(f"[migration 015] Added column {name} to log")
+
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_log_timestamp ON log (timestamp)")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_log_category ON log (category)")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_log_level ON log (level)")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_log_action ON log (action)")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_log_group_id ON log (group_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_log_actor_username ON log (actor_username)")
+    conn.commit()
+
+
+def rollback_015_upgrade_log_table(conn: sqlite3.Connection):
+    logger.info("[rollback 015] Skipped (SQLite does not support DROP COLUMN)")
+
+
+# ---------------------------------------------------------------------------
 # Migration registry
 # ---------------------------------------------------------------------------
 
-CURRENT_MIGRATION_VERSION = 14
+CURRENT_MIGRATION_VERSION = 15
 
 
 MIGRATIONS = {
@@ -695,6 +741,7 @@ MIGRATIONS = {
     12: ("add_user_2fa_fields", migration_012_add_user_2fa_fields),
     13: ("add_outage_explanation", migration_013_add_outage_explanation),
     14: ("add_outage_cause", migration_014_add_outage_cause),
+    15: ("upgrade_log_table", migration_015_upgrade_log_table),
 }
 
 ROLLBACKS = {
@@ -712,6 +759,7 @@ ROLLBACKS = {
     12: rollback_012_add_user_2fa_fields,
     13: rollback_013_add_outage_explanation,
     14: rollback_014_add_outage_cause,
+    15: rollback_015_upgrade_log_table,
 }
 
 

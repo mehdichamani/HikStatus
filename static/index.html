@@ -819,12 +819,12 @@
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
-                            <h3>لاگ‌های سیستم</h3>
+                            <h3>لاگ‌های سیستم و حسابرسی (Audit Logs)</h3>
                         </div>
                         <div class="panel-row"
                             style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; display: flex; gap: 20px;">
                             <aside class="panel-side"
-                                style="width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; background: transparent; padding: 0; border: none; box-shadow: none;">
+                                style="width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; background: transparent; padding: 0; border: none; box-shadow: none;">
                                 <div class="search-box"
                                     style="margin: 0; width: 100%; display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--border); padding: 8px 12px; border-radius: var(--radius-sm);">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -835,17 +835,39 @@
                                     <input id="logSearch" placeholder="جستجو..." onkeyup="delayLogSearch()"
                                         style="background: transparent; border: none; color: var(--text); outline: none; width: 100%; font-family: inherit; font-size: 13px;">
                                 </div>
-                                <div class="filter-chips" style="display: flex; flex-direction: column; gap: 6px;">
-                                    <button class="chip active" onclick="setFilter(this, '')"
-                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">همه</button>
-                                    <button class="chip" onclick="setFilter(this, 'Camera')"
-                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">دوربین</button>
-                                    <button class="chip" onclick="setFilter(this, 'NVR')"
-                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">NVR</button>
-                                    <button class="chip" onclick="setFilter(this, 'Telegram')"
-                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">تلگرام</button>
-                                    <button class="chip" onclick="setFilter(this, 'Mail')"
-                                        style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">ایمیل</button>
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">سطح لاگ:</label>
+                                    <select id="logLevelSelect" onchange="setLogLevelFilter(this.value)"
+                                        style="background: var(--surface-2); color: var(--text); border: 1px solid var(--border); padding: 7px 10px; border-radius: var(--radius-sm); font-family: inherit; font-size: 13px; outline: none; cursor: pointer;">
+                                        <option value="all">همه سطوح</option>
+                                        <option value="INFO">اطلاعات (INFO)</option>
+                                        <option value="WARNING">هشدار (WARNING)</option>
+                                        <option value="ERROR">خطا (ERROR)</option>
+                                        <option value="CRITICAL">بحرانی (CRITICAL)</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">دسته‌بندی:</label>
+                                    <div class="filter-chips" style="display: flex; flex-direction: column; gap: 6px;">
+                                        <button class="chip active" onclick="setFilter(this, '')"
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">همه</button>
+                                        <button class="chip" onclick="setFilter(this, 'Security')"
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">🔒 امنیتی</button>
+                                        <button class="chip" onclick="setFilter(this, 'Camera')"
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">📹 دوربین‌ها</button>
+                                        <button class="chip" onclick="setFilter(this, 'NVR')"
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">🖥️ دستگاه‌های NVR</button>
+                                        <button class="chip" onclick="setFilter(this, 'User')"
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">👥 کاربران</button>
+                                        <button class="chip" onclick="setFilter(this, 'Config')"
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">⚙️ تنظیمات سیستم</button>
+                                        <button class="chip" onclick="setFilter(this, 'Task')"
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">⏱️ تسک‌ها</button>
+                                        <button class="chip" onclick="setFilter(this, 'Alert')"
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">🔔 هشدارها</button>
+                                        <button class="chip" onclick="setFilter(this, 'System')"
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">💻 سیستمی</button>
+                                    </div>
                                 </div>
                             </aside>
                             <div class="panel-main" id="logScroll"
@@ -854,8 +876,9 @@
                                     <thead>
                                         <tr>
                                             <th>زمان</th>
-                                            <th>نوع</th>
-                                            <th>وضعیت</th>
+                                            <th>دسته / سطح</th>
+                                            <th>عامل (کاربر/IP)</th>
+                                            <th>رویداد</th>
                                             <th>جزئیات</th>
                                         </tr>
                                     </thead>

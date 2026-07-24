@@ -1404,6 +1404,13 @@ function delayLogSearch() {
     }, 500);
 }
 
+let logLevelFilter = 'all';
+
+function setLogLevelFilter(val) {
+    logLevelFilter = val;
+    resetLogs();
+}
+
 function setFilter(btn, val) {
     document.querySelectorAll('.filter-chips .chip').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -1443,7 +1450,12 @@ async function fetchLogs() {
     loading = true;
     document.getElementById('logLoader').classList.remove('hidden');
 
-    const res = await apiFetch(`${API}/logs?q=${logFilter || logSearchVal}&limit=30&offset=${logOff}`);
+    let url = `${API}/logs?limit=30&offset=${logOff}`;
+    if (logFilter) url += `&category=${encodeURIComponent(logFilter)}`;
+    if (logLevelFilter && logLevelFilter !== 'all') url += `&level=${encodeURIComponent(logLevelFilter)}`;
+    if (logSearchVal) url += `&q=${encodeURIComponent(logSearchVal)}`;
+
+    const res = await apiFetch(url);
     const logs = await res.json();
 
     if (logs.length < 30) allLoaded = true;
@@ -1451,12 +1463,30 @@ async function fetchLogs() {
     document.getElementById('log-list').insertAdjacentHTML('beforeend', logs.map(l => {
         let detail = translateLogDetails(l.details);
         if (detail.includes('mins')) detail = `<span class="downtime-tag">${detail.match(/\d+m/)}</span> ` + detail;
-        const cls = ['Error', 'Failed', 'Offline'].includes(l.state) ? 'status-danger' : 'status-success';
+
+        const level = (l.level || 'INFO').toUpperCase();
+        let levelCls = 'status-success';
+        if (['ERROR', 'CRITICAL', 'FAILED', 'OFFLINE', 'AUTHERROR'].includes(level) || ['Error', 'Failed', 'Offline', 'AuthError'].includes(l.state)) {
+            levelCls = 'status-danger';
+        } else if (level === 'WARNING' || level === 'CHANGED') {
+            levelCls = 'status-warning';
+        }
+
+        const category = l.category || l.log_type || 'System';
+        const action = l.action || l.state || level;
+        const actor = (l.actor_username && l.actor_username !== 'system') 
+            ? `<span style="font-weight:600; color:var(--primary);">${l.actor_username}</span>` + (l.actor_ip ? ` <span style="font-size:11px; color:var(--text-muted);">(${l.actor_ip})</span>` : '')
+            : `<span style="color:var(--text-muted); font-size:12px;">سیستم</span>`;
+
         return `<tr>
-            <td style="white-space:nowrap">${l.shamsi_date}</td>
-            <td style="font-weight:600; font-size:12px">${l.log_type}</td>
-            <td class="${cls}">${l.state}</td>
-            <td>${detail}</td>
+            <td style="white-space:nowrap; font-size:12px;">${l.shamsi_date}</td>
+            <td style="white-space:nowrap;">
+                <span class="chip" style="font-size:11px; padding:2px 8px; border-radius:10px;">${category}</span>
+                <span class="${levelCls}" style="font-weight:600; font-size:11px; margin-right:4px;">${level}</span>
+            </td>
+            <td style="white-space:nowrap;">${actor}</td>
+            <td style="white-space:nowrap; font-weight:600; font-size:12px; color:var(--text);">${action}</td>
+            <td style="font-size:13px; line-height:1.4;">${detail}</td>
         </tr>`;
     }).join(''));
 

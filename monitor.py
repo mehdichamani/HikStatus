@@ -10,7 +10,8 @@ from requests.auth import HTTPDigestAuth
 from sqlmodel import Session, select
 from database import engine, NVR, NVRGroup, Camera, CameraChangeEvent, Log, Settings, DowntimeEvent, UserSession
 from alerts import send_email_batch, send_telegram_batch, send_change_alert
-from loguru import logger
+from logging_config import logger, log_event
+
 
 _XML_STREAM_THRESHOLD = 1_000_000  # 1MB
 
@@ -133,7 +134,7 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
                     new_value=f"{cam_name} ({cam_ip})",
                     group_id=nvr_group_id
                 ))
-                log_event(db_session, "CameraChange", "Added", f"دوربین جدید {cam_name} ({cam_ip}) به {nvr_name} اضافه شد")
+                log_event(db_session, category="Camera", action="CAMERA_ADDED", details=f"دوربین جدید {cam_name} ({cam_ip}) به {nvr_name} اضافه شد", level="INFO", group_id=nvr_group_id, target_type="Camera", target_id=cam_ip)
                 alert_lines.append(f"➕ دوربین جدید: {cam_name} ({cam_ip}) — کانال {chan_id}")
                 logger.info(f"New camera detected on {nvr_name}: {cam_name} ({cam_ip}) CH {chan_id}")
             
@@ -147,7 +148,7 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
                     old_value=f"{cam_name} ({cam_ip})",
                     group_id=nvr_group_id
                 ))
-                log_event(db_session, "CameraChange", "Removed", f"دوربین {cam_name} ({cam_ip}) از {nvr_name} حذف شد")
+                log_event(db_session, category="Camera", action="CAMERA_REMOVED", details=f"دوربین {cam_name} ({cam_ip}) از {nvr_name} حذف شد", level="WARNING", group_id=nvr_group_id, target_type="Camera", target_id=cam_ip)
                 alert_lines.append(f"➖ دوربین حذف‌شده: {cam_name} ({cam_ip}) — کانال {chan_id}")
                 logger.info(f"Camera removed from {nvr_name}: {cam_name} ({cam_ip}) CH {chan_id}")
             
@@ -170,13 +171,6 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
     finally:
         if is_local_session:
             db_session.close()
-
-def log_event(session, l_type, state, details):
-    try:
-        session.add(Log(log_type=l_type, state=state, details=details))
-        session.commit() 
-    except Exception as e:
-        logger.warning(f"Failed to log event: {e}")
 
 def cleanup_old_data(session, days=90):
     try:
@@ -308,7 +302,7 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
 
     if not is_failed:
         if nvr_obj.status == "Offline":
-            log_event(session, "NVR", "Online", f"اتصال مجدد {nvr_name} برقرار شد")
+            log_event(session, category="NVR", action="NVR_ONLINE", details=f"اتصال مجدد {nvr_name} برقرار شد", level="INFO", group_id=nvr_obj.group_id, target_type="NVR", target_id=nvr_obj.ip)
             await broadcast({
                 "type": "alert",
                 "title": "اتصال مجدد NVR",
@@ -346,7 +340,7 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
     if nvr_obj.status != "Offline":
         nvr_obj.status = "Offline"
         nvr_obj.last_online = nvr_obj.last_online or now
-        log_event(session, "NVR", "Offline", error_message)
+        log_event(session, category="NVR", action="NVR_OFFLINE", details=error_message, level="ERROR", group_id=nvr_obj.group_id, target_type="NVR", target_id=nvr_obj.ip)
         await broadcast({
             "type": "alert",
             "title": "خطای اتصال NVR",
@@ -568,8 +562,7 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                         new_value=f"ضبط: {new_label}",
                         group_id=nvr_group_id
                     ))
-                    log_event(db_session, "RecordingChange", "Changed",
-                              f"وضعیت ضبط {cam.name} تغییر کرد: {old_label} → {new_label}")
+                    log_event(db_session, category="Camera", action="RECORDING_CHANGE", details=f"وضعیت ضبط {cam.name} تغییر کرد: {old_label} → {new_label}", level="WARNING", group_id=nvr_group_id, target_type="Camera", target_id=cam.id)
                     alert_lines.append(f"🔄 {cam.name}: ضبط {old_label} → {new_label}")
                     logger.info(f"Recording state changed for {cam.name} on {nvr_name}: {old_label} -> {new_label}")
 
@@ -584,8 +577,7 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                         new_value=new_schedule_type,
                         group_id=nvr_group_id
                     ))
-                    log_event(db_session, "RecordingChange", "Changed",
-                              f"نوع ضبط {cam.name} تغییر کرد: {old_type} → {new_schedule_type}")
+                    log_event(db_session, category="Camera", action="RECORDING_CHANGE", details=f"نوع ضبط {cam.name} تغییر کرد: {old_type} → {new_schedule_type}", level="WARNING", group_id=nvr_group_id, target_type="Camera", target_id=cam.id)
                     alert_lines.append(f"🔄 {cam.name}: نوع ضبط {old_type} → {new_schedule_type}")
                     logger.info(f"Recording type changed for {cam.name} on {nvr_name}: {old_type} -> {new_schedule_type}")
 
@@ -790,7 +782,7 @@ async def task_ping_cameras():
                 nvr_label = f"{nvr_obj.name} ({nvr_obj.ip})" if nvr_obj.name else f"NVR {nvr_obj.ip}"
                 error_message = f"خطای احراز هویت: رمز عبور نامعتبر است برای {nvr_label}"
                 nvr_obj.status = "AuthError"
-                log_event(session, "NVR", "AuthError", error_message)
+                log_event(session, category="NVR", action="NVR_AUTH_ERROR", details=error_message, level="ERROR", group_id=nvr_obj.group_id, target_type="NVR", target_id=nvr_obj.ip)
                 await broadcast({
                     "type": "alert",
                     "title": "خطای احراز هویت NVR",
@@ -801,7 +793,7 @@ async def task_ping_cameras():
                 offline_cams = session.exec(select(Camera).where(Camera.nvr_ip == nvr_obj.ip)).all()
                 for cam in offline_cams:
                     if cam.status != "Offline":
-                        log_event(session, "Camera", "Offline", f"{cam.name} ({cam.ip}) - خطای احراز هویت NVR")
+                        log_event(session, category="Camera", action="CAMERA_OFFLINE", details=f"{cam.name} ({cam.ip}) - خطای احراز هویت NVR", level="ERROR", group_id=nvr_obj.group_id, target_type="Camera", target_id=cam.id)
                         cam.status = "Offline"
                         open_evt = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id, DowntimeEvent.end_time == None)).first()
                         if not open_evt:
@@ -818,7 +810,7 @@ async def task_ping_cameras():
                 offline_cams = session.exec(select(Camera).where(Camera.nvr_ip == nvr_obj.ip)).all()
                 for cam in offline_cams:
                     if cam.status != "Offline":
-                        log_event(session, "Camera", "Offline", f"{cam.name} ({cam.ip}) - قطع ارتباط با NVR")
+                        log_event(session, category="Camera", action="CAMERA_OFFLINE", details=f"{cam.name} ({cam.ip}) - قطع ارتباط با NVR", level="ERROR", group_id=nvr_obj.group_id, target_type="Camera", target_id=cam.id)
                         cam.status = "Offline"
                         open_evt = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id, DowntimeEvent.end_time == None)).first()
                         if not open_evt:
@@ -848,7 +840,7 @@ async def task_ping_cameras():
                     if db_cam.ip != d['ip']: db_cam.ip = d['ip']
                     
                     if db_cam.status != new_status:
-                        log_event(session, "Camera", new_status, f"{db_cam.name} ({db_cam.ip})")
+                        log_event(session, category="Camera", action=f"CAMERA_{new_status.upper()}", details=f"{db_cam.name} ({db_cam.ip})", level="INFO" if new_status=="Online" else "WARNING", group_id=nvr_obj.group_id, target_type="Camera", target_id=db_cam.id)
                         await broadcast({
                             "type": "alert",
                             "title": f"تغییر وضعیت: {db_cam.name}",
@@ -886,7 +878,7 @@ async def task_ping_cameras():
                 res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها قطع شدند", t_alerts, "warning", gid)
                 is_ok = res is True
                 status_txt = "با موفقیت انجام شد" if is_ok else "با خطا مواجه شد"
-                log_event(session, "Telegram", "Sent" if is_ok else "Failed", f"ارسال {len(t_alerts)} هشدار تلگرام برای گروه {gid} {status_txt}")
+                log_event(session, category="Alert", action="TELEGRAM_ALERT", details=f"ارسال {len(t_alerts)} هشدار تلگرام برای گروه {gid} {status_txt}", level="INFO" if is_ok else "ERROR", group_id=gid)
                 if not is_ok:
                     await broadcast({
                         "type": "alert",
@@ -907,7 +899,7 @@ async def task_ping_cameras():
                 res = await asyncio.to_thread(send_email_batch, "دوربین‌ها قطع شدند", m_alerts, "warning", gid)
                 is_ok = res is True
                 status_txt = "با موفقیت انجام شد" if is_ok else "با خطا مواجه شد"
-                log_event(session, "Mail", "Sent" if is_ok else "Failed", f"ارسال {len(m_alerts)} هشدار ایمیل برای گروه {gid} {status_txt}")
+                log_event(session, category="Alert", action="MAIL_ALERT", details=f"ارسال {len(m_alerts)} هشدار ایمیل برای گروه {gid} {status_txt}", level="INFO" if is_ok else "ERROR", group_id=gid)
                 if not is_ok:
                     await broadcast({
                         "type": "alert",
@@ -925,10 +917,11 @@ async def task_ping_cameras():
                         "alert_type": "warning"
                     })
 
+        # Check hourly downtime summary
         now = datetime.now()
-        if now.minute == 0 and now.hour != last_summary_hour:
-            hour_start = now.replace(minute=0, second=0, microsecond=0)
+        if last_summary_hour != now.hour:
             summary_lines = []
+            hour_start = now.replace(minute=0, second=0, microsecond=0)
             for c in cams_processed:
                 if c.status == "Offline":
                     offline_since = c.last_online or now
@@ -1161,7 +1154,7 @@ async def task_analyze_outages(override_now: Optional[datetime] = None):
 async def start_monitor_loop():
     logger.info("Monitor loop started (via scheduler)...")
     with Session(engine) as session:
-        log_event(session, "Service", "Started", "راه‌اندازی سرویس مانیتورینگ (توسط زمان‌بند)")
+        log_event(session, category="System", action="SERVICE_STARTED", details="راه‌اندازی سرویس مانیتورینگ (توسط زمان‌بند)", level="INFO")
     from scheduler import scheduler
     try:
         await scheduler.start()

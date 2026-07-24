@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlmodel import Session, select, col
 from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, OutageExplanation, OutageCause, User, UserAlertSettings, UserSession, MapPlan, ScheduledTask, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
+from logging_config import logger, log_event
 from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
 from scheduler import scheduler
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
@@ -475,6 +476,7 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         db.add(session_record)
         db.commit()
         
+        log_event(db, category="Security", action="LOGIN_SUCCESS", details=f"ورود موفق کاربر مدیر ({payload.username})", level="INFO", actor_username=payload.username, actor_ip=client_ip)
         response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "role": "admin", "password_is_plain": password_is_plain}
 
@@ -513,9 +515,11 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Sessi
         db.add(session_record)
         db.commit()
         
+        log_event(db, category="Security", action="LOGIN_SUCCESS", details=f"ورود موفق کاربر ({db_user.username})", level="INFO", actor_username=db_user.username, actor_ip=client_ip, group_id=db_user.group_id)
         response.set_cookie(key="session_token", value=token, httponly=True, secure=True, samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "role": db_user.role, "group_id": db_user.group_id}
 
+    log_event(db, category="Security", action="LOGIN_FAILED", details=f"تلاش ناموفق برای ورود با نام کاربری ({payload.username})", level="WARNING", actor_username=payload.username, actor_ip=client_ip)
     raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
 
 @app.post("/api/auth/login/2fa")
@@ -691,6 +695,7 @@ def logout(request: Request, response: Response, db: Session = Depends(get_sessi
     if token:
         session_record = db.exec(select(UserSession).where(UserSession.token == token)).first()
         if session_record:
+            log_event(db, category="Security", action="LOGOUT", details=f"خروج کاربر ({session_record.username})", level="INFO", actor_username=session_record.username, actor_ip=request.client.host if request.client else None)
             db.delete(session_record)
             db.commit()
     response.delete_cookie("session_token")
@@ -804,6 +809,7 @@ async def stop_task_immediately(task_id: str, user: dict = Depends(require_auth)
 
 @app.post("/api/data/purge", dependencies=[Depends(require_admin)])
 async def purge_database(session: Session = Depends(get_session)):
+    log_event(session, category="System", action="DATABASE_PURGE", details="دیتابیس سیستم به تنظیمات اولیه ریست شد", level="CRITICAL", actor_username="admin")
     seed_database(session)
     invalidate_config_cache()
     await restart_monitor()
@@ -856,6 +862,8 @@ async def restore_database(request: Request, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"خطا در بازیابی: {e}")
     invalidate_config_cache()
     await restart_monitor()
+    with Session(engine) as session:
+        log_event(session, category="System", action="DATABASE_RESTORE", details="فایل پشتیبان دیتابیس بازیابی گردید", level="CRITICAL", actor_username="admin")
     return {"status": "ok"}
 
 
@@ -1110,6 +1118,7 @@ def create_nvr(nvr: NVR, session: Session = Depends(get_session), user: dict = D
         nvr.password = encrypt_password(nvr.password)
     session.add(nvr)
     session.commit()
+    log_event(session, category="NVR", action="NVR_CREATE", details=f"دستگاه NVR جدید ({nvr.name or nvr.ip}) ایجاد شد", level="INFO", actor_username=user.get("username","admin"), group_id=nvr.group_id, target_type="NVR", target_id=nvr.ip)
     return nvr
 
 @app.delete("/api/nvrs/{ip}")
@@ -1117,6 +1126,8 @@ def delete_nvr(ip: str, session: Session = Depends(get_session), user: dict = De
     nvr = session.get(NVR, ip)
     if not nvr:
         raise HTTPException(status_code=404, detail="NVR not found")
+    n_name = nvr.name or ip
+    g_id = nvr.group_id
     cams = session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
     for cam in cams:
         downtimes = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id)).all()
@@ -1125,6 +1136,7 @@ def delete_nvr(ip: str, session: Session = Depends(get_session), user: dict = De
         session.delete(cam)
     session.delete(nvr)
     session.commit()
+    log_event(session, category="NVR", action="NVR_DELETE", details=f"دستگاه NVR ({n_name}) حذف شد", level="WARNING", actor_username=user.get("username","admin"), group_id=g_id, target_type="NVR", target_id=ip)
     return {"ok": True}
 
 @app.put("/api/nvrs/{ip}")
@@ -1155,6 +1167,7 @@ def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: 
         n.status = "Unknown"
     session.add(n)
     session.commit()
+    log_event(session, category="NVR", action="NVR_UPDATE", details=f"تنظیمات NVR ({n.name or ip}) بروزرسانی گردید", level="INFO", actor_username=user.get("username","admin"), group_id=n.group_id, target_type="NVR", target_id=ip)
     return n
 
 @app.get("/api/groups", response_model=list[NVRGroup])
@@ -1170,6 +1183,7 @@ def get_groups(session: Session = Depends(get_session), user: dict = Depends(req
 def create_group(group: NVRGroup, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
     session.add(group)
     session.commit()
+    log_event(session, category="Config", action="GROUP_CREATE", details=f"گروه/کارخانه جدید ({group.name}) ایجاد شد", level="INFO", actor_username=user.get("username","admin"), group_id=group.id, target_type="Group", target_id=group.id)
     return group
 
 @app.put("/api/groups/{id}")
@@ -1189,6 +1203,7 @@ def update_group(id: int, p: dict, session: Session = Depends(get_session), user
         g.map_zoom = int(p["map_zoom"]) if p["map_zoom"] is not None else None
     session.add(g)
     session.commit()
+    log_event(session, category="Config", action="GROUP_UPDATE", details=f"اطلاعات گروه/کارخانه ({g.name}) ویرایش شد", level="INFO", actor_username=user.get("username","admin"), group_id=g.id, target_type="Group", target_id=g.id)
     return g
 
 @app.delete("/api/groups/{id}")
@@ -1196,6 +1211,7 @@ def delete_group(id: int, session: Session = Depends(get_session), user: dict = 
     g = session.get(NVRGroup, id)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
+    g_name = g.name
     nvrs = session.exec(select(NVR).where(NVR.group_id == id)).all()
     for n in nvrs:
         n.group_id = None
@@ -1211,6 +1227,7 @@ def delete_group(id: int, session: Session = Depends(get_session), user: dict = 
         session.delete(plan)
     session.delete(g)
     session.commit()
+    log_event(session, category="Config", action="GROUP_DELETE", details=f"گروه/کارخانه ({g_name}) حذف شد", level="WARNING", actor_username=user.get("username","admin"), target_type="Group", target_id=id)
     return {"ok": True}
 
 @app.get("/api/groups/{id}/plans")
@@ -1710,27 +1727,73 @@ def update_setting(key: str, p: Settings, session: Session = Depends(get_session
     s = session.get(Settings, key)
     if not s:
         raise HTTPException(status_code=404, detail="Setting not found")
+    old_val = s.value
     s.value = p.value
     session.add(s)
     session.commit()
+    log_event(session, category="Config", action="SETTING_UPDATE", details=f"تنظیم سیستم '{key}' از '{old_val}' به '{p.value}' تغییر یافت", level="WARNING", actor_username=user.get("username", "admin"), target_type="Setting", target_id=key)
     invalidate_config_cache()
     return s
 
 
 @app.get("/api/logs")
-def search_logs(q: str = None, limit: int = 50, offset: int = 0, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
-    query = select(Log).order_by(Log.timestamp.desc()).offset(offset).limit(limit)
-    if q: 
-        if q in ['Camera','NVR','Telegram','Mail','Service']: query = query.where(col(Log.log_type) == q)
-        else: query = query.where(col(Log.details).contains(q) | col(Log.log_type).contains(q))
+def search_logs(
+    q: Optional[str] = None,
+    category: Optional[str] = None,
+    level: Optional[str] = None,
+    action: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    session: Session = Depends(get_session),
+    user: dict = Depends(require_auth)
+):
+    query = select(Log)
+    
+    # Permission filtering
+    if user["role"] != "admin":
+        accessible_groups = get_user_accessible_groups(user, session)
+        if accessible_groups is not None:
+            query = query.where((col(Log.group_id).in_(accessible_groups)) | (col(Log.actor_username) == user["username"]))
+        elif user.get("group_id") is not None:
+            query = query.where((col(Log.group_id) == user["group_id"]) | (col(Log.actor_username) == user["username"]))
+        else:
+            query = query.where(col(Log.actor_username) == user["username"])
+            
+    # Filter by Category
+    if category and category != 'all':
+        query = query.where(col(Log.category) == category)
+    elif q and q in ['Security', 'Camera', 'NVR', 'User', 'Config', 'Task', 'Alert', 'System']:
+        query = query.where(col(Log.category) == q)
+        
+    # Filter by Level
+    if level and level != 'all':
+        query = query.where(col(Log.level) == level.upper())
+        
+    # Filter by Action
+    if action and action != 'all':
+        query = query.where(col(Log.action) == action)
+        
+    # Free-text search (q)
+    if q and q not in ['Security', 'Camera', 'NVR', 'User', 'Config', 'Task', 'Alert', 'System']:
+        pattern = f"%{q}%"
+        query = query.where(
+            col(Log.details).like(pattern) |
+            col(Log.action).like(pattern) |
+            col(Log.actor_username).like(pattern) |
+            col(Log.actor_ip).like(pattern) |
+            col(Log.category).like(pattern)
+        )
+        
+    query = query.order_by(Log.timestamp.desc()).offset(offset).limit(limit)
     logs = session.exec(query).all()
     
     output = []
     for l in logs:
         shamsi = format_shamsi_datetime(l.timestamp)
-        
         item = l.model_dump()
         item['shamsi_date'] = shamsi
+        item['log_type'] = l.category or l.log_type or "System"
+        item['state'] = l.action or l.level or l.state or "INFO"
         output.append(item)
     return output
 
@@ -2046,6 +2109,7 @@ def create_user(payload: UserCreate, session: Session = Depends(get_session), us
     session.add(alert_settings)
     session.commit()
     
+    log_event(session, category="User", action="USER_CREATE", details=f"کاربر جدید ({payload.username}) با نقش '{payload.role}' ایجاد شد", level="INFO", actor_username=user.get("username","admin"), group_id=payload.group_id, target_type="User", target_id=db_user.id)
     return db_user
 
 @app.put("/api/users/{id}")
@@ -2071,6 +2135,7 @@ def update_user(id: int, payload: UserUpdate, session: Session = Depends(get_ses
         
     session.add(db_user)
     session.commit()
+    log_event(session, category="User", action="USER_UPDATE", details=f"حساب کاربر ({db_user.username}) ویرایش شد", level="INFO", actor_username=user.get("username","admin"), group_id=db_user.group_id, target_type="User", target_id=db_user.id)
     return db_user
 
 @app.delete("/api/users/{id}")
@@ -2079,12 +2144,15 @@ def delete_user(id: int, session: Session = Depends(get_session), user: dict = D
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
         
+    u_name = db_user.username
+    g_id = db_user.group_id
     alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == id)).first()
     if alert_settings:
         session.delete(alert_settings)
         
     session.delete(db_user)
     session.commit()
+    log_event(session, category="User", action="USER_DELETE", details=f"کاربر ({u_name}) حذف گردید", level="WARNING", actor_username=user.get("username","admin"), group_id=g_id, target_type="User", target_id=id)
     return {"ok": True}
 
 class AlertSettingsUpdate(BaseModel):
