@@ -4220,6 +4220,20 @@ function displayPersianDateTime(isoStr) {
     }
 }
 
+function parseIntervalToUnit(seconds) {
+    if (!seconds || seconds <= 0) return { val: 1, unit: 60 };
+    if (seconds >= 86400 && seconds % 86400 === 0) {
+        return { val: seconds / 86400, unit: 86400 };
+    }
+    if (seconds >= 3600 && seconds % 3600 === 0) {
+        return { val: seconds / 3600, unit: 3600 };
+    }
+    if (seconds >= 60 && seconds % 60 === 0) {
+        return { val: seconds / 60, unit: 60 };
+    }
+    return { val: seconds, unit: 1 };
+}
+
 function formatInterval(seconds) {
     if (!seconds || seconds <= 0) return '-';
     const units = [
@@ -4322,13 +4336,22 @@ function renderScheduledTasks() {
                         <div class="task-card-interval">
                             ${t.id === 'analyze_outages' ? `
                                 <span class="task-card-value" style="color: var(--text-muted); font-size: 12px;">وابسته به تنظیمات بررسی قطعی‌ها</span>
-                            ` : `
+                            ` : (() => {
+                                const p = parseIntervalToUnit(t.interval);
+                                return `
                                 <span class="task-card-value">${formatInterval(t.interval)}</span>
-                                <div class="task-card-interval-edit">
-                                    <input type="number" id="interval-input-${t.id}" class="form-input" style="width: 80px; padding: 4px 8px; font-size: 12px; text-align: center;" value="${t.interval}">
+                                <div class="task-card-interval-edit" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                    <input type="number" id="interval-val-${t.id}" class="form-input" style="width: 65px; padding: 4px 6px; font-size: 12px; text-align: center;" value="${p.val}" min="1">
+                                    <select id="interval-unit-${t.id}" class="form-input" style="padding: 4px 6px; font-size: 12px; width: 85px;">
+                                        <option value="1" ${p.unit === 1 ? 'selected' : ''}>ثانیه</option>
+                                        <option value="60" ${p.unit === 60 ? 'selected' : ''}>دقیقه</option>
+                                        <option value="3600" ${p.unit === 3600 ? 'selected' : ''}>ساعت</option>
+                                        <option value="86400" ${p.unit === 86400 ? 'selected' : ''}>روز</option>
+                                    </select>
                                     <button class="btn btn-sm" onclick="saveTaskInterval('${t.id}')" style="padding: 4px 10px; font-size: 11px; background: var(--surface-3); border: 1px solid var(--border);">ذخیره</button>
                                 </div>
-                            `}
+                                `;
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -4376,13 +4399,19 @@ async function stopTask(id) {
 }
 
 async function saveTaskInterval(id) {
-    const input = document.getElementById(`interval-input-${id}`);
-    if (!input) return;
-    const interval = parseInt(input.value);
-    if (isNaN(interval) || interval <= 0) {
-        showToast("دوره زمانی معتبر نیست", "error");
+    const valInput = document.getElementById(`interval-val-${id}`);
+    const unitSelect = document.getElementById(`interval-unit-${id}`);
+    if (!valInput || !unitSelect) return;
+    
+    const num = parseInt(valInput.value);
+    const unit = parseInt(unitSelect.value);
+    
+    if (isNaN(num) || num <= 0) {
+        showToast("مقدار دوره زمانی معتبر نیست", "error");
         return;
     }
+    
+    const interval = num * unit;
 
     try {
         const res = await apiFetch(`${API}/scheduler/tasks/${id}/interval`, {
