@@ -692,8 +692,17 @@ async function apply() {
         await apiFetch(`${API}/monitor/restart`, { method: 'POST' });
         showToast('تنظیمات با موفقیت ذخیره شد و مانیتورینگ ریستارت گردید', 'success');
         
-        // Reload settings and restore active tab in-place
-        const activeTab = document.querySelector('.settings-nav button.active')?.getAttribute('data-tab');
+        // Find currently visible tab by checking which card is displayed
+        const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
+        let activeTab = null;
+        for (const id of tabs) {
+            const el = document.getElementById(id);
+            if (el && el.style.display !== 'none' && el.style.display !== '') {
+                activeTab = id;
+                break;
+            }
+        }
+        // Reload settings and restore the same tab
         await loadSettings(activeTab);
     } catch (e) {
         showToast('خطا در ذخیره و اعمال تغییرات: ' + e.message, 'error');
