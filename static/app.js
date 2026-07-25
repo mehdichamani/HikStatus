@@ -17,7 +17,9 @@ async function apiFetch(url, options = {}) {
         return res;
     } catch (e) {
         console.error('API Error:', e);
-        setConnectionStatus(false);
+        if (e instanceof TypeError || e.message === 'Failed to fetch' || e.name === 'TypeError') {
+            setConnectionStatus(false);
+        }
         throw e;
     }
 }
@@ -5374,6 +5376,7 @@ function renderImportantCamerasWidget() {
 
 let dashChartStatusInstance = null;
 let dashChartCausesInstance = null;
+let lastCausesFetchTime = 0;
 
 function renderDashboardCharts() {
     if (typeof Chart === 'undefined') return;
@@ -5405,9 +5408,11 @@ function renderDashboardCharts() {
         });
     }
 
-    // Causes Chart
+    // Causes Chart - throttle fetch to max once every 15s
     const causesCanvas = document.getElementById('dash-chart-causes-canvas');
-    if (causesCanvas) {
+    const now = Date.now();
+    if (causesCanvas && (now - lastCausesFetchTime > 15000 || !dashChartCausesInstance)) {
+        lastCausesFetchTime = now;
         apiFetch(`${API}/reports/causes?period=30d`).then(async res => {
             const data = await res.json();
             if (!Array.isArray(data) || data.length === 0) return;

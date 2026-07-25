@@ -2103,6 +2103,35 @@ def get_reports_charts(start: float, end: float, session: Session = Depends(get_
         "trend_chart": trend_chart
     }
 
+@app.get("/api/reports/causes")
+def get_reports_causes(period: str = "30d", session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    days = 30
+    if period == "24h": days = 1
+    elif period == "7d": days = 7
+    elif period == "30d": days = 30
+
+    start_dt = datetime.now() - timedelta(days=days)
+    end_dt = datetime.now()
+
+    accessible_groups = get_user_accessible_groups(user, session)
+    explanations_query = select(OutageExplanation).where(
+        OutageExplanation.start_time >= start_dt,
+        OutageExplanation.start_time <= end_dt
+    )
+    if accessible_groups is not None:
+        explanations_query = explanations_query.where(OutageExplanation.group_id.in_(accessible_groups))
+
+    explanations = session.exec(explanations_query).all()
+    causes_count = {}
+    for o in explanations:
+        if o.explanation_type:
+            causes_count[o.explanation_type] = causes_count.get(o.explanation_type, 0) + 1
+
+    if not causes_count:
+        causes_count = {"قطعی برق": 0, "تعمیرات": 0, "حوادث عمرانی": 0, "مشکلات شبکه": 0}
+
+    return [{"cause": k, "count": v} for k, v in causes_count.items()]
+
 # --- User & Personal Alerts API ---
 class UserCreate(BaseModel):
     username: str
