@@ -2234,6 +2234,58 @@ async function logout() {
     window.location.href = '/login';
 }
 
+function toggleTheme() {
+    const root = document.documentElement;
+    const isLight = root.getAttribute('data-theme') === 'light';
+    const newTheme = isLight ? 'dark' : 'light';
+
+    if (newTheme === 'light') {
+        root.setAttribute('data-theme', 'light');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f8fafc');
+    } else {
+        root.removeAttribute('data-theme');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0a0a0f');
+    }
+
+    localStorage.setItem('hikstatus-theme', newTheme);
+    updateThemeIcon();
+}
+
+function updateThemeIcon() {
+    const btn = document.getElementById('btn-theme-toggle');
+    if (!btn) return;
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+
+    if (isLight) {
+        // Moon icon for switching to dark
+        btn.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        `;
+    } else {
+        // Sun icon for switching to light
+        btn.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        `;
+    }
+}
+
+// Call on load to set initial icon
+document.addEventListener('DOMContentLoaded', () => {
+    updateThemeIcon();
+});
+
 function toggleKiosk() {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch((err) => {
