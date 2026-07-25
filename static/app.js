@@ -2361,6 +2361,7 @@ function updateThemeIcon() {
 document.addEventListener('DOMContentLoaded', () => {
     updateThemeIcon();
     initKioskListeners();
+    initDashboardCustomization();
 });
 
 function isKioskActive() {
@@ -5050,4 +5051,235 @@ async function submitExplanation() {
     } catch (e) {
         showToast('خطا در ثبت رفع ابهام قطعی: ' + e.message, 'error');
     }
+}
+
+// ===== DASHBOARD CUSTOMIZATION & DRAG-AND-DROP =====
+const DEFAULT_WIDGET_ORDER = [
+    'widget-cam-stats',
+    'widget-nvr-stats',
+    'widget-factory-summary',
+    'widget-offline-section',
+    'widget-all-ok',
+    'widget-nvr-container'
+];
+
+const WIDGET_METADATA = {
+    'widget-cam-stats': { title: 'وضعیت دوربین‌ها', desc: 'نمایش تعداد کل، متصل و قطع دوربین‌ها' },
+    'widget-nvr-stats': { title: 'وضعیت NVRها', desc: 'نمایش تعداد کل، متصل و قطع دستگاه‌های NVR' },
+    'widget-factory-summary': { title: 'خلاصه کارخانه‌ها', desc: 'نمایش آمار کلی کارخانجات' },
+    'widget-offline-section': { title: 'دوربین‌های قطع شده', desc: 'لیست سریع دوربین‌های دارای قطعی' },
+    'widget-all-ok': { title: 'سلامت شبکه', desc: 'نمایش وضعیت اتصالات در صورت عدم قطعی' },
+    'widget-nvr-container': { title: 'گروه‌بندی کارخانه‌ها و NVRها', desc: 'نمایش کامل دوربین‌ها به تفکیک کارخانه و NVR' }
+};
+
+let isDashEditMode = false;
+let draggedWidgetId = null;
+
+function initDashboardCustomization() {
+    loadDashboardLayout();
+    initDragAndDropListeners();
+}
+
+function toggleDashEditMode(forceState) {
+    isDashEditMode = typeof forceState === 'boolean' ? forceState : !isDashEditMode;
+    const dashSection = document.getElementById('dash');
+    const btnEdit = document.getElementById('btn-edit-dash');
+    const editControls = document.getElementById('dash-edit-controls');
+    
+    if (isDashEditMode) {
+        dashSection.classList.add('dash-edit-mode');
+        if (btnEdit) btnEdit.classList.add('active');
+        if (editControls) editControls.classList.remove('hidden');
+        enableDraggableWidgets(true);
+        if (typeof showToast === 'function') showToast('حالت ویرایش داشبورد فعال شد. می‌توانید کارت‌ها را با درگ و دراپ جابجا کنید.');
+    } else {
+        dashSection.classList.remove('dash-edit-mode');
+        if (btnEdit) btnEdit.classList.remove('active');
+        if (editControls) editControls.classList.add('hidden');
+        enableDraggableWidgets(false);
+        saveDashboardLayout();
+        if (typeof showToast === 'function') showToast('تغییرات داشبورد ذخیره گردید.');
+    }
+}
+
+function enableDraggableWidgets(enable) {
+    const widgets = document.querySelectorAll('.dash-widget');
+    widgets.forEach(w => {
+        w.setAttribute('draggable', enable ? 'true' : 'false');
+    });
+}
+
+function removeWidget(widgetId) {
+    const el = document.getElementById(widgetId);
+    if (el) {
+        el.classList.add('widget-hidden');
+        saveDashboardLayout();
+        if (isDashEditMode) {
+            updateAddWidgetModalContent();
+        }
+        if (typeof showToast === 'function') showToast('ویجت از داشبورد حذف شد');
+    }
+}
+
+function addWidget(widgetId) {
+    const el = document.getElementById(widgetId);
+    if (el) {
+        el.classList.remove('widget-hidden');
+        saveDashboardLayout();
+        updateAddWidgetModalContent();
+        if (typeof showToast === 'function') showToast('ویجت به داشبورد اضافه شد');
+    }
+}
+
+function resetDashboardLayout() {
+    localStorage.removeItem('hikstatus_dashboard_layout');
+    const container = document.getElementById('dash-widgets-container');
+    
+    DEFAULT_WIDGET_ORDER.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.remove('widget-hidden');
+            if (container) container.appendChild(el);
+        }
+    });
+    saveDashboardLayout();
+    if (typeof showToast === 'function') showToast('چینش داشبورد به حالت اولیه بازنشانی شد');
+}
+
+function saveDashboardLayout() {
+    const container = document.getElementById('dash-widgets-container');
+    if (!container) return;
+    
+    const widgets = container.querySelectorAll('.dash-widget');
+    const layout = [];
+    
+    widgets.forEach(w => {
+        layout.push({
+            id: w.id,
+            hidden: w.classList.contains('widget-hidden')
+        });
+    });
+    
+    localStorage.setItem('hikstatus_dashboard_layout', JSON.stringify(layout));
+}
+
+function loadDashboardLayout() {
+    const container = document.getElementById('dash-widgets-container');
+    if (!container) return;
+    
+    const saved = localStorage.getItem('hikstatus_dashboard_layout');
+    if (!saved) return;
+    
+    try {
+        const layout = JSON.parse(saved);
+        layout.forEach(item => {
+            const el = document.getElementById(item.id);
+            if (el) {
+                if (item.hidden) {
+                    el.classList.add('widget-hidden');
+                } else {
+                    el.classList.remove('widget-hidden');
+                }
+                container.appendChild(el);
+            }
+        });
+    } catch (e) {
+        console.error('Error loading dashboard layout:', e);
+    }
+}
+
+function initDragAndDropListeners() {
+    const container = document.getElementById('dash-widgets-container');
+    if (!container) return;
+    
+    container.addEventListener('dragstart', (e) => {
+        if (!isDashEditMode) return;
+        const widget = e.target.closest('.dash-widget');
+        if (!widget) return;
+        
+        draggedWidgetId = widget.id;
+        widget.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', widget.id);
+    });
+
+    container.addEventListener('dragover', (e) => {
+        if (!isDashEditMode || !draggedWidgetId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        
+        const targetWidget = e.target.closest('.dash-widget');
+        if (targetWidget && targetWidget.id !== draggedWidgetId) {
+            const rect = targetWidget.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            if (e.clientY < midpoint) {
+                container.insertBefore(document.getElementById(draggedWidgetId), targetWidget);
+            } else {
+                container.insertBefore(document.getElementById(draggedWidgetId), targetWidget.nextSibling);
+            }
+        }
+    });
+
+    container.addEventListener('dragend', (e) => {
+        const widget = e.target.closest('.dash-widget');
+        if (widget) widget.classList.remove('dragging');
+        draggedWidgetId = null;
+        if (isDashEditMode) {
+            saveDashboardLayout();
+        }
+    });
+}
+
+function openAddWidgetModal() {
+    updateAddWidgetModalContent();
+    const modal = document.getElementById('modal-add-widget');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('open');
+    }
+}
+
+function closeAddWidgetModal() {
+    const modal = document.getElementById('modal-add-widget');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.classList.add('hidden');
+    }
+}
+
+function updateAddWidgetModalContent() {
+    const listEl = document.getElementById('add-widget-list');
+    if (!listEl) return;
+    
+    const hiddenWidgets = [];
+    DEFAULT_WIDGET_ORDER.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.classList.contains('widget-hidden')) {
+            hiddenWidgets.push(id);
+        }
+    });
+    
+    if (hiddenWidgets.length === 0) {
+        listEl.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); padding: 24px 0;">
+                <p>تمامی ویجت‌ها در حال حاضر روی داشبورد شما فعال هستند.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    listEl.innerHTML = hiddenWidgets.map(id => {
+        const meta = WIDGET_METADATA[id] || { title: id, desc: '' };
+        return `
+            <div class="add-widget-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+                <div>
+                    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text);">${meta.title}</h4>
+                    <p style="font-size: 12px; color: var(--text-muted);">${meta.desc}</p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="addWidget('${id}')" style="padding: 6px 14px; font-size: 12px; cursor: pointer;">
+                    + افزودن
+                </button>
+            </div>
+        `;
+    }).join('');
 }

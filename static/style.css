@@ -3132,5 +3132,109 @@ body.kiosk-mode #kiosk-exit-btn {
     color: var(--primary) !important;
 }
 
+/* ===== MODULAR DASHBOARD & DRAG-AND-DROP STYLES ===== */
+.dash-widgets-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+    align-items: flex-start;
+}
+
+.dash-widget {
+    position: relative;
+    transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+    border-radius: var(--radius);
+    min-width: 260px;
+    flex: 1 1 300px;
+}
+
+.dash-widget.full-width-widget {
+    flex: 1 1 100%;
+    width: 100%;
+}
+
+.dash-widget.widget-hidden {
+    display: none !important;
+}
+
+/* Edit Mode Overlay & Handle */
+.dash-widget-controls {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-3);
+    border: 1px dashed var(--primary);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--primary);
+}
+
+.dash-edit-mode .dash-widget-controls {
+    display: flex;
+}
+
+.dash-edit-mode .dash-widget {
+    border: 1px dashed var(--primary);
+    border-radius: var(--radius);
+    padding: 4px;
+    background: var(--surface-2);
+    cursor: grab;
+}
+
+.dash-edit-mode .dash-widget:active {
+    cursor: grabbing;
+}
+
+.widget-drag-handle {
+    font-size: 16px;
+    font-weight: bold;
+    cursor: grab;
+    user-select: none;
+    padding: 0 4px;
+}
+
+.widget-title-label {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.widget-remove-btn {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: none;
+    border-radius: 4px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 12px;
+    transition: var(--transition);
+}
+
+.widget-remove-btn:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* Dragging state */
+.dash-widget.dragging {
+    opacity: 0.4;
+    transform: scale(0.98);
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
+}
+
+#btn-edit-dash.active {
+    background: var(--primary-glow) !important;
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+}
+
 
 
