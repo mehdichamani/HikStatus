@@ -956,6 +956,51 @@ async function testConn(type) {
     }
 }
 
+function validateNVRInputs() {
+    const ipInput = document.getElementById('nvrIp');
+    const portInput = document.getElementById('nvrRtspPort');
+    const msgLabel = document.getElementById('nvr-validation-msg');
+    const addBtn = document.getElementById('btn-add-nvr');
+
+    let ipValid = true;
+    let portValid = true;
+    let errMsg = '';
+
+    if (ipInput.value.trim()) {
+        const ipPattern = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        if (!ipPattern.test(ipInput.value.trim())) {
+            ipValid = false;
+            errMsg += 'قالب آدرس IP نامعتبر است. ';
+        }
+    }
+
+    if (portInput.value.trim()) {
+        const portVal = parseInt(portInput.value.trim());
+        if (isNaN(portVal) || portVal < 1 || portVal > 65535) {
+            portValid = false;
+            errMsg += 'پورت باید عددی بین ۱ تا ۶۵۵۳۵ باشد.';
+        }
+    }
+
+    if (msgLabel) msgLabel.textContent = errMsg;
+
+    if (ipValid && portValid) {
+        ipInput.style.borderColor = '';
+        portInput.style.borderColor = '';
+        if (addBtn) addBtn.disabled = false;
+        if (addBtn) addBtn.style.opacity = '1';
+    } else {
+        if (!ipValid) ipInput.style.borderColor = 'var(--danger)';
+        else ipInput.style.borderColor = '';
+
+        if (!portValid) portInput.style.borderColor = 'var(--danger)';
+        else portInput.style.borderColor = '';
+
+        if (addBtn) addBtn.disabled = true;
+        if (addBtn) addBtn.style.opacity = '0.5';
+    }
+}
+
 async function addNVR() {
     const name = document.getElementById('nvrName').value.trim();
     const ip = document.getElementById('nvrIp').value.trim();
@@ -1830,6 +1875,8 @@ function renderTrendChart(chartData) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'index' },
+            animation: { duration: 1000, easing: 'easeOutQuart' },
             plugins: {
                 legend: { display: false }
             },
@@ -1869,6 +1916,8 @@ function renderCausesChart(chartData) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'index' },
+                animation: { duration: 1000, easing: 'easeOutQuart' },
                 plugins: {
                     legend: { labels: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } } }
                 }
@@ -1891,6 +1940,8 @@ function renderCausesChart(chartData) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'index' },
+            animation: { duration: 1000, easing: 'easeOutQuart' },
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -1925,6 +1976,8 @@ function renderGroupsChart(chartData) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'index' },
+            animation: { duration: 1000, easing: 'easeOutQuart' },
             plugins: {
                 legend: { display: false }
             },
@@ -1968,6 +2021,8 @@ function renderTopCamerasChart(chartData) {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'index' },
+            animation: { duration: 1000, easing: 'easeOutQuart' },
             plugins: {
                 legend: { display: false }
             },
@@ -2008,6 +2063,8 @@ function renderStatusChart(chartData) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'index' },
+            animation: { duration: 1000, easing: 'easeOutQuart' },
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -2535,6 +2592,7 @@ function handleIncomingAlert(msg) {
 // ===== MAP & HEATMAP LOGIC =====
 let map = null;
 let mapMarkers = [];
+let mapClusterGroup = null;
 let mapEditMode = false;
 let mapType = 'floor';
 let mapImage = '';
@@ -3255,7 +3313,14 @@ function createMarkerForMap(c, latlng) {
     const marker = L.marker(latlng, {
         icon: icon,
         draggable: mapEditMode
-    }).addTo(map);
+    });
+
+    if (mapClusterGroup && !mapEditMode) {
+        mapClusterGroup.addLayer(marker);
+    } else {
+        marker.addTo(map);
+    }
+
     marker.camera_id = c.id;
     marker.fovPolygon = fovPolygon;
 
@@ -3314,6 +3379,19 @@ function drawCameraMarkers(bounds = null, w = 1, h = 1) {
     if (typeof clearActiveFovSelection === 'function') {
         clearActiveFovSelection();
     }
+
+    if (mapClusterGroup) {
+        map.removeLayer(mapClusterGroup);
+        mapClusterGroup.clearLayers();
+    } else {
+        mapClusterGroup = L.markerClusterGroup({
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true
+        });
+    }
+
     mapMarkers.forEach(m => {
         if (m.fovPolygon) {
             map.removeLayer(m.fovPolygon);
@@ -3341,6 +3419,10 @@ function drawCameraMarkers(bounds = null, w = 1, h = 1) {
 
         createMarkerForMap(c, latlng);
     });
+
+    if (!mapEditMode) {
+        map.addLayer(mapClusterGroup);
+    }
 }
 
 function updateMapMarkersFromWS(cams) {

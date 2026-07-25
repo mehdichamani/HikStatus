@@ -27,6 +27,8 @@
     --danger: #ef4444;
     --danger-bg: rgba(239, 68, 68, 0.1);
     --warning: #f59e0b;
+    --info: #3b82f6;
+    --info-bg: rgba(59, 130, 246, 0.1);
 
     --radius: 12px;
     --radius-sm: 8px;
@@ -885,6 +887,7 @@ body {
     border-bottom: 1px solid var(--border);
     color: var(--text-secondary);
     text-align: right;
+    font-weight: 400;
 }
 
 .data-table tbody tr:hover {
@@ -2246,15 +2249,15 @@ body {
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 11px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s, visibility 0.2s;
-    box-shadow: var(--shadow);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     z-index: 100;
 }
 
