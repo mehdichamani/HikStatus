@@ -222,56 +222,29 @@
                     </div>
                 </div>
 
-                <div class="dash-actions-toolbar" style="display: flex; gap: 6px; align-items: center;">
-                    <!-- Filter chips -->
-                    <button class="chip active" id="filter-cam-all" onclick="setDashCamFilter('all')"
-                        title="همه دوربین‌ها" aria-label="نمایش همه دوربین‌ها">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7" />
-                            <rect x="14" y="3" width="7" height="7" />
-                            <rect x="3" y="14" width="7" height="7" />
-                            <rect x="14" y="14" width="7" height="7" />
-                        </svg>
-                    </button>
-                    <button class="chip" id="filter-cam-online" onclick="setDashCamFilter('online')"
-                        title="دوربین‌های متصل" aria-label="نمایش دوربین‌های متصل">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                            <polyline points="22 4 12 14.01 9 11.01" />
-                        </svg>
-                    </button>
-                    <button class="chip" id="filter-cam-offline" onclick="setDashCamFilter('offline')"
-                        title="دوربین‌های قطع شده" aria-label="نمایش دوربین‌های قطع شده">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="15" y1="9" x2="9" y2="15" />
-                            <line x1="9" y1="9" x2="15" y2="15" />
-                        </svg>
-                    </button>
-
-                    <!-- Refresh Button -->
-                    <button class="chip" onclick="fetchDash()" title="بروزرسانی" aria-label="بروزرسانی داشبورد">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <polyline points="23 4 23 10 17 10" />
-                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                        </svg>
-                    </button>
-                </div>
+                <!-- Refresh Button -->
+                <button class="chip" onclick="fetchDash()" title="بروزرسانی" aria-label="بروزرسانی داشبورد">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                    </svg>
+                </button>
             </div>
 
             <!-- Draggable Widgets Container -->
             <div id="dash-widgets-container" class="dash-widgets-container">
 
                 <!-- Widget: Camera Stats -->
-                <div class="dash-widget" id="widget-cam-stats" data-widget-id="widget-cam-stats">
+                <div class="dash-widget size-third" id="widget-cam-stats" data-widget-id="widget-cam-stats">
                     <div class="dash-widget-controls">
-                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                        <span class="widget-title-label">وضعیت دوربین‌ها</span>
-                        <button class="widget-remove-btn" onclick="removeWidget('widget-cam-stats')" title="حذف ویجت">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">وضعیت دوربین‌ها</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-cam-stats')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-cam-stats')" title="حذف ویجت">✕</button>
+                        </div>
                     </div>
                     <div class="stat-card-combined">
                         <div class="stat-combined-header">
@@ -298,11 +271,16 @@
                 </div>
 
                 <!-- Widget: NVR Stats -->
-                <div class="dash-widget" id="widget-nvr-stats" data-widget-id="widget-nvr-stats">
+                <div class="dash-widget size-third" id="widget-nvr-stats" data-widget-id="widget-nvr-stats">
                     <div class="dash-widget-controls">
-                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                        <span class="widget-title-label">وضعیت NVRها</span>
-                        <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-stats')" title="حذف ویجت">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">وضعیت NVRها</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-stats')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-stats')" title="حذف ویجت">✕</button>
+                        </div>
                     </div>
                     <div class="stat-card-combined" id="nvr-status-card">
                         <div class="stat-combined-header">
@@ -331,11 +309,16 @@
                 </div>
 
                 <!-- Widget: Factory Summary -->
-                <div class="dash-widget" id="widget-factory-summary" data-widget-id="widget-factory-summary">
+                <div class="dash-widget size-third" id="widget-factory-summary" data-widget-id="widget-factory-summary">
                     <div class="dash-widget-controls">
-                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                        <span class="widget-title-label">کارخانه‌ها</span>
-                        <button class="widget-remove-btn" onclick="removeWidget('widget-factory-summary')" title="حذف ویجت">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">کارخانه‌ها</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-factory-summary')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-factory-summary')" title="حذف ویجت">✕</button>
+                        </div>
                     </div>
                     <div class="stat-card-combined" id="factory-summary-card">
                         <div class="stat-combined-header">
@@ -356,11 +339,16 @@
                 </div>
 
                 <!-- Widget: Offline Section -->
-                <div class="dash-widget full-width-widget" id="widget-offline-section" data-widget-id="widget-offline-section">
+                <div class="dash-widget size-full" id="widget-offline-section" data-widget-id="widget-offline-section">
                     <div class="dash-widget-controls">
-                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                        <span class="widget-title-label">دوربین‌های قطع شده</span>
-                        <button class="widget-remove-btn" onclick="removeWidget('widget-offline-section')" title="حذف ویجت">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">دوربین‌های قطع شده</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-offline-section')" title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-offline-section')" title="حذف ویجت">✕</button>
+                        </div>
                     </div>
                     <div id="offline-section" class="hidden" style="margin-bottom: 0;">
                         <div class="section-header">
@@ -372,11 +360,16 @@
                 </div>
 
                 <!-- Widget: All OK -->
-                <div class="dash-widget full-width-widget" id="widget-all-ok" data-widget-id="widget-all-ok">
+                <div class="dash-widget size-full" id="widget-all-ok" data-widget-id="widget-all-ok">
                     <div class="dash-widget-controls">
-                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                        <span class="widget-title-label">سلامت شبکه</span>
-                        <button class="widget-remove-btn" onclick="removeWidget('widget-all-ok')" title="حذف ویجت">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">سلامت شبکه</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-all-ok')" title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-all-ok')" title="حذف ویجت">✕</button>
+                        </div>
                     </div>
                     <div id="all-ok" class="all-ok hidden" style="margin-bottom: 0;">
                         <div class="success-icon">
@@ -391,44 +384,138 @@
                     </div>
                 </div>
 
-                <!-- Widget: NVR Container -->
-                <div class="dash-widget full-width-widget" id="widget-nvr-container" data-widget-id="widget-nvr-container">
+                <!-- Widget: NVR Container with Internal Filters -->
+                <div class="dash-widget size-full" id="widget-nvr-container" data-widget-id="widget-nvr-container">
                     <div class="dash-widget-controls">
-                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                        <span class="widget-title-label">گروه‌بندی کارخانه‌ها و NVRها</span>
-                        <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-container')" title="حذف ویجت">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">گروه‌بندی کارخانه‌ها و NVRها</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-container')" title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-container')" title="حذف ویجت">✕</button>
+                        </div>
+                    </div>
+                    <div class="nvr-widget-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 4px 8px; flex-wrap: wrap; gap: 8px;">
+                        <h3 style="font-size: 15px; font-weight: 700; color: var(--text);">گروه‌بندی کارخانه‌ها و NVRها</h3>
+                        <div class="dash-actions-toolbar" style="display: flex; gap: 6px; align-items: center;">
+                            <button class="chip active" id="filter-cam-all" onclick="setDashCamFilter('all')" title="همه دوربین‌ها" aria-label="نمایش همه دوربین‌ها">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                                </svg>
+                                <span>همه</span>
+                            </button>
+                            <button class="chip" id="filter-cam-online" onclick="setDashCamFilter('online')" title="دوربین‌های متصل" aria-label="نمایش دوربین‌های متصل">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+                                </svg>
+                                <span>متصل</span>
+                            </button>
+                            <button class="chip" id="filter-cam-offline" onclick="setDashCamFilter('offline')" title="دوربین‌های قطع شده" aria-label="نمایش دوربین‌های قطع شده">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+                                </svg>
+                                <span>قطع</span>
+                            </button>
+                        </div>
                     </div>
                     <div id="nvr-container" class="nvr-list"></div>
                 </div>
 
-                <!-- Widget: Favorite Cameras -->
-                <div class="dash-widget full-width-widget widget-hidden" id="widget-fav-cams" data-widget-id="widget-fav-cams">
+                <!-- Widget: Important Cameras -->
+                <div class="dash-widget size-full widget-hidden" id="widget-important-cams" data-widget-id="widget-important-cams">
                     <div class="dash-widget-controls">
-                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                        <span class="widget-title-label">دوربین‌های نشان‌شده (ستاره‌دار)</span>
-                        <button class="widget-remove-btn" onclick="removeWidget('widget-fav-cams')" title="حذف ویجت">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">دوربین‌های مهم</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-important-cams')" title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-important-cams')" title="حذف ویجت">✕</button>
+                        </div>
                     </div>
                     <div class="stat-card-combined" style="padding: 16px;">
-                        <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--warning);">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                            </svg>
-                            <span class="stat-combined-title">دوربین‌های نشان‌شده (ستاره‌دار)</span>
+                        <div class="stat-combined-header" style="justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--danger);">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                </svg>
+                                <span class="stat-combined-title">دوربین‌های با اهمیت «مهم»</span>
+                            </div>
+                            <span id="important-cams-count" class="badge badge-danger">0</span>
                         </div>
-                        <div id="starred-cams-grid" class="cam-grid" style="margin-top: 10px;">
-                            <div style="font-size: 13px; color: var(--text-muted); padding: 10px 0; text-align: center; width: 100%; grid-column: 1 / -1;">
-                                با کلیک روی آیکون ستاره در کارت دوربین‌ها، دوربین‌های مهم را در این بخش پین کنید.
+                        <div id="important-cams-grid" class="cam-grid" style="margin-top: 12px;">
+                            <div style="font-size: 13px; color: var(--text-muted); padding: 12px 0; text-align: center; width: 100%; grid-column: 1 / -1;">
+                                دوربین با اهمیت «مهم» یافت نشد.
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Widget: Network Latency / SLA -->
-                <div class="dash-widget widget-hidden" id="widget-ping-summary" data-widget-id="widget-ping-summary">
+                <!-- Widget: Status Chart -->
+                <div class="dash-widget size-half widget-hidden" id="widget-chart-status" data-widget-id="widget-chart-status">
                     <div class="dash-widget-controls">
-                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                        <span class="widget-title-label">پایداری و پینگ شبکه</span>
-                        <button class="widget-remove-btn" onclick="removeWidget('widget-ping-summary')" title="حذف ویجت">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">نمودار وضعیت فعلی</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-chart-status')" title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-chart-status')" title="حذف ویجت">✕</button>
+                        </div>
+                    </div>
+                    <div class="stat-card-combined" style="padding: 16px;">
+                        <div class="stat-combined-header">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
+                                <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                                <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                            </svg>
+                            <span class="stat-combined-title">نمودار وضعیت فعلی تجهیزات</span>
+                        </div>
+                        <div style="position: relative; height: 200px; width: 100%; display: flex; justify-content: center; align-items: center; padding-top: 8px;">
+                            <canvas id="dash-chart-status-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Widget: Outage Causes Chart -->
+                <div class="dash-widget size-half widget-hidden" id="widget-chart-causes" data-widget-id="widget-chart-causes">
+                    <div class="dash-widget-controls">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">نمودار علل قطعی</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-chart-causes')" title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-chart-causes')" title="حذف ویجت">✕</button>
+                        </div>
+                    </div>
+                    <div class="stat-card-combined" style="padding: 16px;">
+                        <div class="stat-combined-header">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--warning);">
+                                <line x1="18" y1="20" x2="18" y2="10"></line>
+                                <line x1="12" y1="20" x2="12" y2="4"></line>
+                                <line x1="6" y1="20" x2="6" y2="14"></line>
+                            </svg>
+                            <span class="stat-combined-title">نمودار علل قطعی‌ها</span>
+                        </div>
+                        <div style="position: relative; height: 200px; width: 100%; display: flex; justify-content: center; align-items: center; padding-top: 8px;">
+                            <canvas id="dash-chart-causes-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Widget: Network Latency / SLA -->
+                <div class="dash-widget size-third widget-hidden" id="widget-ping-summary" data-widget-id="widget-ping-summary">
+                    <div class="dash-widget-controls">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">پایداری و پینگ شبکه</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-ping-summary')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-ping-summary')" title="حذف ویجت">✕</button>
+                        </div>
                     </div>
                     <div class="stat-card-combined">
                         <div class="stat-combined-header">

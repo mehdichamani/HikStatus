@@ -2287,6 +2287,8 @@ function updateDashFromWS(cams) {
     }
 
     renderDash();
+    renderImportantCamerasWidget();
+    renderDashboardCharts();
 
     const dashLoader = document.getElementById('dashLoader');
     if (dashLoader) dashLoader.classList.add('hidden');
@@ -5054,6 +5056,35 @@ async function submitExplanation() {
 }
 
 // ===== DASHBOARD CUSTOMIZATION & DRAG-AND-DROP =====
+const SIZES = ['size-full', 'size-half', 'size-third'];
+const SIZE_LABELS = { 'size-full': '100%', 'size-half': '50%', 'size-third': '33%' };
+
+function cycleWidgetSize(widgetId) {
+    const el = document.getElementById(widgetId);
+    if (!el) return;
+
+    let currentSize = 'size-full';
+    SIZES.forEach(s => {
+        if (el.classList.contains(s)) currentSize = s;
+    });
+
+    const currentIndex = SIZES.indexOf(currentSize);
+    const nextSize = SIZES[(currentIndex + 1) % SIZES.length];
+
+    SIZES.forEach(s => el.classList.remove(s));
+    el.classList.add(nextSize);
+
+    const sizeLabel = el.querySelector('.size-label');
+    if (sizeLabel) {
+        sizeLabel.textContent = SIZE_LABELS[nextSize];
+    }
+
+    saveDashboardLayout();
+    if (widgetId === 'widget-chart-status' || widgetId === 'widget-chart-causes') {
+        setTimeout(renderDashboardCharts, 150);
+    }
+}
+
 const DEFAULT_WIDGET_ORDER = [
     'widget-cam-stats',
     'widget-nvr-stats',
@@ -5061,7 +5092,9 @@ const DEFAULT_WIDGET_ORDER = [
     'widget-offline-section',
     'widget-all-ok',
     'widget-nvr-container',
-    'widget-fav-cams',
+    'widget-important-cams',
+    'widget-chart-status',
+    'widget-chart-causes',
     'widget-ping-summary'
 ];
 
@@ -5071,8 +5104,10 @@ const WIDGET_METADATA = {
     'widget-factory-summary': { title: 'خلاصه کارخانه‌ها', desc: 'نمایش آمار کلی کارخانجات' },
     'widget-offline-section': { title: 'دوربین‌های قطع شده', desc: 'لیست سریع دوربین‌های دارای قطعی' },
     'widget-all-ok': { title: 'سلامت شبکه', desc: 'نمایش وضعیت اتصالات در صورت عدم قطعی' },
-    'widget-nvr-container': { title: 'گروه‌بندی کارخانه‌ها و NVRها', desc: 'نمایش کامل دوربین‌ها به تفکیک کارخانه و NVR' },
-    'widget-fav-cams': { title: 'دوربین‌های نشان‌شده (ستاره‌دار)', desc: 'نمایش دوربین‌های پین‌شده محبوب در یک لیست مجزا' },
+    'widget-nvr-container': { title: 'گروه‌بندی کارخانه‌ها و NVRها', desc: 'نمایش کامل دوربین‌ها به تفکیک کارخانه و NVR با فیلتر' },
+    'widget-important-cams': { title: 'دوربین‌های مهم', desc: 'نمایش دوربین‌های با سطح اهمیت «مهم»' },
+    'widget-chart-status': { title: 'نمودار وضعیت فعلی', desc: 'نمودار دوناتی درصد اتصالات و قطعی‌های فعلی' },
+    'widget-chart-causes': { title: 'نمودار علل قطعی', desc: 'نمودار میله‌ای تحلیل بیشترین علل قطعی تجهیزات' },
     'widget-ping-summary': { title: 'پایداری و پینگ شبکه', desc: 'نمایش درصد پایداری SLA و میانگین پینگ اتصالات' }
 };
 
@@ -5139,6 +5174,8 @@ function addWidget(widgetId) {
         saveDashboardLayout();
         updateAddWidgetModalContent();
         closeAddWidgetModal();
+        if (widgetId === 'widget-important-cams') renderImportantCamerasWidget();
+        if (widgetId === 'widget-chart-status' || widgetId === 'widget-chart-causes') setTimeout(renderDashboardCharts, 150);
         if (typeof showToast === 'function') showToast('ویجت با موفقیت به داشبورد اضافه شد');
     }
 }
@@ -5150,7 +5187,7 @@ function resetDashboardLayout() {
     DEFAULT_WIDGET_ORDER.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            if (id === 'widget-fav-cams' || id === 'widget-ping-summary') {
+            if (id === 'widget-important-cams' || id === 'widget-chart-status' || id === 'widget-chart-causes' || id === 'widget-ping-summary') {
                 el.classList.add('widget-hidden');
             } else {
                 el.classList.remove('widget-hidden');
@@ -5170,9 +5207,13 @@ function saveDashboardLayout() {
     const layout = [];
     
     widgets.forEach(w => {
+        let size = 'size-full';
+        SIZES.forEach(s => { if (w.classList.contains(s)) size = s; });
+
         layout.push({
             id: w.id,
-            hidden: w.classList.contains('widget-hidden')
+            hidden: w.classList.contains('widget-hidden'),
+            size: size
         });
     });
     
@@ -5195,6 +5236,12 @@ function loadDashboardLayout() {
                     el.classList.add('widget-hidden');
                 } else {
                     el.classList.remove('widget-hidden');
+                }
+                if (item.size) {
+                    SIZES.forEach(s => el.classList.remove(s));
+                    el.classList.add(item.size);
+                    const sizeLabel = el.querySelector('.size-label');
+                    if (sizeLabel) sizeLabel.textContent = SIZE_LABELS[item.size] || '100%';
                 }
                 container.appendChild(el);
             }
@@ -5302,4 +5349,95 @@ function updateAddWidgetModalContent() {
             </div>
         `;
     }).join('');
+}
+
+function renderImportantCamerasWidget() {
+    const grid = document.getElementById('important-cams-grid');
+    const countBadge = document.getElementById('important-cams-count');
+    if (!grid) return;
+
+    if (!dashCamerasCache || dashCamerasCache.length === 0) {
+        grid.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); padding: 12px 0; text-align: center; width: 100%; grid-column: 1 / -1;">در حال بارگذاری...</div>';
+        return;
+    }
+
+    const importantCams = dashCamerasCache.filter(c => c.importance === 'مهم' || c.importance === 'high' || c.importance === 3);
+    if (countBadge) countBadge.textContent = importantCams.length;
+
+    if (importantCams.length === 0) {
+        grid.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); padding: 12px 0; text-align: center; width: 100%; grid-column: 1 / -1;">هیچ دوربینی با درجه اهمیت «مهم» تعریف نشده است.</div>';
+        return;
+    }
+
+    grid.innerHTML = importantCams.map(c => createCard(c)).join('');
+}
+
+let dashChartStatusInstance = null;
+let dashChartCausesInstance = null;
+
+function renderDashboardCharts() {
+    if (typeof Chart === 'undefined') return;
+
+    // Status Chart
+    const statusCanvas = document.getElementById('dash-chart-status-canvas');
+    if (statusCanvas && dashCamerasCache) {
+        const onCount = dashCamerasCache.filter(c => c.status === 'Online').length;
+        const offCount = dashCamerasCache.filter(c => c.status !== 'Online').length;
+        
+        if (dashChartStatusInstance) dashChartStatusInstance.destroy();
+        dashChartStatusInstance = new Chart(statusCanvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['متصل', 'قطع'],
+                datasets: [{
+                    data: [onCount, offCount],
+                    backgroundColor: ['#22c55e', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Vazirmatn' } } }
+                }
+            }
+        });
+    }
+
+    // Causes Chart
+    const causesCanvas = document.getElementById('dash-chart-causes-canvas');
+    if (causesCanvas) {
+        apiFetch(`${API}/reports/causes?period=30d`).then(async res => {
+            const data = await res.json();
+            if (!Array.isArray(data) || data.length === 0) return;
+            const labels = data.map(d => d.cause);
+            const values = data.map(d => d.count);
+            
+            if (dashChartCausesInstance) dashChartCausesInstance.destroy();
+            dashChartCausesInstance = new Chart(causesCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'تعداد قطعی‌ها',
+                        data: values,
+                        backgroundColor: '#6366f1',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { family: 'Vazirmatn' } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#2a2a36' } }
+                    }
+                }
+            });
+        }).catch(err => console.error('Error fetching causes chart data:', err));
+    }
 }

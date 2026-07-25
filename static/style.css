@@ -3236,5 +3236,50 @@ body.kiosk-mode #kiosk-exit-btn {
     color: var(--primary) !important;
 }
 
+/* ===== WIDGET SIZING STYLES ===== */
+.dash-widget.size-full {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+}
+
+.dash-widget.size-half {
+    flex: 1 1 calc(50% - 12px) !important;
+    min-width: 320px;
+}
+
+.dash-widget.size-third {
+    flex: 1 1 calc(33.333% - 12px) !important;
+    min-width: 250px;
+}
+
+@media (max-width: 768px) {
+    .dash-widget.size-half,
+    .dash-widget.size-third {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+    }
+}
+
+.widget-size-btn {
+    background: var(--surface-3);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: inherit;
+    transition: var(--transition);
+}
+
+.widget-size-btn:hover {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--primary);
+}
+
 
 
