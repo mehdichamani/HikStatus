@@ -3079,6 +3079,19 @@ body.kiosk-mode {
     background: var(--bg);
 }
 
+body.kiosk-mode .main-content,
+body.kiosk-mode .container,
+body.kiosk-mode .header-content,
+body.kiosk-mode .desktop-nav-inner,
+body.kiosk-mode .view {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+    padding-top: 16px !important;
+}
+
 body.kiosk-mode #kiosk-exit-btn {
     display: flex !important;
 }
