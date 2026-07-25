@@ -267,6 +267,28 @@ function toggleFactory(id) {
     if (el) el.classList.toggle('open');
 }
 
+function expandAllFactories() {
+    document.querySelectorAll('.factory-section').forEach(sec => {
+        sec.classList.add('open');
+    });
+    document.querySelectorAll('.nvr-block').forEach(blk => {
+        blk.classList.add('open');
+        const grid = blk.querySelector('.nvr-grid');
+        if (grid) grid.style.display = 'grid';
+    });
+}
+
+function collapseAllFactories() {
+    document.querySelectorAll('.factory-section').forEach(sec => {
+        sec.classList.remove('open');
+    });
+    document.querySelectorAll('.nvr-block').forEach(blk => {
+        blk.classList.remove('open');
+        const grid = blk.querySelector('.nvr-grid');
+        if (grid) grid.style.display = 'none';
+    });
+}
+
 function toggleReportBlock(header) {
     const block = header.closest('.report-block');
     if (block) {
@@ -5125,17 +5147,20 @@ function toggleDashEditMode(forceState) {
     isDashEditMode = typeof forceState === 'boolean' ? forceState : !isDashEditMode;
     const dashSection = document.getElementById('dash');
     const btnEdit = document.getElementById('btn-edit-dash');
+    const fabEdit = document.getElementById('btn-fab-edit');
     const editControls = document.getElementById('dash-edit-controls');
     
     if (isDashEditMode) {
         dashSection.classList.add('dash-edit-mode');
         if (btnEdit) btnEdit.classList.add('active');
+        if (fabEdit) fabEdit.classList.add('active');
         if (editControls) editControls.classList.remove('hidden');
         enableDraggableWidgets(true);
         if (typeof showToast === 'function') showToast('حالت ویرایش داشبورد فعال شد. می‌توانید کارت‌ها را با درگ و دراپ جابجا کنید.');
     } else {
         dashSection.classList.remove('dash-edit-mode');
         if (btnEdit) btnEdit.classList.remove('active');
+        if (fabEdit) fabEdit.classList.remove('active');
         if (editControls) editControls.classList.add('hidden');
         enableDraggableWidgets(false);
         saveDashboardLayout();
