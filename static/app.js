@@ -966,16 +966,21 @@ function validateNVRInputs() {
     let portValid = true;
     let errMsg = '';
 
-    if (ipInput.value.trim()) {
+    const ipValue = ipInput ? ipInput.value.trim() : '';
+    const portValue = portInput ? portInput.value.trim() : '';
+
+    if (!ipValue) {
+        ipValid = false;
+    } else {
         const ipPattern = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-        if (!ipPattern.test(ipInput.value.trim())) {
+        if (!ipPattern.test(ipValue)) {
             ipValid = false;
             errMsg += 'قالب آدرس IP نامعتبر است. ';
         }
     }
 
-    if (portInput.value.trim()) {
-        const portVal = parseInt(portInput.value.trim());
+    if (portValue) {
+        const portVal = parseInt(portValue);
         if (isNaN(portVal) || portVal < 1 || portVal > 65535) {
             portValid = false;
             errMsg += 'پورت باید عددی بین ۱ تا ۶۵۵۳۵ باشد.';
@@ -985,23 +990,32 @@ function validateNVRInputs() {
     if (msgLabel) msgLabel.textContent = errMsg;
 
     if (ipValid && portValid) {
-        ipInput.style.borderColor = '';
-        portInput.style.borderColor = '';
+        if (ipInput) ipInput.style.borderColor = '';
+        if (portInput) portInput.style.borderColor = '';
         if (addBtn) addBtn.disabled = false;
         if (addBtn) addBtn.style.opacity = '1';
+        return true;
     } else {
-        if (!ipValid) ipInput.style.borderColor = 'var(--danger)';
-        else ipInput.style.borderColor = '';
+        if (ipInput) {
+            if (!ipValid && ipValue) ipInput.style.borderColor = 'var(--danger)';
+            else ipInput.style.borderColor = '';
+        }
 
-        if (!portValid) portInput.style.borderColor = 'var(--danger)';
-        else portInput.style.borderColor = '';
+        if (portInput) {
+            if (!portValid) portInput.style.borderColor = 'var(--danger)';
+            else portInput.style.borderColor = '';
+        }
 
         if (addBtn) addBtn.disabled = true;
         if (addBtn) addBtn.style.opacity = '0.5';
+        return false;
     }
 }
 
 async function addNVR() {
+    if (!validateNVRInputs()) {
+        return showToast('لطفاً مقادیر ورودی را به درستی وارد کنید', 'error');
+    }
     const name = document.getElementById('nvrName').value.trim();
     const ip = document.getElementById('nvrIp').value.trim();
     const u = document.getElementById('nvrUser').value.trim();
@@ -1270,11 +1284,16 @@ async function saveNVRRow(ip) {
     if (!userEl.value.trim()) {
         return showToast('نام کاربری الزامی است', 'error');
     }
+
+    const portVal = parseInt(rtspPortEl.value.trim());
+    if (isNaN(portVal) || portVal < 1 || portVal > 65535) {
+        return showToast('پورت باید عددی بین ۱ تا ۶۵۵۳۵ باشد.', 'error');
+    }
     
     const payload = {
         name: nameEl.value.trim() || null,
         user: userEl.value.trim(),
-        rtsp_port: parseInt(rtspPortEl.value) || 554
+        rtsp_port: portVal
     };
     
     if (passEl.value) {

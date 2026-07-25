@@ -1128,6 +1128,19 @@ def get_nvrs(session: Session = Depends(get_session), user: dict = Depends(requi
 
 @app.post("/api/nvrs")
 def create_nvr(nvr: NVR, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
+    import ipaddress
+    try:
+        ipaddress.IPv4Address(nvr.ip)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="قالب آدرس IP نامعتبر است")
+        
+    if nvr.rtsp_port < 1 or nvr.rtsp_port > 65535:
+        raise HTTPException(status_code=400, detail="پورت RTSP باید عددی بین ۱ تا ۶۵۵۳۵ باشد")
+
+    existing = session.get(NVR, nvr.ip)
+    if existing:
+        raise HTTPException(status_code=400, detail="این آدرس IP قبلاً ثبت شده است")
+
     if nvr.password:
         nvr.password = encrypt_password(nvr.password)
     session.add(nvr)
@@ -1137,18 +1150,18 @@ def create_nvr(nvr: NVR, session: Session = Depends(get_session), user: dict = D
 
 @app.delete("/api/nvrs/{ip}")
 def delete_nvr(ip: str, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
-    nvr = session.get(NVR, ip)
-    if not nvr:
+    n = session.get(NVR, ip)
+    if not n:
         raise HTTPException(status_code=404, detail="NVR not found")
-    n_name = nvr.name or ip
-    g_id = nvr.group_id
+    n_name = n.name or ip
+    g_id = n.group_id
     cams = session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
     for cam in cams:
         downtimes = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id)).all()
         for dt in downtimes:
             session.delete(dt)
         session.delete(cam)
-    session.delete(nvr)
+    session.delete(n)
     session.commit()
     log_event(session, category="NVR", action="NVR_DELETE", details=f"دستگاه NVR ({n_name}) حذف شد", level="WARNING", actor_username=user.get("username","admin"), group_id=g_id, target_type="NVR", target_id=ip)
     return {"ok": True}
@@ -1174,8 +1187,14 @@ def update_nvr(ip: str, p: dict, session: Session = Depends(get_session), user: 
     if "group_id" in p and user["role"] == "admin":
         n.group_id = p["group_id"] if p["group_id"] is not None else None
     if "rtsp_port" in p:
-        n.rtsp_port = int(p["rtsp_port"])
-        n.status = "Unknown"
+        try:
+            port_val = int(p["rtsp_port"])
+            if port_val < 1 or port_val > 65535:
+                raise ValueError()
+            n.rtsp_port = port_val
+            n.status = "Unknown"
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="پورت RTSP باید عددی بین ۱ تا ۶۵۵۳۵ باشد")
     if "enabled" in p:
         n.enabled = bool(p["enabled"])
         n.status = "Unknown"
