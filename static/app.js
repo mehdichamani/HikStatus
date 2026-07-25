@@ -5060,7 +5060,9 @@ const DEFAULT_WIDGET_ORDER = [
     'widget-factory-summary',
     'widget-offline-section',
     'widget-all-ok',
-    'widget-nvr-container'
+    'widget-nvr-container',
+    'widget-fav-cams',
+    'widget-ping-summary'
 ];
 
 const WIDGET_METADATA = {
@@ -5069,7 +5071,9 @@ const WIDGET_METADATA = {
     'widget-factory-summary': { title: 'خلاصه کارخانه‌ها', desc: 'نمایش آمار کلی کارخانجات' },
     'widget-offline-section': { title: 'دوربین‌های قطع شده', desc: 'لیست سریع دوربین‌های دارای قطعی' },
     'widget-all-ok': { title: 'سلامت شبکه', desc: 'نمایش وضعیت اتصالات در صورت عدم قطعی' },
-    'widget-nvr-container': { title: 'گروه‌بندی کارخانه‌ها و NVRها', desc: 'نمایش کامل دوربین‌ها به تفکیک کارخانه و NVR' }
+    'widget-nvr-container': { title: 'گروه‌بندی کارخانه‌ها و NVRها', desc: 'نمایش کامل دوربین‌ها به تفکیک کارخانه و NVR' },
+    'widget-fav-cams': { title: 'دوربین‌های نشان‌شده (ستاره‌دار)', desc: 'نمایش دوربین‌های پین‌شده محبوب در یک لیست مجزا' },
+    'widget-ping-summary': { title: 'پایداری و پینگ شبکه', desc: 'نمایش درصد پایداری SLA و میانگین پینگ اتصالات' }
 };
 
 let isDashEditMode = false;
@@ -5125,9 +5129,17 @@ function addWidget(widgetId) {
     const el = document.getElementById(widgetId);
     if (el) {
         el.classList.remove('widget-hidden');
+        if (isDashEditMode) {
+            el.setAttribute('draggable', 'true');
+        }
+        const container = document.getElementById('dash-widgets-container');
+        if (container && !container.contains(el)) {
+            container.appendChild(el);
+        }
         saveDashboardLayout();
         updateAddWidgetModalContent();
-        if (typeof showToast === 'function') showToast('ویجت به داشبورد اضافه شد');
+        closeAddWidgetModal();
+        if (typeof showToast === 'function') showToast('ویجت با موفقیت به داشبورد اضافه شد');
     }
 }
 
@@ -5138,7 +5150,11 @@ function resetDashboardLayout() {
     DEFAULT_WIDGET_ORDER.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.classList.remove('widget-hidden');
+            if (id === 'widget-fav-cams' || id === 'widget-ping-summary') {
+                el.classList.add('widget-hidden');
+            } else {
+                el.classList.remove('widget-hidden');
+            }
             if (container) container.appendChild(el);
         }
     });
@@ -5235,7 +5251,9 @@ function openAddWidgetModal() {
     const modal = document.getElementById('modal-add-widget');
     if (modal) {
         modal.classList.remove('hidden');
-        modal.classList.add('open');
+        requestAnimationFrame(() => {
+            modal.classList.add('open');
+        });
     }
 }
 
@@ -5243,7 +5261,9 @@ function closeAddWidgetModal() {
     const modal = document.getElementById('modal-add-widget');
     if (modal) {
         modal.classList.remove('open');
-        modal.classList.add('hidden');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 200);
     }
 }
 
@@ -5262,7 +5282,7 @@ function updateAddWidgetModalContent() {
     if (hiddenWidgets.length === 0) {
         listEl.innerHTML = `
             <div style="text-align: center; color: var(--text-muted); padding: 24px 0;">
-                <p>تمامی ویجت‌ها در حال حاضر روی داشبورد شما فعال هستند.</p>
+                <p>تمامی ویجت‌های در دسترس در حال حاضر روی داشبورد شما فعال هستند.</p>
             </div>
         `;
         return;
@@ -5276,7 +5296,7 @@ function updateAddWidgetModalContent() {
                     <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text);">${meta.title}</h4>
                     <p style="font-size: 12px; color: var(--text-muted);">${meta.desc}</p>
                 </div>
-                <button class="btn btn-primary btn-sm" onclick="addWidget('${id}')" style="padding: 6px 14px; font-size: 12px; cursor: pointer;">
+                <button class="btn btn-primary btn-sm" onclick="addWidget('${id}')" style="padding: 6px 14px; font-size: 12px; cursor: pointer; flex-shrink: 0;">
                     + افزودن
                 </button>
             </div>

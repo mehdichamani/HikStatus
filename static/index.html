@@ -401,6 +401,53 @@
                     <div id="nvr-container" class="nvr-list"></div>
                 </div>
 
+                <!-- Widget: Favorite Cameras -->
+                <div class="dash-widget full-width-widget widget-hidden" id="widget-fav-cams" data-widget-id="widget-fav-cams">
+                    <div class="dash-widget-controls">
+                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                        <span class="widget-title-label">دوربین‌های نشان‌شده (ستاره‌دار)</span>
+                        <button class="widget-remove-btn" onclick="removeWidget('widget-fav-cams')" title="حذف ویجت">✕</button>
+                    </div>
+                    <div class="stat-card-combined" style="padding: 16px;">
+                        <div class="stat-combined-header">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--warning);">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            <span class="stat-combined-title">دوربین‌های نشان‌شده (ستاره‌دار)</span>
+                        </div>
+                        <div id="starred-cams-grid" class="cam-grid" style="margin-top: 10px;">
+                            <div style="font-size: 13px; color: var(--text-muted); padding: 10px 0; text-align: center; width: 100%; grid-column: 1 / -1;">
+                                با کلیک روی آیکون ستاره در کارت دوربین‌ها، دوربین‌های مهم را در این بخش پین کنید.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Widget: Network Latency / SLA -->
+                <div class="dash-widget widget-hidden" id="widget-ping-summary" data-widget-id="widget-ping-summary">
+                    <div class="dash-widget-controls">
+                        <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                        <span class="widget-title-label">پایداری و پینگ شبکه</span>
+                        <button class="widget-remove-btn" onclick="removeWidget('widget-ping-summary')" title="حذف ویجت">✕</button>
+                    </div>
+                    <div class="stat-card-combined">
+                        <div class="stat-combined-header">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--info);">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                            </svg>
+                            <span class="stat-combined-title">پایداری و پینگ شبکه</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">پینگ میانگین</span>
+                            <span class="stat-value text-success" id="s-avg-ping">2 ms</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">پایداری (SLA)</span>
+                            <span class="stat-value text-success" id="s-sla-percent">99.8%</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </section>
 
