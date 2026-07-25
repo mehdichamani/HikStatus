@@ -2357,21 +2357,82 @@ function updateThemeIcon() {
     }
 }
 
-// Call on load to set initial icon
+// Call on load to set initial icon and kiosk listeners
 document.addEventListener('DOMContentLoaded', () => {
     updateThemeIcon();
+    initKioskListeners();
 });
 
-function toggleKiosk() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch((err) => {
-            console.error(`Error attempting to enable fullscreen: ${err.message}`);
-        });
+function isKioskActive() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || document.body.classList.contains('kiosk-mode'));
+}
+
+function updateKioskUIState() {
+    const isFS = isKioskActive();
+    if (isFS) {
+        document.body.classList.add('kiosk-mode');
     } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
+        document.body.classList.remove('kiosk-mode');
     }
+    const btn = document.getElementById('btn-kiosk-toggle');
+    if (btn) {
+        btn.classList.toggle('active', isFS);
+        btn.setAttribute('title', isFS ? 'خروج از حالت کیوسک' : 'حالت کیوسک (تمام‌صفحه)');
+    }
+}
+
+function toggleKiosk() {
+    const doc = document.documentElement;
+    const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+
+    if (!isFS) {
+        const req = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.mozRequestFullScreen || doc.msRequestFullscreen;
+        if (req) {
+            const p = req.call(doc);
+            if (p && typeof p.then === 'function') {
+                p.then(() => {
+                    document.body.classList.add('kiosk-mode');
+                    updateKioskUIState();
+                }).catch((err) => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                    document.body.classList.toggle('kiosk-mode');
+                    updateKioskUIState();
+                });
+            } else {
+                document.body.classList.add('kiosk-mode');
+                updateKioskUIState();
+            }
+        } else {
+            document.body.classList.toggle('kiosk-mode');
+            updateKioskUIState();
+        }
+    } else {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+        if (exit) {
+            const p = exit.call(document);
+            if (p && typeof p.catch === 'function') {
+                p.catch((err) => {
+                    console.error(`Error attempting to exit fullscreen: ${err.message}`);
+                });
+            }
+        }
+        document.body.classList.remove('kiosk-mode');
+        updateKioskUIState();
+    }
+}
+
+function initKioskListeners() {
+    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
+        document.addEventListener(evt, () => {
+            const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+            if (!isFS) {
+                document.body.classList.remove('kiosk-mode');
+            } else {
+                document.body.classList.add('kiosk-mode');
+            }
+            updateKioskUIState();
+        });
+    });
 }
 
 // ===== BROWSER ALERTS & SOUND SYNTHESIS =====
