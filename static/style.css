@@ -2786,40 +2786,36 @@ jdp-container .jdp-btn-close:hover {
 
 .dash-actions-toolbar {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row;
+    gap: 6px;
     align-items: center;
     background: var(--surface-2);
-    padding: 6px;
-    border-radius: var(--radius);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     flex-shrink: 0;
-    align-self: flex-start;
 }
 
 .dash-actions-toolbar .chip {
-    padding: 0 !important;
-    width: 36px !important;
-    height: 36px !important;
+    padding: 5px 10px !important;
+    height: 32px !important;
+    width: auto !important;
     border-radius: var(--radius-sm) !important;
-    display: flex !important;
+    display: inline-flex !important;
     align-items: center !important;
-    justify-content: center !important;
+    gap: 5px !important;
+    font-size: 12px !important;
     margin: 0 !important;
+    white-space: nowrap !important;
 }
 
 @media (max-width: 767px) {
-    .dash-toolbar-top {
-        flex-direction: column-reverse !important;
-        align-items: stretch !important;
-        gap: 16px !important;
-    }
     .dash-actions-toolbar {
         flex-direction: row !important;
-        justify-content: space-around !important;
-        align-self: center !important;
+        justify-content: flex-start !important;
+        align-self: stretch !important;
         width: 100% !important;
-        max-width: 240px !important;
+        overflow-x: auto !important;
     }
 }
 
@@ -3352,6 +3348,14 @@ body.kiosk-mode #fab-dash-controls,
 body.kiosk-mode #btn-edit-dash,
 body.kiosk-mode #dash-edit-controls {
     display: none !important;
+}
+
+/* Mobile responsive positioning for FAB to stay above bottom navigation bar */
+@media (max-width: 768px) {
+    .fab-container {
+        bottom: 80px !important;
+        right: 16px !important;
+    }
 }
 
 
