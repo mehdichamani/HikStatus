@@ -59,7 +59,7 @@
                 </div>
 
                 <!-- Kiosk Mode Toggle -->
-                <button class="btn-icon" onclick="toggleKiosk()" title="حالت کیوسک (تمام‌صفحه)"
+                <button class="btn-icon" onclick="toggleKiosk()" title="حالت کیوسک (تمام‌صفحه)" aria-label="حالت کیوسک"
                     style="flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
@@ -82,7 +82,7 @@
                     <!-- Dropdown search overlay -->
                     <div id="global-search-dropdown" class="hidden"
                         style="position: absolute; top: calc(100% + 8px); left: 0; width: 320px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); z-index: 1000; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-                        <input type="text" id="global-search-input" placeholder="جستجوی دوربین، IP یا کارخانه..."
+                        <input type="text" id="global-search-input" class="form-input-ltr" placeholder="جستجوی دوربین، IP یا کارخانه..."
                             oninput="onGlobalSearch(this.value)"
                             style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 8px 12px; width: 100%; outline: none; font-family: inherit; font-size: 13px;">
                         <div id="global-search-results"
@@ -229,7 +229,7 @@
                 <div class="dash-actions-toolbar">
                     <!-- Filter chips -->
                     <button class="chip active" id="filter-cam-all" onclick="setDashCamFilter('all')"
-                        title="همه دوربین‌ها">
+                        title="همه دوربین‌ها" aria-label="نمایش همه دوربین‌ها">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <rect x="3" y="3" width="7" height="7" />
@@ -239,7 +239,7 @@
                         </svg>
                     </button>
                     <button class="chip" id="filter-cam-online" onclick="setDashCamFilter('online')"
-                        title="دوربین‌های متصل">
+                        title="دوربین‌های متصل" aria-label="نمایش دوربین‌های متصل">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -247,7 +247,7 @@
                         </svg>
                     </button>
                     <button class="chip" id="filter-cam-offline" onclick="setDashCamFilter('offline')"
-                        title="دوربین‌های قطع شده">
+                        title="دوربین‌های قطع شده" aria-label="نمایش دوربین‌های قطع شده">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <circle cx="12" cy="12" r="10" />
@@ -257,7 +257,7 @@
                     </button>
 
                     <!-- Refresh Button -->
-                    <button class="chip" onclick="fetchDash()" title="بروزرسانی">
+                    <button class="chip" onclick="fetchDash()" title="بروزرسانی" aria-label="بروزرسانی داشبورد">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <polyline points="23 4 23 10 17 10" />
@@ -755,7 +755,7 @@
                     <!-- Factory Groups Management -->
                     <div class="card" id="sec-groups" style="display: none;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -780,7 +780,7 @@
                     <!-- NVR Management -->
                     <div class="card" id="sec-nvr" style="display: none;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -789,10 +789,10 @@
                         </div>
                         <div class="nvr-form">
                             <input id="nvrName" class="form-input" placeholder="نام دلخواه (مثلاً طبقه اول)">
-                            <input id="nvrIp" class="form-input" placeholder="آدرس IP">
-                            <input id="nvrUser" class="form-input form-input-sm" placeholder="نام کاربری">
-                            <input id="nvrPass" class="form-input form-input-sm" type="password" placeholder="رمز عبور">
-                            <input id="nvrRtspPort" class="form-input form-input-sm" type="number"
+                            <input id="nvrIp" class="form-input form-input-ltr" placeholder="آدرس IP">
+                            <input id="nvrUser" class="form-input form-input-sm form-input-ltr" placeholder="نام کاربری">
+                            <input id="nvrPass" class="form-input form-input-sm form-input-ltr" type="password" placeholder="رمز عبور">
+                            <input id="nvrRtspPort" class="form-input form-input-sm form-input-ltr" type="number"
                                 placeholder="پورت RTSP" value="554" style="width: 100px;">
                             <select id="nvrGroup" class="form-input form-input-sm" style="width: 160px; flex: none;">
                                 <option value="">بدون کارخانه (بدون گروه)</option>
@@ -814,7 +814,7 @@
                     <!-- Logs Management (System Logs) -->
                     <div class="card" id="sec-logs" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -832,7 +832,7 @@
                                         <circle cx="11" cy="11" r="8" />
                                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                     </svg>
-                                    <input id="logSearch" placeholder="جستجو..." onkeyup="delayLogSearch()"
+                                    <input id="logSearch" class="form-input-ltr" placeholder="جستجو..." onkeyup="delayLogSearch()"
                                         style="background: transparent; border: none; color: var(--text); outline: none; width: 100%; font-family: inherit; font-size: 13px;">
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 5px;">
@@ -899,7 +899,7 @@
                     <!-- Browser Notification Settings -->
                     <div class="card" id="grp-Browser" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -1031,7 +1031,7 @@
                     <!-- System Controls Tab -->
                     <div id="sec-system" style="display: none; width: 100%;">
                         <div class="settings-card-header" style="margin-bottom: 16px;">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -1169,7 +1169,7 @@
                     <!-- User Management Tab -->
                     <div class="card" id="sec-users" style="display: none;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -1178,8 +1178,8 @@
                         </div>
                         <div class="nvr-form" style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
                             <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap; align-items: center;">
-                                <input id="userName" class="form-input" placeholder="نام کاربری" style="flex: 1; min-width: 130px;">
-                                <input id="userPass" class="form-input" type="password" placeholder="رمز عبور" style="flex: 1; min-width: 130px;">
+                                <input id="userName" class="form-input form-input-ltr" placeholder="نام کاربری" style="flex: 1; min-width: 130px;">
+                                <input id="userPass" class="form-input form-input-ltr" type="password" placeholder="رمز عبور" style="flex: 1; min-width: 130px;">
                                 <select id="userRole" class="form-input" style="flex: 1.5; min-width: 150px;">
                                     <option value="it_manager">مسئول آی‌تی (پایش + ثبت علت قطعی)</option>
                                     <option value="inspector">ناظر (مشاهده و گزارش‌گیری)</option>
@@ -1216,7 +1216,7 @@
                     <!-- Personal Alert Settings Tab -->
                     <div class="card" id="sec-my-alerts" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -1268,7 +1268,7 @@
                     <!-- Limits Management Tab -->
                     <div class="card" id="grp-Limits" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -1365,7 +1365,7 @@
                     <!-- Scheduled Tasks Tab -->
                     <div class="card" id="sec-tasks" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -1384,7 +1384,7 @@
                     <!-- ABOUT US SECTION -->
                     <div class="card" id="sec-about" style="display: none; max-width: 100%; overflow: hidden;">
                         <div class="settings-card-header" style="margin: 16px 20px 0; border-bottom: none; padding-bottom: 0;">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -1657,11 +1657,11 @@
 
                     <div class="form-field-group" style="margin-bottom: 12px;">
                         <label class="form-label">رمز عبور جدید</label>
-                        <input type="password" id="p-new-pass" class="form-input" placeholder="رمز عبور جدید">
+                        <input type="password" id="p-new-pass" class="form-input form-input-ltr" placeholder="رمز عبور جدید">
                     </div>
                     <div class="form-field-group" style="margin-bottom: 16px;">
                         <label class="form-label">تکرار رمز عبور جدید</label>
-                        <input type="password" id="p-new-pass-confirm" class="form-input"
+                        <input type="password" id="p-new-pass-confirm" class="form-input form-input-ltr"
                             placeholder="تکرار رمز عبور جدید">
                     </div>
 
@@ -1707,7 +1707,7 @@
                         <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
                             <span style="color: var(--text-secondary);">کلید متنی (در صورت عدم امکان اسکن):</span>
                             <div style="display: flex; gap: 6px; align-items: center;">
-                                <input type="text" id="p-2fa-manual-key" class="form-input mono"
+                                <input type="text" id="p-2fa-manual-key" class="form-input form-input-ltr mono"
                                     style="font-size: 12px; padding: 6px 8px; text-align: center; background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 100%; border-radius: var(--radius-sm);"
                                     readonly onclick="this.select()">
                                 <button class="btn btn-ghost"
@@ -1720,7 +1720,7 @@
                         <div class="form-field-group">
                             <label class="form-label" style="font-size: 12px; font-weight: bold;">کد ۶ رقمی تولید شده را
                                 جهت تست وارد کنید:</label>
-                            <input type="text" id="p-2fa-verification-code" class="form-input mono" placeholder="000000"
+                            <input type="text" id="p-2fa-verification-code" class="form-input form-input-ltr mono" placeholder="000000"
                                 style="text-align: center; letter-spacing: 4px; font-size: 16px;" maxlength="6">
                         </div>
 
@@ -1745,7 +1745,7 @@
 
                         <div class="form-field-group" style="margin-bottom: 12px;" id="p-2fa-disable-password-group">
                             <label class="form-label">جهت غیرفعال‌سازی، رمز عبور حساب خود را وارد کنید:</label>
-                            <input type="password" id="p-2fa-disable-password" class="form-input"
+                            <input type="password" id="p-2fa-disable-password" class="form-input form-input-ltr"
                                 placeholder="رمز عبور فعلی">
                         </div>
                         <button class="btn btn-danger w-100" onclick="disable2FA()">غیرفعال‌سازی ورود دو

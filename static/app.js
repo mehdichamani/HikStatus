@@ -1639,7 +1639,13 @@ async function genReport() {
     const s = startDate.getTime() / 1000;
     const e = endDate.getTime() / 1000;
 
-    const loaderHtml = '<div class="loader"><div class="spinner"></div><span>درحال تحلیل...</span></div>';
+    const loaderHtml = `
+        <div class="skeleton-loading">
+            <div class="skeleton skeleton-row"></div>
+            <div class="skeleton skeleton-row short"></div>
+            <div class="skeleton skeleton-row"></div>
+        </div>
+    `;
     document.getElementById('rep-list').innerHTML = loaderHtml;
     document.getElementById('rep-nvr-list').innerHTML = loaderHtml;
     document.getElementById('rep-auth-list').innerHTML = loaderHtml;
@@ -4759,18 +4765,18 @@ function renderOutagesList() {
         }
         
         return `<tr style="border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
-            <td style="padding: 12px;"><strong>${o.camera_name}</strong></td>
-            <td style="padding: 12px; font-family: monospace;">${o.camera_ip}</td>
-            <td style="padding: 12px;">${o.group_name}</td>
-            <td style="padding: 12px; font-size: 13px;">${o.shamsi_start}</td>
-            <td style="padding: 12px; font-size: 13px;">${o.shamsi_end}</td>
-            <td style="padding: 12px; text-align: center;">${o.duration_hours}</td>
-            <td style="padding: 12px; font-size: 13px; color: var(--text-secondary);">${o.shamsi_deadline}</td>
-            <td style="padding: 12px;">${o.explanation_type || '-'}</td>
-            <td style="padding: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${o.explanation_detail || ''}">${o.explanation_detail || '-'}</td>
-            <td style="padding: 12px; font-size: 13px;">${o.explained_by_username || '-'}</td>
-            <td style="padding: 12px;">${statusBadge}</td>
-            <td style="padding: 12px;">${actionBtn}</td>
+            <td data-label="نام دوربین" style="padding: 12px;"><strong>${o.camera_name}</strong></td>
+            <td data-label="IP" style="padding: 12px; font-family: monospace;">${o.camera_ip}</td>
+            <td data-label="کارخانه" style="padding: 12px;">${o.group_name}</td>
+            <td data-label="زمان شروع" style="padding: 12px; font-size: 13px;">${o.shamsi_start}</td>
+            <td data-label="زمان پایان" style="padding: 12px; font-size: 13px;">${o.shamsi_end}</td>
+            <td data-label="مدت (ساعت)" style="padding: 12px; text-align: center;">${o.duration_hours}</td>
+            <td data-label="مهلت رفع ابهام" style="padding: 12px; font-size: 13px; color: var(--text-secondary);">${o.shamsi_deadline}</td>
+            <td data-label="علت قطعی" style="padding: 12px;">${o.explanation_type || '-'}</td>
+            <td data-label="توضیحات رفع ابهام" style="padding: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${o.explanation_detail || ''}">${o.explanation_detail || '-'}</td>
+            <td data-label="ثبت‌کننده" style="padding: 12px; font-size: 13px;">${o.explained_by_username || '-'}</td>
+            <td data-label="وضعیت" style="padding: 12px;">${statusBadge}</td>
+            <td data-label="عملیات" style="padding: 12px;">${actionBtn}</td>
         </tr>`;
     }).join('');
 }
