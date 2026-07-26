@@ -947,12 +947,25 @@ def export_config_json(session: Session = Depends(get_session)):
             "alert_settings": alert_dict
         })
 
+    # 5. Scheduled Tasks
+    tasks = session.exec(select(ScheduledTask)).all()
+    tasks_list = []
+    for t in tasks:
+        tasks_list.append({
+            "id": t.id,
+            "name": t.name,
+            "description": t.description,
+            "interval": t.interval,
+            "is_enabled": t.is_enabled
+        })
+
     config_data = {
         "settings": settings_dict,
         "groups": groups_list,
         "plans": plans_list,
         "nvrs": nvrs_list,
-        "users": users_list
+        "users": users_list,
+        "tasks": tasks_list
     }
     config_json = json.dumps(config_data, indent=2, ensure_ascii=False)
     from fastapi.responses import Response
@@ -982,37 +995,56 @@ async def import_config_json(request: Request, session: Session = Depends(get_se
     session.query(NVR).delete()
     session.query(NVRGroup).delete()
     session.query(Settings).delete()
+    session.query(ScheduledTask).delete()
     session.commit()
 
     # 1. Import Settings
     json_settings = body.get("settings", {})
     defaults = {
-        "MAIL_ENABLED": "false",
-        "MAIL_SERVER": "smtp.gmail.com",
-        "MAIL_PORT": "587",
-        "MAIL_USER": "email@gmail.com",
-        "MAIL_PASS": "password",
-        "MAIL_RECIPIENTS": "admin@example.com",
-        "MAIL_FIRST_ALERT_DELAY_MINUTES": "1",
-        "MAIL_LOW_IMPORTANCE_DELAY_MINUTES": "30",
-        "MAIL_ALERT_FREQUENCY_MINUTES": "60",
-        "MAIL_MUTE_AFTER_N_ALERTS": "3",
-        "TELEGRAM_ENABLED": "false",
-        "TELEGRAM_BOT_TOKEN": "",
-        "TELEGRAM_CHAT_IDS": "",
-        "TELEGRAM_PROXY": "",
-        "TELEGRAM_FIRST_ALERT_DELAY_MINUTES": "1",
-        "TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES": "15",
-        "TELEGRAM_ALERT_FREQUENCY_MINUTES": "30",
-        "TELEGRAM_MUTE_AFTER_N_ALERTS": "3",
-        "MAP_TYPE": "floor",
-        "MAP_IMAGE": "",
-        "MAP_START_LAT": "37.796067",
-        "MAP_START_LNG": "45.062508",
+        "MAIL_ENABLED": ("false", "Enable Email"),
+        "MAIL_SERVER": ("smtp.gmail.com", "Server"),
+        "MAIL_PORT": ("587", "Port"),
+        "MAIL_USER": ("email@gmail.com", "User"),
+        "MAIL_PASS": ("password", "Pass"),
+        "MAIL_RECIPIENTS": ("admin@example.com", "Recipients"),
+        "MAIL_FIRST_ALERT_DELAY_MINUTES": ("1", "Normal Delay"),
+        "MAIL_LOW_IMPORTANCE_DELAY_MINUTES": ("30", "Low Imp. Delay"),
+        "MAIL_ALERT_FREQUENCY_MINUTES": ("60", "Frequency"),
+        "MAIL_MUTE_AFTER_N_ALERTS": ("3", "Mute After N"),
+        "TELEGRAM_ENABLED": ("false", "Enable Telegram"),
+        "TELEGRAM_BOT_TOKEN": ("", "Bot Token"),
+        "TELEGRAM_CHAT_IDS": ("", "Chat IDs"),
+        "TELEGRAM_PROXY": ("", "Proxy URL"),
+        "TELEGRAM_FIRST_ALERT_DELAY_MINUTES": ("1", "Normal Delay"),
+        "TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES": ("15", "Low Imp. Delay"),
+        "TELEGRAM_ALERT_FREQUENCY_MINUTES": ("30", "Frequency"),
+        "TELEGRAM_MUTE_AFTER_N_ALERTS": ("3", "Mute After N"),
+        "MAP_TYPE": ("floor", "Map Type"),
+        "MAP_IMAGE": ("", "Custom Floor Plan Image URL"),
+        "MAP_START_LAT": ("37.796067", "Default Map Start Latitude"),
+        "MAP_START_LNG": ("45.062508", "Default Map Start Longitude"),
+        "OUTAGE_MIN_HOURS_TO_EXPLAIN": ("2", "حداقل زمان قطعی به ساعت برای نیاز به رفع ابهام"),
+        "OUTAGE_EXPLANATION_DEADLINE_HOURS": ("24", "مهلت رفع ابهام قطعی به ساعت"),
+        "OUTAGE_ANALYSIS_DAYS": ("5,6,0,1,2,3", "روزهای بررسی قطعی در هفته (شنبه=5 تا جمعه=4)"),
+        "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
+        "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
+        "LIMIT_WS_MAX_CONCURRENT": ("20", "حداکثر تعداد اتصال‌های همزمان وب‌سوکت"),
+        "LIMIT_LOGIN_MAX_ATTEMPTS": ("5", "حداکثر تلاش‌های ورود ناموفق مجاز در دقیقه از یک IP"),
+        "LIMIT_PING_TIMEOUT_SECONDS": ("2", "تایم‌اوت پینگ اتصال دوربین‌ها (ثانیه)"),
+        "LIMIT_SNAPSHOT_TIMEOUT_SECONDS": ("5", "تایم‌اوت دریافت تصویر پیش‌نمایش به ثانیه"),
+        "LIMIT_API_RATE_LIMIT_PER_MIN": ("60", "سقف درخواست‌های مجاز عمومی API در دقیقه"),
+        "LIMIT_LOG_RETENTION_DAYS": ("90", "مدت زمان نگه‌داری لاگ‌های قطعی و مانیتورینگ (روز)"),
     }
-    for key, def_val in defaults.items():
-        val = json_settings.get(key, def_val)
-        session.add(Settings(key=key, value=str(val)))
+    
+    # Save all settings present in JSON
+    for key, val in json_settings.items():
+        desc = defaults.get(key, (None, None))[1]
+        session.add(Settings(key=key, value=str(val), description=desc))
+        
+    # Seed missing defaults
+    for key, (def_val, desc) in defaults.items():
+        if not session.get(Settings, key):
+            session.add(Settings(key=key, value=str(def_val), description=desc))
     session.commit()
 
     # 2. Import Groups
@@ -1086,6 +1118,19 @@ async def import_config_json(request: Request, session: Session = Depends(get_se
         )
         session.add(db_alert)
     session.commit()
+
+    # 5. Import Scheduled Tasks
+    json_tasks = body.get("tasks", [])
+    for t_data in json_tasks:
+        session.add(ScheduledTask(
+            id=t_data["id"],
+            name=t_data["name"],
+            description=t_data["description"],
+            interval=t_data["interval"],
+            is_enabled=t_data.get("is_enabled", t_data.get("enabled", True))
+        ))
+    session.commit()
+    seed_scheduled_tasks()
 
     invalidate_config_cache()
     await restart_monitor()
