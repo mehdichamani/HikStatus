@@ -53,8 +53,15 @@ class TaskScheduler:
             for t in tasks:
                 t.status = "Idle"  # Reset status on startup
                 # Run sync/pings immediately on startup (instead of waiting for first interval)
-                if t.id in ["ping_cameras", "sync_camera_names", "sync_nvr_configs", "sync_nvr_stats"]:
+                # Stagger the initial runs on startup to prevent concurrent database insertions / race conditions
+                if t.id == "ping_cameras":
                     t.next_run = now
+                elif t.id == "sync_camera_names":
+                    t.next_run = now + timedelta(seconds=10)
+                elif t.id == "sync_nvr_configs":
+                    t.next_run = now + timedelta(seconds=20)
+                elif t.id == "sync_nvr_stats":
+                    t.next_run = now + timedelta(seconds=30)
                 elif t.id == "capture_camera_snapshots":
                     # Start with a 5 minutes delay on startup
                     t.next_run = now + timedelta(minutes=5)
