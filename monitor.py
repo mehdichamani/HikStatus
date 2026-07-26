@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 from requests.auth import HTTPDigestAuth
 from sqlmodel import Session, select
-from database import engine, NVR, NVRGroup, Camera, CameraChangeEvent, Log, Settings, DowntimeEvent, UserSession
+from database import engine, NVR, NVRGroup, Camera, CameraChangeEvent, Log, Settings, DowntimeEvent, UserSession, OutageExplanation
 from alerts import send_email_batch, send_telegram_batch, send_change_alert
 from logging_config import logger, log_event
 
