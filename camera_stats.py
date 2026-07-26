@@ -30,7 +30,7 @@ def get_off_cameras(session: Session, accessible_groups: list[int] | None):
             
         group_name = groups.get(group_id, "بدون گروه")
         
-        # Find the latest event of recording turned off
+        # Find the latest event of recording turned off or apply fallback chain
         off_since = None
         event = session.exec(
             select(CameraChangeEvent)
@@ -45,8 +45,27 @@ def get_off_cameras(session: Session, accessible_groups: list[int] | None):
         
         if event:
             off_since = event.detected_at
-        else:
+            
+        if not off_since:
             off_since = cam.stats_last_updated
+            
+        if not off_since:
+            added_event = session.exec(
+                select(CameraChangeEvent)
+                .where(
+                    CameraChangeEvent.nvr_ip == cam.nvr_ip,
+                    CameraChangeEvent.camera_channel_id == cam.channel_id,
+                    CameraChangeEvent.change_type == "camera_added"
+                )
+            ).first()
+            if added_event:
+                off_since = added_event.detected_at
+                
+        if not off_since:
+            off_since = cam.last_online
+            
+        if not off_since:
+            off_since = now
             
         hours_str = "نامشخص"
         if off_since:
