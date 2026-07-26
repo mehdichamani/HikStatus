@@ -41,7 +41,6 @@ class Camera(SQLModel, table=True):
     ip: str
     nvr_ip: str = Field(index=True)
     channel_id: str
-    is_muted: bool = False
     importance: int = Field(default=2)
     last_online: Optional[datetime] = None
     status: str = "Unknown"
