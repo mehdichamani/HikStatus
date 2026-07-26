@@ -1879,7 +1879,7 @@ body {
         gap: 12px;
     }
 
-    #settings .panel-side, #reports .panel-side {
+    #reports .panel-side {
         background: none !important;
         border: none !important;
         padding: 4px 8px !important;
@@ -1891,7 +1891,7 @@ body {
         overflow: hidden;
     }
     
-    #settings .panel-side > .btn-ghost, #reports .panel-side > .btn-ghost {
+    #reports .panel-side > .btn-ghost {
         flex-shrink: 0;
         width: 38px;
         height: 38px;
@@ -1904,11 +1904,11 @@ body {
         border: 1px solid var(--border);
     }
     
-    #settings .panel-side > .btn-ghost span, #reports .panel-side > .btn-ghost span {
+    #reports .panel-side > .btn-ghost span {
         display: none !important;
     }
     
-    #settings .settings-nav, #reports .settings-nav {
+    #reports .settings-nav {
         flex: 1;
         flex-direction: row !important;
         flex-wrap: wrap !important;
@@ -1916,7 +1916,7 @@ body {
         padding: 4px 0;
     }
 
-    #settings .settings-nav button, #reports .settings-nav button {
+    #reports .settings-nav button {
         flex: 0 0 auto;
         width: auto;
         text-align: center;
@@ -1927,11 +1927,35 @@ body {
         font-size: 12px;
     }
 
-    #settings .settings-nav button.active {
+    #reports .settings-nav button.active {
         background: var(--primary);
         color: white;
         border-color: var(--primary);
         border-right: none !important;
+    }
+
+    /* Logs Page Filters for Mobile */
+    #sec-logs .panel-side {
+        width: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+
+    #sec-logs .filter-chips {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    #sec-logs .filter-chips .chip {
+        width: auto !important;
+        text-align: center !important;
+        padding: 6px 12px !important;
     }
 
     .nvr-form button {
