@@ -138,8 +138,9 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
                 alert_lines.append(f"➕ دوربین جدید: {cam_name} ({cam_ip}) — کانال {chan_id}")
                 logger.info(f"New camera detected on {nvr_name}: {cam_name} ({cam_ip}) CH {chan_id}")
             
-            # Log change events for removed cameras
+            # Log change events for removed cameras and delete them
             for chan_id, cam_name, cam_ip in removed_cameras:
+                cam_to_del = existing_channel_ids[chan_id]
                 db_session.add(CameraChangeEvent(
                     nvr_ip=ip,
                     camera_name=cam_name,
@@ -148,9 +149,19 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
                     old_value=f"{cam_name} ({cam_ip})",
                     group_id=nvr_group_id
                 ))
-                log_event(db_session, category="Camera", action="CAMERA_REMOVED", details=f"دوربین {cam_name} ({cam_ip}) از {nvr_name} حذف شد", level="WARNING", group_id=nvr_group_id, target_type="Camera", target_id=cam_ip)
+                log_event(db_session, category="Camera", action="CAMERA_REMOVED", details=f"دوربین {cam_name} ({cam_ip}) از {nvr_name} حذف شد", level="WARNING", group_id=nvr_group_id, target_type="Camera", target_id=str(cam_to_del.id))
                 alert_lines.append(f"➖ دوربین حذف‌شده: {cam_name} ({cam_ip}) — کانال {chan_id}")
                 logger.info(f"Camera removed from {nvr_name}: {cam_name} ({cam_ip}) CH {chan_id}")
+                
+                # Cascade delete associated records
+                dts = db_session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam_to_del.id)).all()
+                for dt in dts:
+                    db_session.delete(dt)
+                exps = db_session.exec(select(OutageExplanation).where(OutageExplanation.camera_id == cam_to_del.id)).all()
+                for exp in exps:
+                    db_session.delete(exp)
+                
+                db_session.delete(cam_to_del)
             
             db_session.commit()
             
@@ -821,6 +832,35 @@ async def task_ping_cameras():
             else:
                 await process_nvr_alerts(session, nvr_obj, False)
                 
+            # Detect and delete removed cameras from NVR
+            existing_cams = session.exec(select(Camera).where(Camera.nvr_ip == nvr_obj.ip)).all()
+            existing_channels = {c.channel_id: c for c in existing_cams}
+            payload_channels = {d['channel_id'] for d in payload}
+            
+            nvr_label = nvr_obj.name if nvr_obj.name else nvr_obj.ip
+            for chan_id, cam in existing_channels.items():
+                if chan_id not in payload_channels:
+                    logger.info(f"Camera {cam.name} (CH {chan_id}) was removed from NVR {nvr_obj.ip}. Deleting...")
+                    session.add(CameraChangeEvent(
+                        nvr_ip=nvr_obj.ip,
+                        camera_name=cam.name,
+                        camera_channel_id=chan_id,
+                        change_type="camera_removed",
+                        old_value=f"{cam.name} ({cam.ip})",
+                        group_id=nvr_obj.group_id
+                    ))
+                    log_event(session, category="Camera", action="CAMERA_REMOVED", details=f"دوربین {cam.name} ({cam.ip}) از {nvr_label} حذف شد (پایش)", level="WARNING", group_id=nvr_obj.group_id, target_type="Camera", target_id=str(cam.id))
+                    
+                    # Cascade delete associated records
+                    dts = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id)).all()
+                    for dt in dts:
+                        session.delete(dt)
+                    exps = session.exec(select(OutageExplanation).where(OutageExplanation.camera_id == cam.id)).all()
+                    for exp in exps:
+                        session.delete(exp)
+                        
+                    session.delete(cam)
+                    
             for d in payload:
                 stmt = select(Camera).where(Camera.nvr_ip == nvr_obj.ip, Camera.channel_id == d['channel_id'])
                 db_cam = session.exec(stmt).first()
