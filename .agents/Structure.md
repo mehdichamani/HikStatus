@@ -52,6 +52,8 @@
 - `/api/auth/login|logout|me` - احراز هویت
 - `/api/nvrs` - CRUD NVR
 - `/api/cameras` - لیست و ویرایش دوربین‌ها
+  - `/api/cameras/off` - لیست دوربین‌های با ضبط غیرفعال (خاموش)
+  - `/api/cameras/changes` - لیست تغییرات اخیر دوربین‌ها (۲۴ ساعت و هفته/ماه اخیر)
 - `/api/settings` - تنظیمات
 - `/api/groups` - مدیریت گروه‌ها
 - `/api/users` - مدیریت کاربران

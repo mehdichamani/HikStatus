@@ -1860,6 +1860,18 @@ def get_cam_stats(cam_id: int, session: Session = Depends(get_session), user: di
     d24 = calculate_downtime_range(session, cam_id, now - timedelta(hours=24), now)
     return {"down_1h": d1, "down_24h": d24}
 
+@app.get("/api/cameras/off")
+def get_off_cameras_endpoint(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    from camera_stats import get_off_cameras
+    accessible_groups = get_user_accessible_groups(user, session)
+    return get_off_cameras(session, accessible_groups)
+
+@app.get("/api/cameras/changes")
+def get_camera_changes_endpoint(session: Session = Depends(get_session), user: dict = Depends(require_auth)):
+    from camera_stats import get_camera_changes
+    accessible_groups = get_user_accessible_groups(user, session)
+    return get_camera_changes(session, accessible_groups)
+
 @app.get("/api/reports/generate")
 def generate_report(start: float, end: float, session: Session = Depends(get_session), user: dict = Depends(require_auth)):
     start_dt = datetime.fromtimestamp(start)

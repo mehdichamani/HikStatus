@@ -3358,5 +3358,66 @@ body.kiosk-mode #dash-edit-controls {
     }
 }
 
+/* ===== NEW DASHBOARD WIDGETS ===== */
+.widget-list-scrollable::-webkit-scrollbar {
+    width: 4px;
+}
+.widget-list-scrollable::-webkit-scrollbar-track {
+    background: transparent;
+}
+.widget-list-scrollable::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}
+.widget-list-scrollable::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.widget-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    transition: var(--transition);
+}
+.widget-list-item:hover {
+    border-color: var(--border-light);
+    background: var(--surface-3);
+}
+.widget-list-item .item-title {
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+.widget-list-item .item-meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.widget-list-item .badge-action {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+}
+.widget-list-item .badge-action.added {
+    background: var(--success-bg);
+    color: var(--success);
+}
+.widget-list-item .badge-action.removed {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+
 
 

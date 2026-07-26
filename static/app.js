@@ -2312,6 +2312,8 @@ function updateDashFromWS(cams) {
 
     renderDash();
     renderImportantCamerasWidget();
+    renderOffCamerasWidget();
+    renderCameraChangesWidget();
     renderDashboardCharts();
 
     const dashLoader = document.getElementById('dashLoader');
@@ -5113,6 +5115,8 @@ const DEFAULT_WIDGET_ORDER = [
     'widget-cam-stats',
     'widget-nvr-stats',
     'widget-factory-summary',
+    'widget-off-recording',
+    'widget-camera-changes',
     'widget-offline-section',
     'widget-all-ok',
     'widget-nvr-container',
@@ -5126,6 +5130,8 @@ const WIDGET_METADATA = {
     'widget-cam-stats': { title: 'وضعیت دوربین‌ها', desc: 'نمایش تعداد کل، متصل و قطع دوربین‌ها' },
     'widget-nvr-stats': { title: 'وضعیت NVRها', desc: 'نمایش تعداد کل، متصل و قطع دستگاه‌های NVR' },
     'widget-factory-summary': { title: 'خلاصه کارخانه‌ها', desc: 'نمایش آمار کلی کارخانجات' },
+    'widget-off-recording': { title: 'دوربین‌های ضبط خاموش', desc: 'لیست دوربین‌هایی که ضبط آن‌ها غیرفعال است به همراه جزئیات' },
+    'widget-camera-changes': { title: 'تغییرات اخیر دوربین‌ها', desc: 'نمایش لیست دوربین‌های حذف یا اضافه شده در ۲۴ ساعت و هفته/ماه اخیر' },
     'widget-offline-section': { title: 'دوربین‌های قطع شده', desc: 'لیست سریع دوربین‌های دارای قطعی' },
     'widget-all-ok': { title: 'سلامت شبکه', desc: 'نمایش وضعیت اتصالات در صورت عدم قطعی' },
     'widget-nvr-container': { title: 'گروه‌بندی کارخانه‌ها و NVRها', desc: 'نمایش کامل دوربین‌ها به تفکیک کارخانه و NVR با فیلتر' },
@@ -5202,6 +5208,8 @@ function addWidget(widgetId) {
         updateAddWidgetModalContent();
         closeAddWidgetModal();
         if (widgetId === 'widget-important-cams') renderImportantCamerasWidget();
+        if (widgetId === 'widget-off-recording') renderOffCamerasWidget();
+        if (widgetId === 'widget-camera-changes') renderCameraChangesWidget();
         if (widgetId === 'widget-chart-status' || widgetId === 'widget-chart-causes') setTimeout(renderDashboardCharts, 150);
         if (typeof showToast === 'function') showToast('ویجت با موفقیت به داشبورد اضافه شد');
     }
@@ -5397,6 +5405,86 @@ function renderImportantCamerasWidget() {
     }
 
     grid.innerHTML = importantCams.map(c => createCard(c)).join('');
+}
+
+async function renderOffCamerasWidget() {
+    const listEl = document.getElementById('off-recording-list');
+    if (!listEl) return;
+    
+    try {
+        const res = await apiFetch(`${API}/cameras/off`);
+        const data = await res.json();
+        
+        if (data.length === 0) {
+            listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">هیچ دوربین ضبط خاموشی وجود ندارد.</div>';
+            return;
+        }
+        
+        listEl.innerHTML = data.map(item => `
+            <div class="widget-list-item">
+                <div class="item-title" title="${escapeHTML(item.name)}">${escapeHTML(item.name)}</div>
+                <div class="item-meta">
+                    <span style="font-weight: 500;">${escapeHTML(item.factory)}</span>
+                    <span style="color: var(--danger); font-size: 11px;">(خاموش از ${escapeHTML(item.hours_off_str)})</span>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Error rendering off cameras widget:', e);
+        listEl.innerHTML = '<div style="font-size: 12px; color: var(--danger); text-align: center; padding: 16px 0;">خطا در بارگذاری اطلاعات</div>';
+    }
+}
+
+async function renderCameraChangesWidget() {
+    const list24h = document.getElementById('changes-24h-list');
+    const listMonth = document.getElementById('changes-month-list');
+    if (!list24h || !listMonth) return;
+    
+    try {
+        const res = await apiFetch(`${API}/cameras/changes`);
+        const data = await res.json();
+        
+        // 24h
+        if (data.changes_24h.length === 0) {
+            list24h.innerHTML = '<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px 0;">بدون تغییر</div>';
+        } else {
+            list24h.innerHTML = data.changes_24h.map(item => {
+                const actionClass = item.action === 'اضافه شده' ? 'added' : 'removed';
+                return `
+                    <div class="widget-list-item" style="padding: 4px 6px;">
+                        <div class="item-title" title="${escapeHTML(item.name)}" style="font-size: 11px; max-width: 100px;">${escapeHTML(item.name)}</div>
+                        <div class="item-meta" style="font-size: 10px;">
+                            <span>${escapeHTML(item.factory)}</span>
+                            <span class="badge-action ${actionClass}">${escapeHTML(item.action)}</span>
+                            <span style="color: var(--text-muted); font-size: 9px;">${escapeHTML(item.time_ago)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Month (or Week)
+        if (data.changes_week.length === 0) {
+            listMonth.innerHTML = '<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px 0;">بدون تغییر</div>';
+        } else {
+            listMonth.innerHTML = data.changes_week.map(item => {
+                const actionClass = item.action === 'اضافه شده' ? 'added' : 'removed';
+                return `
+                    <div class="widget-list-item" style="padding: 4px 6px;">
+                        <div class="item-title" title="${escapeHTML(item.name)}" style="font-size: 11px; max-width: 100px;">${escapeHTML(item.name)}</div>
+                        <div class="item-meta" style="font-size: 10px;">
+                            <span>${escapeHTML(item.factory)}</span>
+                            <span class="badge-action ${actionClass}">${escapeHTML(item.action)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    } catch (e) {
+        console.error('Error rendering camera changes widget:', e);
+        list24h.innerHTML = '<div style="font-size: 11px; color: var(--danger); text-align: center; padding: 8px 0;">خطا</div>';
+        listMonth.innerHTML = '<div style="font-size: 11px; color: var(--danger); text-align: center; padding: 8px 0;">خطا</div>';
+    }
 }
 
 let dashChartStatusInstance = null;
