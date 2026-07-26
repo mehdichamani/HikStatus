@@ -2671,7 +2671,7 @@ function sendTestNotification() {
     
     notification.onclick = () => {
         window.focus();
-        nav('logs');
+        nav('dash');
         notification.close();
     };
 }
@@ -2695,7 +2695,7 @@ function handleIncomingAlert(msg) {
         });
         notification.onclick = () => {
             window.focus();
-            nav('logs');
+            nav('dash');
             notification.close();
         };
     }
