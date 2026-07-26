@@ -2118,6 +2118,90 @@
         </div>
     </div>
 
+    <!-- Edit Group Modal -->
+    <div class="modal-overlay" id="editGroupModal" onclick="closeEditGroupModal()">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h3>ویرایش کارخانه / گروه</h3>
+                <button class="btn-close" onclick="closeEditGroupModal()" title="بستن" aria-label="بستن">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px;">
+                <input type="hidden" id="editGroupId">
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label class="form-label" style="font-weight: 600;">نام کارخانه:</label>
+                    <input id="editGroupName" class="form-input" placeholder="نام کارخانه (مثلاً کارخانه تبریز)">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label class="form-label" style="font-weight: 600;">توضیحات:</label>
+                    <input id="editGroupDesc" class="form-input" placeholder="توضیحات (اختیاری)">
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px;">
+                <button class="btn btn-ghost" onclick="closeEditGroupModal()">انصراف</button>
+                <button class="btn btn-primary" onclick="saveGroupEdit()">ذخیره تغییرات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div class="modal-overlay" id="editUserModal" onclick="closeEditUserModal()">
+        <div class="modal-sheet" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h3>ویرایش کاربر</h3>
+                <button class="btn-close" onclick="closeEditUserModal()" title="بستن" aria-label="بستن">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; max-height: 70vh; overflow-y: auto;">
+                <input type="hidden" id="editUserId">
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label class="form-label" style="font-weight: 600;">نام کاربری:</label>
+                    <input id="editUserName" class="form-input form-input-ltr" readonly style="background: var(--surface-2); opacity: 0.7;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label class="form-label" style="font-weight: 600;">رمز عبور جدید (در صورت تغییر):</label>
+                    <input id="editUserPass" class="form-input form-input-ltr" type="password" placeholder="برای عدم تغییر خالی بگذارید">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label class="form-label" style="font-weight: 600;">نقش کاربر:</label>
+                    <select id="editUserRole" class="form-input" onchange="onEditUserRoleChange()">
+                        <option value="it_manager">مسئول آی‌تی (پایش + ثبت علت قطعی)</option>
+                        <option value="inspector">ناظر (مشاهده و گزارش‌گیری)</option>
+                        <option value="admin">مدیر سیستم (دسترسی کامل)</option>
+                    </select>
+                </div>
+                <div id="edit-user-group-container" style="display: flex; flex-direction: column; gap: 5px;">
+                    <label class="form-label" style="font-weight: 600;">کارخانه پیش‌فرض:</label>
+                    <select id="editUserGroup" class="form-input">
+                        <option value="">بدون گروه</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                    <input type="checkbox" id="editUserActive">
+                    <label for="editUserActive" style="font-size: 13px; font-weight: 600; cursor: pointer;">حساب کاربری فعال باشد</label>
+                </div>
+                
+                <!-- Factory Multi-Select Container for Edit -->
+                <div id="edit-inspector-groups-container" style="display: block; margin-top: 8px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed var(--border);">
+                        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">انتخاب کارخانه‌های مجاز کاربر:</span>
+                        <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--primary);">
+                            <input type="checkbox" id="edit-inspector-select-all" onchange="toggleAllEditInspectorGroups(this.checked)">
+                            <span>انتخاب همه</span>
+                        </label>
+                    </div>
+                    <div id="edit-inspector-groups-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; max-height: 120px; overflow-y: auto;">
+                        <!-- dynamic items -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px;">
+                <button class="btn btn-ghost" onclick="closeEditUserModal()">انصراف</button>
+                <button class="btn btn-primary" onclick="saveUserEdit()">ذخیره تغییرات</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Mobile Bottom Nav -->
     <nav class="mobile-nav">
         <button class="mobile-nav-item active" data-view="dash" onclick="nav('dash')">

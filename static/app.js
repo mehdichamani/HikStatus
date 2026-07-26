@@ -1176,9 +1176,14 @@ function renderGroupsList() {
                 <strong style="margin-left: 8px; color: var(--text-primary);">${g.name}</strong>
                 <span class="list-item-user">${g.description || ''}</span>
             </div>
-            <button class="btn-icon" onclick="deleteGroup(${g.id})" style="width:28px; height:28px">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
+            <div style="display: flex; gap: 6px; align-items: center;">
+                <button class="btn-icon" onclick="openEditGroupModal(${g.id})" style="width:28px; height:28px" title="ویرایش" aria-label="ویرایش">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </button>
+                <button class="btn-icon" onclick="deleteGroup(${g.id})" style="width:28px; height:28px" title="حذف" aria-label="حذف">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
         </div>
     `).join('');
 }
@@ -4011,8 +4016,9 @@ function renderUsersList() {
                 <strong>${u.username}</strong>
                 <span style="font-size:12px; opacity:0.7; margin-right:15px;">${detailsText}</span>
             </div>
-            <div class="list-item-actions">
-                <button class="btn btn-ghost" onclick="deleteUser(${u.id})" style="color:var(--danger)">حذف</button>
+            <div class="list-item-actions" style="display: flex; gap: 8px;">
+                <button class="btn btn-ghost" onclick="openEditUserModal(${u.id})" style="color:var(--primary); padding: 4px 8px;">ویرایش</button>
+                <button class="btn btn-ghost" onclick="deleteUser(${u.id})" style="color:var(--danger); padding: 4px 8px;">حذف</button>
             </div>
         </div>`;
     }).join('');
@@ -5557,5 +5563,185 @@ function renderDashboardCharts() {
                 }
             });
         }).catch(err => console.error('Error fetching causes chart data:', err));
+    }
+}
+
+// ===== EDIT GROUP AND USER MODALS =====
+
+function openEditGroupModal(id) {
+    const group = groupCache.find(g => g.id === id);
+    if (!group) return showToast('کارخانه پیدا نشد', 'error');
+    
+    document.getElementById('editGroupId').value = group.id;
+    document.getElementById('editGroupName').value = group.name;
+    document.getElementById('editGroupDesc').value = group.description || '';
+    
+    document.getElementById('editGroupModal').classList.add('open');
+}
+
+function closeEditGroupModal() {
+    document.getElementById('editGroupModal').classList.remove('open');
+}
+
+async function saveGroupEdit() {
+    const id = document.getElementById('editGroupId').value;
+    const name = document.getElementById('editGroupName').value.trim();
+    const description = document.getElementById('editGroupDesc').value.trim();
+    
+    if (!name) return showToast('نام کارخانه الزامی است', 'error');
+    
+    try {
+        await apiFetch(`${API}/groups/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description })
+        });
+        showToast('کارخانه با موفقیت ویرایش شد');
+        closeEditGroupModal();
+        
+        // Refresh groups cache and reload settings
+        const gRes = await apiFetch(`${API}/groups`);
+        groupCache = await gRes.json();
+        renderGroupsList();
+        loadSettings('sec-groups'); // keeps the groups tab active
+    } catch (e) {
+        showToast('خطا در ویرایش کارخانه: ' + e.message, 'error');
+    }
+}
+
+function populateEditInspectorGroupsList() {
+    const listCon = document.getElementById('edit-inspector-groups-list');
+    if (!listCon) return;
+    if (!groupCache || groupCache.length === 0) {
+        listCon.innerHTML = '<span style="font-size: 12px; color: var(--text-muted); grid-column: 1 / -1;">کارخانه‌ای تعریف نشده است</span>';
+        return;
+    }
+    listCon.innerHTML = groupCache.map(g => `
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; background: var(--surface); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);">
+            <input type="checkbox" class="edit-inspector-group-cb" value="${g.id}" onchange="updateEditInspectorSelectAllState()">
+            <span style="user-select: none;">${g.name}</span>
+        </label>
+    `).join('');
+    updateEditInspectorSelectAllState();
+}
+
+function toggleAllEditInspectorGroups(checked) {
+    const checkboxes = document.querySelectorAll('.edit-inspector-group-cb');
+    checkboxes.forEach(cb => cb.checked = checked);
+}
+
+function updateEditInspectorSelectAllState() {
+    const checkboxes = document.querySelectorAll('.edit-inspector-group-cb');
+    const selectAllCb = document.getElementById('edit-inspector-select-all');
+    if (!selectAllCb || checkboxes.length === 0) return;
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    selectAllCb.checked = allChecked;
+}
+
+function openEditUserModal(id) {
+    const user = usersCache.find(u => u.id === id);
+    if (!user) return showToast('کاربر پیدا نشد', 'error');
+
+    document.getElementById('editUserId').value = user.id;
+    document.getElementById('editUserName').value = user.username;
+    document.getElementById('editUserPass').value = '';
+    document.getElementById('editUserRole').value = user.role;
+    document.getElementById('editUserActive').checked = user.is_active !== false;
+
+    // Populate group select
+    const select = document.getElementById('editUserGroup');
+    if (select) {
+        select.innerHTML = '<option value="">بدون گروه</option>' + groupCache.map(g => 
+            `<option value="${g.id}">${g.name}</option>`
+        ).join('');
+        select.value = user.group_id || '';
+    }
+
+    // Populate and set checkboxes
+    populateEditInspectorGroupsList();
+    if (user.accessible_group_ids) {
+        const allowedIds = user.accessible_group_ids.split(',').map(id => id.trim());
+        const checkboxes = document.querySelectorAll('.edit-inspector-group-cb');
+        checkboxes.forEach(cb => {
+            cb.checked = allowedIds.includes(cb.value);
+        });
+        updateEditInspectorSelectAllState();
+    } else {
+        toggleAllEditInspectorGroups(true);
+        updateEditInspectorSelectAllState();
+    }
+
+    onEditUserRoleChange();
+
+    document.getElementById('editUserModal').classList.add('open');
+}
+
+function closeEditUserModal() {
+    document.getElementById('editUserModal').classList.remove('open');
+}
+
+function onEditUserRoleChange() {
+    const role = document.getElementById('editUserRole').value;
+    const groupCon = document.getElementById('edit-user-group-container');
+    const inspectorCon = document.getElementById('edit-inspector-groups-container');
+    if (role === 'it_manager' || role === 'inspector') {
+        if (groupCon) groupCon.style.display = 'none';
+        if (inspectorCon) inspectorCon.style.display = 'block';
+    } else if (role === 'admin') {
+        if (groupCon) groupCon.style.display = 'none';
+        if (inspectorCon) inspectorCon.style.display = 'none';
+    } else {
+        if (groupCon) groupCon.style.display = 'block';
+        if (inspectorCon) inspectorCon.style.display = 'none';
+    }
+}
+
+async function saveUserEdit() {
+    const id = document.getElementById('editUserId').value;
+    const password = document.getElementById('editUserPass').value;
+    const role = document.getElementById('editUserRole').value;
+    const grpVal = document.getElementById('editUserGroup').value;
+    const isActive = document.getElementById('editUserActive').checked;
+    
+    let accessible_group_ids = null;
+    let group_id = null;
+    if (role === 'inspector' || role === 'it_manager') {
+        const checkedCbs = Array.from(document.querySelectorAll('.edit-inspector-group-cb:checked')).map(cb => cb.value);
+        const allCbs = document.querySelectorAll('.edit-inspector-group-cb');
+        if (checkedCbs.length > 0 && checkedCbs.length < allCbs.length) {
+            accessible_group_ids = checkedCbs.join(',');
+            group_id = parseInt(checkedCbs[0]);
+        } else if (checkedCbs.length === allCbs.length) {
+            accessible_group_ids = null;
+            group_id = checkedCbs[0] ? parseInt(checkedCbs[0]) : null;
+        } else if (checkedCbs.length === 0) {
+            accessible_group_ids = '0';
+            group_id = null;
+        }
+    } else if (role !== 'admin' && grpVal) {
+        group_id = parseInt(grpVal);
+    }
+
+    const payload = {
+        role,
+        group_id,
+        accessible_group_ids,
+        is_active: isActive
+    };
+    if (password) {
+        payload.password = password;
+    }
+
+    try {
+        await apiFetch(`${API}/users/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        showToast('کاربر با موفقیت ویرایش شد');
+        closeEditUserModal();
+        loadUsers();
+    } catch (e) {
+        showToast('خطا در ویرایش کاربر: ' + e.message, 'error');
     }
 }
