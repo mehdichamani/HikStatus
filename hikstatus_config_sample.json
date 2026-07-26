@@ -1,0 +1,98 @@
+{
+  "settings": {
+    "MAIL_ENABLED": "false",
+    "MAIL_SERVER": "smtp.gmail.com",
+    "MAIL_PORT": "587",
+    "MAIL_USER": "email@gmail.com",
+    "MAIL_PASS": "password",
+    "MAIL_RECIPIENTS": "admin@example.com",
+    "MAIL_FIRST_ALERT_DELAY_MINUTES": "1",
+    "MAIL_LOW_IMPORTANCE_DELAY_MINUTES": "30",
+    "MAIL_ALERT_FREQUENCY_MINUTES": "60",
+    "MAIL_MUTE_AFTER_N_ALERTS": "3",
+    "TELEGRAM_ENABLED": "false",
+    "TELEGRAM_BOT_TOKEN": "",
+    "TELEGRAM_CHAT_IDS": "",
+    "TELEGRAM_PROXY": "",
+    "TELEGRAM_FIRST_ALERT_DELAY_MINUTES": "1",
+    "TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES": "15",
+    "TELEGRAM_ALERT_FREQUENCY_MINUTES": "30",
+    "TELEGRAM_MUTE_AFTER_N_ALERTS": "3",
+    "MAP_TYPE": "floor",
+    "MAP_IMAGE": "",
+    "MAP_START_LAT": "37.796067",
+    "MAP_START_LNG": "45.062508",
+    "OUTAGE_MIN_HOURS_TO_EXPLAIN": "2",
+    "OUTAGE_EXPLANATION_DEADLINE_HOURS": "24",
+    "OUTAGE_ANALYSIS_DAYS": "5,6,0,1,2,3",
+    "OUTAGE_ANALYSIS_TIME": "07:30",
+    "OUTAGE_LAST_ANALYSIS_TIME": "",
+    "LIMIT_WS_MAX_CONCURRENT": "20",
+    "LIMIT_LOGIN_MAX_ATTEMPTS": "5",
+    "LIMIT_PING_TIMEOUT_SECONDS": "2",
+    "LIMIT_SNAPSHOT_TIMEOUT_SECONDS": "5",
+    "LIMIT_API_RATE_LIMIT_PER_MIN": "60",
+    "LIMIT_LOG_RETENTION_DAYS": "90"
+  },
+  "groups": [
+    {
+      "id": 1,
+      "name": "کارخانه نمونه ۱",
+      "description": "توضیحات کارخانه نمونه",
+      "map_center_lat": 35.6892,
+      "map_center_lng": 51.3890,
+      "map_zoom": 12
+    }
+  ],
+  "plans": [
+    {
+      "id": 1,
+      "group_id": 1,
+      "name": "نقشه همکف",
+      "image_url": "/static/uploads/floor_plan.png",
+      "sort_order": 0
+    }
+  ],
+  "nvrs": [
+    {
+      "ip": "192.168.1.100",
+      "name": "NVR اصلی",
+      "user": "admin",
+      "password": "nvr_password_here",
+      "enabled": true,
+      "group_id": 1,
+      "rtsp_port": 554
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "password_hash": "2f6c0471b0db29864223d6a9a08bf60e487532d56e7e4c34d3725895780a1873",
+      "role": "admin",
+      "group_id": null,
+      "is_active": true,
+      "alert_settings": {
+        "mail_enabled": true,
+        "mail_recipients": "admin@example.com",
+        "telegram_enabled": false,
+        "telegram_chat_ids": ""
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "ping_cameras",
+      "name": "پایش وضعیت اتصال دوربین‌ها",
+      "description": "بررسی دوره‌ای فعال بودن دوربین‌ها و ثبت قطعی‌ها در پایگاه داده",
+      "interval": 60,
+      "is_enabled": true
+    },
+    {
+      "id": "sync_nvr_configs",
+      "name": "همگام‌سازی ساختار ضبط NVRها",
+      "description": "دریافت تنظیمات برنامه‌ریزی ضبط از NVR",
+      "interval": 3600,
+      "is_enabled": true
+    }
+  ]
+}
