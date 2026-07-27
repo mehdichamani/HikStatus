@@ -4606,6 +4606,55 @@ function formatDuration(seconds) {
     return m > 0 ? `${h} ساعت و ${m} دقیقه` : `${h} ساعت`;
 }
 
+const TASK_DETAILS = {
+    ping_cameras: [
+        'دریافت وضعیت Online/Offline همه دوربین‌ها از NVRها',
+        'ثبت رویداد قطعی برای دوربین‌های آفلاین و بستن رویدادهای بازیابی',
+        'به‌روزرسانی وضعیت NVR و دوربین‌ها در دیتابیس',
+        'ارسال هشدار تلگرام و ایمیل برای قطعی‌ها و بازیابی‌ها',
+        'ارسال گزارش خلاصه ساعتی قطعی‌ها'
+    ],
+    sync_nvr_configs: [
+        'دریافت تنظیمات ضبط (روشن/خاموش و نوع) از NVRها',
+        'به‌روزرسانی وضعیت ضبط و نوع آن برای هر دوربین',
+        'ثبت تغییرات وضعیت ضبط در تاریخچه رویدادها',
+        'همگام‌سازی خودکار نام دوربین‌ها'
+    ],
+    sync_nvr_stats: [
+        'جستجوی فایل‌های ویدئویی روی هارد NVR از ابتدا تاکنون',
+        'دریافت فراداده فایل‌های ۲۴ ساعت اخیر',
+        'محاسبه حجم کل داده‌های ضبط‌شده (GB)',
+        'محاسبه قدیمی‌ترین تاریخ ضبط و مجموع ساعات ضبط',
+        'محاسبه درصد پوشش ضبط در ۲۴ ساعت اخیر',
+        'به‌روزرسانی آمار ضبط هر دوربین در دیتابیس'
+    ],
+    sync_camera_names: [
+        'دریافت نام، IP و مدل دوربین‌ها از NVRها',
+        'به‌روزرسانی نام و IP دوربین‌ها در دیتابیس',
+        'تشخیص دوربین‌های جدید و افزودن خودکار به دیتابیس',
+        'تشخیص دوربین‌های حذف‌شده و پاک‌سازی خودکار',
+        'ثبت تغییرات ساختاری و ارسال هشدار'
+    ],
+    capture_camera_snapshots: [
+        'دریافت تصویر لحظه‌ای از sub-stream دوربین‌های آنلاین',
+        'ذخیره تصاویر در مسیر data/snapshots/camera_{id}.jpg',
+        'تهیه تصویر پیش‌نمایش برای نمایش در پنل وب'
+    ],
+    cleanup_database: [
+        'حذف خودکار لاگ‌های مانیتورینگ قدیمی‌تر از N روز',
+        'حذف رویدادهای قطعی بسته‌شده قدیمی',
+        'حذف نشست‌های کاربری منقضی‌شده',
+        'بهینه‌سازی حجم دیتابیس'
+    ],
+    analyze_outages: [
+        'بررسی قطعی‌های ۲۴ ساعت اخیر برای همه دوربین‌ها',
+        'محاسبه مجموع زمان قطعی هر دوربین',
+        'شناسایی دوربین‌های با قطعی بیش از آستانه تنظیم‌شده',
+        'ثبت رکورد قطعی نیازمند توضیح برای مدیران',
+        'تعیین مهلت توضیح برای قطعی‌های ثبت‌شده'
+    ]
+};
+
 function renderScheduledTasks() {
     const container = document.getElementById('tasks-container');
     if (!container) return;
@@ -4654,6 +4703,12 @@ function renderScheduledTasks() {
                     <div class="task-card-title">
                         <strong>${t.name}</strong>
                         <span class="task-card-desc">${t.description}</span>
+                        ${TASK_DETAILS[t.id] ? `
+                        <div class="task-card-details">
+                            <ul>
+                                ${TASK_DETAILS[t.id].map(d => `<li>${d}</li>`).join('')}
+                            </ul>
+                        </div>` : ''}
                     </div>
                     <div class="task-card-controls">
                         ${statusBadge}
@@ -5444,8 +5499,17 @@ async function renderOffCamerasWidget() {
 let changesFilterPeriod = '24h';
 let changesFilterAction = 'all';
 let changesCache = null;
+let offRecordingCache = null;
 
 function setChangesFilter(type, value) {
+    if (value === 'off_recording') {
+        changesFilterAction = 'off_recording';
+        document.querySelectorAll('[data-cf-period]').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('[data-cf-action]').forEach(b => b.classList.toggle('active', b.dataset.cfAction === 'off_recording'));
+        renderFilteredCameraChanges();
+        return;
+    }
+
     if (type === 'period') {
         changesFilterPeriod = value;
         document.querySelectorAll('[data-cf-period]').forEach(b => b.classList.toggle('active', b.dataset.cfPeriod === value));
@@ -5458,7 +5522,30 @@ function setChangesFilter(type, value) {
 
 function renderFilteredCameraChanges() {
     const listEl = document.getElementById('changes-list');
-    if (!listEl || !changesCache) return;
+    if (!listEl) return;
+
+    if (changesFilterAction === 'off_recording') {
+        if (!offRecordingCache) {
+            listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">در حال بارگذاری...</div>';
+            return;
+        }
+        if (offRecordingCache.length === 0) {
+            listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">هیچ دوربین ضبط خاموشی وجود ندارد.</div>';
+            return;
+        }
+        listEl.innerHTML = offRecordingCache.map(item => `
+            <div class="widget-list-item" style="padding: 5px 8px;">
+                <div class="item-title" title="${escapeHTML(item.name)}" style="font-size: 12px; max-width: 130px;">${escapeHTML(item.name)}</div>
+                <div class="item-meta" style="font-size: 11px;">
+                    <span>${escapeHTML(item.factory)}</span>
+                    <span style="color: var(--danger); font-size: 10px;">خاموش از ${escapeHTML(item.hours_off_str)}</span>
+                </div>
+            </div>
+        `).join('');
+        return;
+    }
+
+    if (!changesCache) return;
 
     let items = [];
     if (changesFilterPeriod === '24h') items = changesCache.changes_24h || [];
@@ -5489,13 +5576,26 @@ function renderFilteredCameraChanges() {
     }).join('');
 }
 
+async function prefetchOffRecording() {
+    try {
+        const res = await apiFetch(`${API}/cameras/off`);
+        offRecordingCache = await res.json();
+        if (changesFilterAction === 'off_recording') renderFilteredCameraChanges();
+    } catch (e) {
+        console.error('Error prefetching off recording:', e);
+    }
+}
+
 async function renderCameraChangesWidget() {
     const listEl = document.getElementById('changes-list');
     if (!listEl) return;
     
     try {
-        const res = await apiFetch(`${API}/cameras/changes`);
-        changesCache = await res.json();
+        const [changesRes] = await Promise.all([
+            apiFetch(`${API}/cameras/changes`),
+            prefetchOffRecording()
+        ]);
+        changesCache = await changesRes.json();
         renderFilteredCameraChanges();
     } catch (e) {
         console.error('Error rendering camera changes widget:', e);

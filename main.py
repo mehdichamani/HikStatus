@@ -19,7 +19,7 @@ from typing import Optional
 from sqlmodel import Session, select, col
 from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings, DowntimeEvent, OutageExplanation, OutageCause, User, UserAlertSettings, UserSession, MapPlan, ScheduledTask, hash_password, verify_password, engine, sqlite_file_name, encrypt_password, decrypt_password
 from logging_config import logger, log_event
-from monitor import start_monitor_loop, set_broadcast_callback, sync_camera_names_from_nvr
+from monitor import start_monitor_loop, set_broadcast_callback
 from scheduler import scheduler
 from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
 from rate_limiter import rate_limit, max_connections, limiter
@@ -170,43 +170,37 @@ def seed_scheduled_tasks():
             ScheduledTask(
                 id="ping_cameras",
                 name="پایش وضعیت اتصال دوربین‌ها",
-                description="بررسی دوره‌ای فعال بودن دوربین‌ها و ثبت قطعی‌ها در پایگاه داده",
+                description="بررسی دوره‌ای وضعیت دوربین‌ها از NVRها، ثبت قطعی‌ها، ارسال هشدار تلگرام/ایمیل و گزارش ساعتی",
                 interval=60
             ),
             ScheduledTask(
                 id="sync_nvr_configs",
-                name="همگام‌سازی ساختار ضبط NVRها",
-                description="دریافت تنظیمات برنامه‌ریزی ضبط از NVR (شامل وضعیت روشن/خاموش بودن ضبط و نوع آن: مداوم یا بر اساس حرکت)",
+                name="همگام‌سازی دوربین‌ها و ساختار ضبط NVRها",
+                description="دریافت نام، IP و مدل دوربین‌ها از NVR (تشخیص جدید/حذف/تغییر) + تنظیمات ضبط (روشن/خاموش و نوع: مداوم، حرکتی، آلارم) و ثبت تغییرات در تاریخچه",
                 interval=3600
             ),
             ScheduledTask(
                 id="sync_nvr_stats",
                 name="همگام‌سازی آمار ضبط NVRها",
-                description="جستجوی فایل‌های ویدئویی روی هارد NVR جهت محاسبه حجم کل داده‌ها، تاریخ بازه ویدیوها و مجموع ساعات ضبط",
+                description="جستجوی فایل‌های ویدئویی روی هارد NVR و محاسبه حجم کل داده‌ها (GB)، قدیمی‌ترین تاریخ ضبط، مجموع ساعات ضبط و پوشش ۲۴ ساعته",
                 interval=7200
-            ),
-            ScheduledTask(
-                id="sync_camera_names",
-                name="همگام‌سازی نام دوربین‌ها",
-                description="دریافت نام جدید دوربین‌ها از روی دستگاه‌های NVR و به‌روزرسانی در دیتابیس",
-                interval=86400
             ),
             ScheduledTask(
                 id="capture_camera_snapshots",
                 name="گرفتن پیش‌نمایش دوربین‌ها (Snapshot)",
-                description="دریافت تصویر لحظه‌ای از روی جریان sub-stream دوربین‌ها و ذخیره برای پیش‌نمایش در پنل وب",
+                description="دریافت تصویر لحظه‌ای از sub-stream دوربین‌های آنلاین و ذخیره برای نمایش در پنل وب",
                 interval=28800
             ),
             ScheduledTask(
                 id="cleanup_database",
                 name="پاک‌سازی خودکار لاگ‌های قدیمی",
-                description="حذف لاگ‌های مانیتورینگ قدیمی‌تر از ۹۰ روز برای بهینه‌سازی دیتابیس",
+                description="حذف لاگ‌ها، رویدادهای قطعی بسته‌شده و نشست‌های منقضی‌شده قدیمی‌تر از N روز برای بهینه‌سازی دیتابیس",
                 interval=86400
             ),
             ScheduledTask(
                 id="analyze_outages",
                 name="تحلیل و لیست کردن قطعی‌های مشخص‌نشده",
-                description="بررسی خودکار قطعی‌ها و ثبت دوربین‌های دارای قطعی بیش از N ساعت در هر کارخانه",
+                description="بررسی خودکار قطعی‌های ۲۴ ساعت اخیر و ثبت دوربین‌های دارای قطعی بیش از آستانه به عنوان قطعی نیازمند توضیح",
                 interval=86400
             )
         ]
