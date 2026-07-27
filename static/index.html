@@ -352,18 +352,18 @@
                 </div>
 
                 <!-- Widget: Camera Changes -->
-                <div class="dash-widget size-third" id="widget-camera-changes" data-widget-id="widget-camera-changes">
+                <div class="dash-widget size-half" id="widget-camera-changes" data-widget-id="widget-camera-changes">
                     <div class="dash-widget-controls">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
                             <span class="widget-title-label">تغییرات اخیر دوربین‌ها</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-camera-changes')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-camera-changes')" title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
                             <button class="widget-remove-btn" onclick="removeWidget('widget-camera-changes')" title="حذف ویجت">✕</button>
                         </div>
                     </div>
-                    <div class="stat-card-combined" style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 220px;">
+                    <div class="stat-card-combined" style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 280px;">
                         <div class="stat-combined-header">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
                                 <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
@@ -371,18 +371,18 @@
                             </svg>
                             <span class="stat-combined-title">تغییرات اخیر دوربین‌ها</span>
                         </div>
-                        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; overflow-y: auto;">
-                            <div>
-                                <div style="font-size: 11px; font-weight: bold; color: var(--primary); margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px dashed var(--border);">۲۴ ساعت اخیر</div>
-                                <div id="changes-24h-list" class="widget-list-scrollable" style="display: flex; flex-direction: column; gap: 4px; max-height: 80px; overflow-y: auto;">
-                                    <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 6px 0;">در حال بارگذاری...</div>
-                                </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; overflow: hidden;">
+                            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                                <button class="chip active" data-cf-period="24h" onclick="setChangesFilter('period', '24h')">۲۴ ساعت</button>
+                                <button class="chip" data-cf-period="7d" onclick="setChangesFilter('period', '7d')">۷ روز</button>
+                                <button class="chip" data-cf-period="month" onclick="setChangesFilter('period', 'month')">ماه</button>
+                                <div style="height: 18px; width: 1px; background: var(--border); margin: 0 4px;"></div>
+                                <button class="chip active" data-cf-action="all" onclick="setChangesFilter('action', 'all')">همه</button>
+                                <button class="chip" data-cf-action="added" onclick="setChangesFilter('action', 'added')">اضافه شده</button>
+                                <button class="chip" data-cf-action="removed" onclick="setChangesFilter('action', 'removed')">حذف شده</button>
                             </div>
-                            <div>
-                                <div style="font-size: 11px; font-weight: bold; color: var(--primary); margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px dashed var(--border);">هفته / ماه اخیر</div>
-                                <div id="changes-month-list" class="widget-list-scrollable" style="display: flex; flex-direction: column; gap: 4px; max-height: 80px; overflow-y: auto;">
-                                    <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 6px 0;">در حال بارگذاری...</div>
-                                </div>
+                            <div id="changes-list" class="widget-list-scrollable" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">در حال بارگذاری...</div>
                             </div>
                         </div>
                     </div>

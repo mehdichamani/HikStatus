@@ -84,6 +84,22 @@ def get_off_cameras(session: Session, accessible_groups: list[int] | None):
         
     return result
 
+def _time_ago(dt: datetime, now: datetime) -> str:
+    diff = now - dt
+    seconds = int(diff.total_seconds())
+    if seconds < 60:
+        return "کمتر از یک دقیقه پیش"
+    minutes = seconds // 60
+    if minutes < 60:
+        return to_persian_numbers(f"{minutes} دقیقه پیش")
+    hours = minutes // 60
+    if hours < 24:
+        return to_persian_numbers(f"{hours} ساعت پیش")
+    days = hours // 24
+    if days < 30:
+        return to_persian_numbers(f"{days} روز پیش")
+    return to_persian_numbers(f"{days // 30} ماه پیش")
+
 def get_camera_changes(session: Session, accessible_groups: list[int] | None):
     groups = {g.id: g.name for g in session.exec(select(NVRGroup)).all()}
     nvrs = {n.ip: n for n in session.exec(select(NVR)).all()}
@@ -122,36 +138,25 @@ def get_camera_changes(session: Session, accessible_groups: list[int] | None):
         group_name = groups.get(group_id, "بدون گروه")
         
         action_fa = "اضافه شده" if event.change_type == "camera_added" else "حذف شده"
+        time_ago = _time_ago(event.detected_at, now)
+        
+        item = {
+            "name": event.camera_name or "نامشخص",
+            "factory": group_name,
+            "action": action_fa,
+            "time_ago": time_ago
+        }
         
         # 24 Hours
         if event.detected_at >= day_ago:
-            hours = int((now - event.detected_at).total_seconds() / 3600)
-            if hours <= 0:
-                time_ago = "کمتر از یک ساعت پیش"
-            else:
-                time_ago = to_persian_numbers(f"{hours} ساعت پیش")
-                
-            changes_24h.append({
-                "name": event.camera_name or "نامشخص",
-                "factory": group_name,
-                "action": action_fa,
-                "time_ago": time_ago
-            })
+            changes_24h.append(item)
             
         # Week
         if event.detected_at >= week_ago:
-            changes_week.append({
-                "name": event.camera_name or "نامشخص",
-                "factory": group_name,
-                "action": action_fa
-            })
+            changes_week.append(item)
             
         # Month
-        changes_month.append({
-            "name": event.camera_name or "نامشخص",
-            "factory": group_name,
-            "action": action_fa
-        })
+        changes_month.append(item)
         
     return {
         "changes_24h": changes_24h,

@@ -5441,55 +5441,65 @@ async function renderOffCamerasWidget() {
     }
 }
 
+let changesFilterPeriod = '24h';
+let changesFilterAction = 'all';
+let changesCache = null;
+
+function setChangesFilter(type, value) {
+    if (type === 'period') {
+        changesFilterPeriod = value;
+        document.querySelectorAll('[data-cf-period]').forEach(b => b.classList.toggle('active', b.dataset.cfPeriod === value));
+    } else {
+        changesFilterAction = value;
+        document.querySelectorAll('[data-cf-action]').forEach(b => b.classList.toggle('active', b.dataset.cfAction === value));
+    }
+    renderFilteredCameraChanges();
+}
+
+function renderFilteredCameraChanges() {
+    const listEl = document.getElementById('changes-list');
+    if (!listEl || !changesCache) return;
+
+    let items = [];
+    if (changesFilterPeriod === '24h') items = changesCache.changes_24h || [];
+    else if (changesFilterPeriod === '7d') items = changesCache.changes_week || [];
+    else items = changesCache.changes_month || [];
+
+    if (changesFilterAction === 'added') items = items.filter(i => i.action === 'اضافه شده');
+    else if (changesFilterAction === 'removed') items = items.filter(i => i.action === 'حذف شده');
+
+    if (items.length === 0) {
+        listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">بدون تغییر</div>';
+        return;
+    }
+
+    listEl.innerHTML = items.map(item => {
+        const actionClass = item.action === 'اضافه شده' ? 'added' : 'removed';
+        const timeHtml = item.time_ago ? `<span style="color: var(--text-muted); font-size: 9px;">${escapeHTML(item.time_ago)}</span>` : '';
+        return `
+            <div class="widget-list-item" style="padding: 5px 8px;">
+                <div class="item-title" title="${escapeHTML(item.name)}" style="font-size: 12px; max-width: 130px;">${escapeHTML(item.name)}</div>
+                <div class="item-meta" style="font-size: 11px;">
+                    <span>${escapeHTML(item.factory)}</span>
+                    <span class="badge-action ${actionClass}">${escapeHTML(item.action)}</span>
+                    ${timeHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
 async function renderCameraChangesWidget() {
-    const list24h = document.getElementById('changes-24h-list');
-    const listMonth = document.getElementById('changes-month-list');
-    if (!list24h || !listMonth) return;
+    const listEl = document.getElementById('changes-list');
+    if (!listEl) return;
     
     try {
         const res = await apiFetch(`${API}/cameras/changes`);
-        const data = await res.json();
-        
-        // 24h
-        if (data.changes_24h.length === 0) {
-            list24h.innerHTML = '<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px 0;">بدون تغییر</div>';
-        } else {
-            list24h.innerHTML = data.changes_24h.map(item => {
-                const actionClass = item.action === 'اضافه شده' ? 'added' : 'removed';
-                return `
-                    <div class="widget-list-item" style="padding: 4px 6px;">
-                        <div class="item-title" title="${escapeHTML(item.name)}" style="font-size: 11px; max-width: 100px;">${escapeHTML(item.name)}</div>
-                        <div class="item-meta" style="font-size: 10px;">
-                            <span>${escapeHTML(item.factory)}</span>
-                            <span class="badge-action ${actionClass}">${escapeHTML(item.action)}</span>
-                            <span style="color: var(--text-muted); font-size: 9px;">${escapeHTML(item.time_ago)}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-        
-        // Month (or Week)
-        if (data.changes_week.length === 0) {
-            listMonth.innerHTML = '<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px 0;">بدون تغییر</div>';
-        } else {
-            listMonth.innerHTML = data.changes_week.map(item => {
-                const actionClass = item.action === 'اضافه شده' ? 'added' : 'removed';
-                return `
-                    <div class="widget-list-item" style="padding: 4px 6px;">
-                        <div class="item-title" title="${escapeHTML(item.name)}" style="font-size: 11px; max-width: 100px;">${escapeHTML(item.name)}</div>
-                        <div class="item-meta" style="font-size: 10px;">
-                            <span>${escapeHTML(item.factory)}</span>
-                            <span class="badge-action ${actionClass}">${escapeHTML(item.action)}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
+        changesCache = await res.json();
+        renderFilteredCameraChanges();
     } catch (e) {
         console.error('Error rendering camera changes widget:', e);
-        list24h.innerHTML = '<div style="font-size: 11px; color: var(--danger); text-align: center; padding: 8px 0;">خطا</div>';
-        listMonth.innerHTML = '<div style="font-size: 11px; color: var(--danger); text-align: center; padding: 8px 0;">خطا</div>';
+        listEl.innerHTML = '<div style="font-size: 12px; color: var(--danger); text-align: center; padding: 16px 0;">خطا در بارگذاری اطلاعات</div>';
     }
 }
 
