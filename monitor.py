@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from requests.auth import HTTPDigestAuth
 from sqlmodel import Session, select
 from database import engine, NVR, NVRGroup, Camera, CameraChangeEvent, Log, Settings, DowntimeEvent, UserSession, OutageExplanation
-from alerts import send_email_batch, send_telegram_batch, send_change_alert
+from alerts import send_email_batch, send_telegram_batch, send_change_alert, is_notification_enabled
 from logging_config import logger, log_event
 
 
@@ -38,6 +38,14 @@ def set_broadcast_callback(callback):
 async def broadcast(message):
     if _broadcast_callback:
         await _broadcast_callback(message)
+
+async def broadcast_alert(event_type, title, body, alert_type):
+    """Deliver browser alerts only when their central policy permits it."""
+    if is_notification_enabled(event_type, "browser"):
+        await broadcast({
+            "type": "alert", "title": title, "body": body,
+            "alert_type": alert_type, "event_type": event_type
+        })
 
 def get_setting(session, key, default):
     s = session.get(Settings, key)
@@ -172,7 +180,7 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
                     grp = db_session.get(NVRGroup, nvr_group_id)
                     group_name = f" [{grp.name}]" if grp else ""
                 title = f"تغییرات ساختاری دوربین‌ها — {nvr_name}{group_name}"
-                send_change_alert(title, alert_lines, alert_type="warning", group_id=nvr_group_id)
+                send_change_alert(title, alert_lines, alert_type="warning", group_id=nvr_group_id, event_type="camera_topology_changed")
             
             return True, f"Successfully synced camera names for {nvr_name}"
         else:
@@ -314,34 +322,19 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
     if not is_failed:
         if nvr_obj.status == "Offline":
             log_event(session, category="NVR", action="NVR_ONLINE", details=f"اتصال مجدد {nvr_name} برقرار شد", level="INFO", group_id=nvr_obj.group_id, target_type="NVR", target_id=nvr_obj.ip)
-            await broadcast({
-                "type": "alert",
-                "title": "اتصال مجدد NVR",
-                "body": f"اتصال NVR {nvr_name} مجدداً برقرار شد",
-                "alert_type": "success"
-            })
+            await broadcast_alert("nvr_recovered", "اتصال مجدد NVR", f"اتصال NVR {nvr_name} مجدداً برقرار شد", "success")
 
         nvr_obj.status = "Online"
         nvr_obj.last_online = now
 
         if nvr_obj.telegram_alert_count > 0:
-            res = await asyncio.to_thread(send_telegram_batch, "NVR برگشت", [f"✅ {nvr_name} مجددا متصل شد"], "success", nvr_obj.group_id)
+            res = await asyncio.to_thread(send_telegram_batch, "NVR برگشت", [f"✅ {nvr_name} مجددا متصل شد"], "success", nvr_obj.group_id, "nvr_recovered")
             if res is not True:
-                await broadcast({
-                    "type": "alert",
-                    "title": "خطای ارسال تلگرام (NVR)",
-                    "body": f"خطا در ارسال پیام تلگرام برای NVR {nvr_name}: {res}",
-                    "alert_type": "warning"
-                })
+                await broadcast_alert("delivery_failure", "خطای ارسال تلگرام (NVR)", f"خطا در ارسال پیام تلگرام برای NVR {nvr_name}: {res}", "warning")
         if nvr_obj.mail_alert_count > 0:
-            res = await asyncio.to_thread(send_email_batch, "NVR برگشت", [f"{nvr_name} مجددا متصل شد"], "success", nvr_obj.group_id)
+            res = await asyncio.to_thread(send_email_batch, "NVR برگشت", [f"{nvr_name} مجددا متصل شد"], "success", nvr_obj.group_id, "nvr_recovered")
             if res is not True:
-                await broadcast({
-                    "type": "alert",
-                    "title": "خطای ارسال ایمیل (NVR)",
-                    "body": f"خطا در ارسال ایمیل برای NVR {nvr_name}: {res}",
-                    "alert_type": "warning"
-                })
+                await broadcast_alert("delivery_failure", "خطای ارسال ایمیل (NVR)", f"خطا در ارسال ایمیل برای NVR {nvr_name}: {res}", "warning")
 
         nvr_obj.telegram_alert_count = 0
         nvr_obj.mail_alert_count = 0
@@ -352,12 +345,7 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
         nvr_obj.status = "Offline"
         nvr_obj.last_online = nvr_obj.last_online or now
         log_event(session, category="NVR", action="NVR_OFFLINE", details=error_message, level="ERROR", group_id=nvr_obj.group_id, target_type="NVR", target_id=nvr_obj.ip)
-        await broadcast({
-            "type": "alert",
-            "title": "خطای اتصال NVR",
-            "body": f"اتصال NVR {nvr_name} قطع شد: {error_message}",
-            "alert_type": "error"
-        })
+        await broadcast_alert("nvr_offline", "خطای اتصال NVR", f"اتصال NVR {nvr_name} قطع شد: {error_message}", "error")
 
     downtime_mins = int((now - (nvr_obj.last_online or now)).total_seconds() / 60)
 
@@ -370,14 +358,9 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
             send_tele = (now - last).total_seconds() / 60 >= tele_freq
 
     if send_tele:
-        res = await asyncio.to_thread(send_telegram_batch, "خطای اتصال NVR", [error_message], "error", nvr_obj.group_id)
+        res = await asyncio.to_thread(send_telegram_batch, "خطای اتصال NVR", [error_message], "error", nvr_obj.group_id, "nvr_offline")
         if res is not True:
-            await broadcast({
-                "type": "alert",
-                "title": "خطای ارسال تلگرام (NVR)",
-                "body": f"خطا در ارسال پیام تلگرام برای NVR {nvr_name}: {res}",
-                "alert_type": "warning"
-            })
+            await broadcast_alert("delivery_failure", "خطای ارسال تلگرام (NVR)", f"خطا در ارسال پیام تلگرام برای NVR {nvr_name}: {res}", "warning")
         nvr_obj.telegram_alert_count += 1
         nvr_obj.telegram_last_alert = now
 
@@ -390,14 +373,9 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
             send_mail = (now - last).total_seconds() / 60 >= mail_freq
 
     if send_mail:
-        res = await asyncio.to_thread(send_email_batch, "خطای اتصال NVR", [error_message], "error", nvr_obj.group_id)
+        res = await asyncio.to_thread(send_email_batch, "خطای اتصال NVR", [error_message], "error", nvr_obj.group_id, "nvr_offline")
         if res is not True:
-            await broadcast({
-                "type": "alert",
-                "title": "خطای ارسال ایمیل (NVR)",
-                "body": f"خطا در ارسال ایمیل برای NVR {nvr_name}: {res}",
-                "alert_type": "warning"
-            })
+            await broadcast_alert("delivery_failure", "خطای ارسال ایمیل (NVR)", f"خطا در ارسال ایمیل برای NVR {nvr_name}: {res}", "warning")
         nvr_obj.mail_alert_count += 1
         nvr_obj.mail_last_alert = now
 
@@ -613,7 +591,7 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                 grp = db_session.get(NVRGroup, nvr_group_id)
                 group_name = f" [{grp.name}]" if grp else ""
             title = f"تغییرات تنظیمات ضبط — {nvr_name}{group_name}"
-            send_change_alert(title, alert_lines, alert_type="warning", group_id=nvr_group_id)
+            send_change_alert(title, alert_lines, alert_type="warning", group_id=nvr_group_id, event_type="recording_changed")
 
     except Exception as outer_err:
         logger.warning(f"Error syncing recording schedule config for NVR {ip}: {outer_err}")
@@ -800,12 +778,7 @@ async def task_ping_cameras():
                 error_message = f"خطای احراز هویت: رمز عبور نامعتبر است برای {nvr_label}"
                 nvr_obj.status = "AuthError"
                 log_event(session, category="NVR", action="NVR_AUTH_ERROR", details=error_message, level="ERROR", group_id=nvr_obj.group_id, target_type="NVR", target_id=nvr_obj.ip)
-                await broadcast({
-                    "type": "alert",
-                    "title": "خطای احراز هویت NVR",
-                    "body": error_message,
-                    "alert_type": "error"
-                })
+                await broadcast_alert("nvr_auth_error", "خطای احراز هویت NVR", error_message, "error")
                 # Mark all cameras of this NVR as Offline since we cannot authenticate to poll them
                 offline_cams = session.exec(select(Camera).where(Camera.nvr_ip == nvr_obj.ip)).all()
                 for cam in offline_cams:
@@ -858,12 +831,13 @@ async def task_ping_cameras():
                     
                     if db_cam.status != new_status:
                         log_event(session, category="Camera", action=f"CAMERA_{new_status.upper()}", details=f"{db_cam.name} ({db_cam.ip})", level="INFO" if new_status=="Online" else "WARNING", group_id=nvr_obj.group_id, target_type="Camera", target_id=db_cam.id)
-                        await broadcast({
-                            "type": "alert",
-                            "title": f"تغییر وضعیت: {db_cam.name}",
-                            "body": f"دوربین {db_cam.name} ({db_cam.ip}) { 'متصل' if new_status == 'Online' else 'قطع' } شد",
-                            "alert_type": "success" if new_status == "Online" else "error"
-                        })
+                        event_type = "camera_recovered" if new_status == "Online" else "camera_offline"
+                        await broadcast_alert(
+                            event_type,
+                            f"تغییر وضعیت: {db_cam.name}",
+                            f"دوربین {db_cam.name} ({db_cam.ip}) { 'متصل' if new_status == 'Online' else 'قطع' } شد",
+                            "success" if new_status == "Online" else "error"
+                        )
                         db_cam.status = new_status
                         if new_status == "Offline":
                             session.add(DowntimeEvent(camera_id=db_cam.id, start_time=datetime.now()))
@@ -892,47 +866,27 @@ async def task_ping_cameras():
             t_alerts, m_alerts, t_recov, m_recov = await process_batch_alerts(session, group_cams)
             
             if t_alerts:
-                res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها قطع شدند", t_alerts, "warning", gid)
+                res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها قطع شدند", t_alerts, "warning", gid, "camera_offline")
                 is_ok = res is True
                 status_txt = "با موفقیت انجام شد" if is_ok else "با خطا مواجه شد"
                 log_event(session, category="Alert", action="TELEGRAM_ALERT", details=f"ارسال {len(t_alerts)} هشدار تلگرام برای گروه {gid} {status_txt}", level="INFO" if is_ok else "ERROR", group_id=gid)
                 if not is_ok:
-                    await broadcast({
-                        "type": "alert",
-                        "title": "خطای ارسال تلگرام",
-                        "body": f"خطا در ارسال پیام تلگرام برای دوربین‌های قطع شده: {res}",
-                        "alert_type": "warning"
-                    })
+                    await broadcast_alert("delivery_failure", "خطای ارسال تلگرام", f"خطا در ارسال پیام تلگرام برای دوربین‌های قطع شده: {res}", "warning")
             if t_recov:
-                res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها برگشتند", t_recov, "success", gid)
+                res = await asyncio.to_thread(send_telegram_batch, "دوربین‌ها برگشتند", t_recov, "success", gid, "camera_recovered")
                 if res is not True:
-                    await broadcast({
-                        "type": "alert",
-                        "title": "خطای ارسال تلگرام",
-                        "body": f"خطا در ارسال پیام تلگرام برای دوربین‌های متصل شده: {res}",
-                        "alert_type": "warning"
-                    })
+                    await broadcast_alert("delivery_failure", "خطای ارسال تلگرام", f"خطا در ارسال پیام تلگرام برای دوربین‌های متصل شده: {res}", "warning")
             if m_alerts:
-                res = await asyncio.to_thread(send_email_batch, "دوربین‌ها قطع شدند", m_alerts, "warning", gid)
+                res = await asyncio.to_thread(send_email_batch, "دوربین‌ها قطع شدند", m_alerts, "warning", gid, "camera_offline")
                 is_ok = res is True
                 status_txt = "با موفقیت انجام شد" if is_ok else "با خطا مواجه شد"
                 log_event(session, category="Alert", action="MAIL_ALERT", details=f"ارسال {len(m_alerts)} هشدار ایمیل برای گروه {gid} {status_txt}", level="INFO" if is_ok else "ERROR", group_id=gid)
                 if not is_ok:
-                    await broadcast({
-                        "type": "alert",
-                        "title": "خطای ارسال ایمیل",
-                        "body": f"خطا در ارسال ایمیل برای دوربین‌های قطع شده: {res}",
-                        "alert_type": "warning"
-                    })
+                    await broadcast_alert("delivery_failure", "خطای ارسال ایمیل", f"خطا در ارسال ایمیل برای دوربین‌های قطع شده: {res}", "warning")
             if m_recov:
-                res = await asyncio.to_thread(send_email_batch, "دوربین‌ها برگشتند", m_recov, "success", gid)
+                res = await asyncio.to_thread(send_email_batch, "دوربین‌ها برگشتند", m_recov, "success", gid, "camera_recovered")
                 if res is not True:
-                    await broadcast({
-                        "type": "alert",
-                        "title": "خطای ارسال ایمیل",
-                        "body": f"خطا در ارسال ایمیل برای دوربین‌های متصل شده: {res}",
-                        "alert_type": "warning"
-                    })
+                    await broadcast_alert("delivery_failure", "خطای ارسال ایمیل", f"خطا در ارسال ایمیل برای دوربین‌های متصل شده: {res}", "warning")
 
         # Check hourly downtime summary
         now = datetime.now()
@@ -949,7 +903,7 @@ async def task_ping_cameras():
 
             if summary_lines:
                 header = f"📊 گزارش قطعی ساعتی ({now.strftime('%H:00')})"
-                await asyncio.to_thread(send_telegram_batch, header, summary_lines, "info")
+                await asyncio.to_thread(send_telegram_batch, header, summary_lines, "info", None, "downtime_hourly_summary")
                 log_event(session, "Telegram", "Sent", "گزارش خلاصه ساعتی")
             last_summary_hour = now.hour
 

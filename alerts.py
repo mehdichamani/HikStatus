@@ -8,6 +8,37 @@ from database import Session, engine, Settings, User, UserAlertSettings
 from sqlmodel import select
 from loguru import logger
 
+# Central notification policy.  The Settings rows are seeded by main.py and
+# deliberately default to enabled, so upgrading does not silence any existing
+# alert.  A missing row is also treated as enabled for the same reason.
+NOTIFICATION_EVENTS = (
+    ("camera_offline", "قطع دوربین"),
+    ("camera_recovered", "وصل مجدد دوربین"),
+    ("nvr_offline", "قطع ارتباط NVR"),
+    ("nvr_recovered", "وصل مجدد NVR"),
+    ("nvr_auth_error", "خطای احراز هویت NVR"),
+    ("camera_topology_changed", "افزودن یا حذف دوربین"),
+    ("recording_changed", "تغییر تنظیمات ضبط"),
+    ("downtime_hourly_summary", "گزارش قطعی ساعتی"),
+    ("delivery_failure", "خطای ارسال اعلان"),
+)
+NOTIFICATION_CHANNELS = ("email", "telegram", "browser")
+
+def notification_setting_key(event_type, channel=None):
+    prefix = f"NOTIFY_{event_type.upper()}"
+    return f"{prefix}_{channel.upper()}" if channel else f"{prefix}_ENABLED"
+
+def notification_default_settings():
+    event_labels = dict(NOTIFICATION_EVENTS)
+    return {
+        notification_setting_key(event_type): ("true", f"فعال‌سازی اعلان {label}")
+        for event_type, label in NOTIFICATION_EVENTS
+    } | {
+        notification_setting_key(event_type, channel): ("true", f"ارسال {event_labels[event_type]} از کانال {channel}")
+        for event_type, _label in NOTIFICATION_EVENTS
+        for channel in NOTIFICATION_CHANNELS
+    }
+
 def format_shamsi_datetime(dt):
     if not dt:
         return "نامشخص"
@@ -85,6 +116,18 @@ def invalidate_config_cache():
     _config_cache = None
     _config_cache_time = 0
 
+def is_notification_enabled(event_type, channel):
+    """Return whether an event may be delivered through a channel.
+
+    Event detection and audit logging are intentionally outside this policy.
+    """
+    if not event_type:
+        return True
+    conf = get_config_dict()
+    master = conf.get(notification_setting_key(event_type), "true") == "true"
+    channel_enabled = conf.get(notification_setting_key(event_type, channel), "true") == "true"
+    return master and channel_enabled
+
 def get_email_body(subject, lines, alert_type):
     colors = {
         "error": "#dc3545",
@@ -136,7 +179,9 @@ def get_email_body(subject, lines, alert_type):
     </html>"""
     return body
 
-def send_email_batch(subject, lines, alert_type="warning", group_id=None):
+def send_email_batch(subject, lines, alert_type="warning", group_id=None, event_type=None):
+    if not is_notification_enabled(event_type, "email"):
+        return True
     conf = get_config_dict()
     sent_status = True
     
@@ -219,7 +264,9 @@ def get_telegram_message(header, lines, alert_type):
     msg += f"📅 {get_persian_datetime()}"
     return msg
 
-def send_telegram_batch(header, lines, alert_type="warning", group_id=None):
+def send_telegram_batch(header, lines, alert_type="warning", group_id=None, event_type=None):
+    if not is_notification_enabled(event_type, "telegram"):
+        return True
     conf = get_config_dict()
     sent_status = True
     
@@ -282,15 +329,15 @@ def send_telegram_raw(conf, message, chat_ids):
             
     return errors[0] if errors else True
 
-def send_change_alert(title, lines, alert_type="warning", group_id=None):
+def send_change_alert(title, lines, alert_type="warning", group_id=None, event_type=None):
     """Send both email and telegram alerts in a background thread (non-blocking)."""
     def _bg_send():
         try:
-            send_email_batch(title, lines, alert_type=alert_type, group_id=group_id)
+            send_email_batch(title, lines, alert_type=alert_type, group_id=group_id, event_type=event_type)
         except Exception as e:
             logger.error(f"Change alert email error: {e}")
         try:
-            send_telegram_batch(title, lines, alert_type=alert_type, group_id=group_id)
+            send_telegram_batch(title, lines, alert_type=alert_type, group_id=group_id, event_type=event_type)
         except Exception as e:
             logger.error(f"Change alert telegram error: {e}")
 

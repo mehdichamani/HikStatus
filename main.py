@@ -21,7 +21,7 @@ from database import init_db, get_session, Camera, Log, NVR, NVRGroup, Settings,
 from logging_config import logger, log_event
 from monitor import start_monitor_loop, set_broadcast_callback
 from scheduler import scheduler
-from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime
+from alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime, notification_default_settings
 from rate_limiter import rate_limit, max_connections, limiter
 
 class ConnectionManager:
@@ -84,6 +84,7 @@ def seed_database(session: Session):
         "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
         "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
     }
+    defaults.update(notification_default_settings())
 
     # Delete all records from all tables
     session.query(OutageExplanation).delete()
@@ -117,6 +118,7 @@ def seed_defaults():
                 "OUTAGE_ANALYSIS_TIME": ("07:30", "ساعت بررسی قطعی‌ها"),
                 "OUTAGE_LAST_ANALYSIS_TIME": ("", "آخرین زمان بررسی قطعی‌ها"),
             }
+            defaults.update(notification_default_settings())
             for key, (default_val, desc) in defaults.items():
                 if not session.get(Settings, key):
                     session.add(Settings(key=key, value=str(default_val), description=desc))
@@ -158,6 +160,7 @@ def seed_defaults():
             "LIMIT_API_RATE_LIMIT_PER_MIN": ("60", "سقف درخواست‌های مجاز عمومی API در دقیقه"),
             "LIMIT_LOG_RETENTION_DAYS": ("90", "مدت زمان نگه‌داری لاگ‌های قطعی و مانیتورینگ (روز)"),
         }
+        defaults.update(notification_default_settings())
 
         for key, (default_val, desc) in defaults.items():
             if not session.get(Settings, key):

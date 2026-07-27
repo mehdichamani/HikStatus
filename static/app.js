@@ -497,6 +497,77 @@ const settingLabels = {
     'OUTAGE_ANALYSIS_TIME': 'ساعت بررسی قطعی‌ها (مثال: 07:30)',
 };
 
+const notificationEventCatalog = [
+    ['camera_offline', 'قطع دوربین', 'ارسال هشدار هنگام قطع شدن دوربین'],
+    ['camera_recovered', 'وصل مجدد دوربین', 'ارسال پیام بازگشت دوربین به وضعیت آنلاین'],
+    ['nvr_offline', 'قطع ارتباط NVR', 'ارسال هشدار هنگام در دسترس نبودن NVR'],
+    ['nvr_recovered', 'وصل مجدد NVR', 'ارسال پیام بازگشت NVR به وضعیت آنلاین'],
+    ['nvr_auth_error', 'خطای احراز هویت NVR', 'نمایش خطای نام کاربری یا رمز عبور NVR'],
+    ['camera_topology_changed', 'افزودن یا حذف دوربین', 'اعلان تغییر ساختار دوربین‌های یک NVR'],
+    ['recording_changed', 'تغییر تنظیمات ضبط', 'اعلان تغییر وضعیت یا نوع ضبط دوربین'],
+    ['downtime_hourly_summary', 'گزارش قطعی ساعتی', 'ارسال گزارش دوره‌ای دوربین‌های قطع‌شده'],
+    ['delivery_failure', 'خطای ارسال اعلان', 'نمایش خطای ناموفق بودن ارسال ایمیل یا تلگرام'],
+];
+
+function notificationKey(eventType, channel = null) {
+    const prefix = `NOTIFY_${eventType.toUpperCase()}`;
+    return channel ? `${prefix}_${channel.toUpperCase()}` : `${prefix}_ENABLED`;
+}
+
+function renderNotificationManagement() {
+    const con = document.getElementById('config-forms');
+    if (!con || !settingsCache.length) return;
+    const values = Object.fromEntries(settingsCache.map(s => [s.key, s.value]));
+    const isChecked = key => values[key] !== 'false' ? 'checked' : '';
+    const rows = notificationEventCatalog.map(([eventType, title, desc]) => {
+        const masterKey = notificationKey(eventType);
+        const channels = [['email', 'ایمیل'], ['telegram', 'تلگرام'], ['browser', 'مرورگر']].map(([channel, label]) => {
+            const key = notificationKey(eventType, channel);
+            return `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" id="${key}" ${isChecked(key)}>
+                <span>${label}</span>
+            </label>`;
+        }).join('');
+        return `<div style="padding:14px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+                <div><strong style="font-size:13px;">${title}</strong><p style="margin:5px 0 0;font-size:12px;color:var(--text-secondary);">${desc}</p></div>
+                <label class="toggle" title="فعال‌سازی همه کانال‌های این رویداد"><input type="checkbox" id="${masterKey}" ${isChecked(masterKey)} onchange="syncNotificationChannels('${eventType}')"><span class="toggle-slider"></span></label>
+            </div>
+            <div id="notification-channels-${eventType}" style="display:flex;gap:18px;margin-top:11px;padding-right:2px;">${channels}</div>
+        </div>`;
+    }).join('');
+    con.insertAdjacentHTML('afterbegin', `<div class="card" id="grp-Notifications" style="display:none;">
+        <div class="settings-card-header"><button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></button><h3>مدیریت مرکزی اعلان‌ها</h3></div>
+        <div style="padding:0 20px 20px;"><p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin:0;padding:16px 0 8px;">خاموش‌کردن هر مورد فقط ارسال اعلان را متوقف می‌کند؛ رویدادها و لاگ‌های سیستم همچنان ثبت می‌شوند.</p>${rows}<div class="settings-action-row"><button class="btn btn-primary" onclick="saveNotificationSettings()">ذخیره تنظیمات اعلان‌ها</button></div></div>
+    </div>`);
+    notificationEventCatalog.forEach(([eventType]) => syncNotificationChannels(eventType));
+}
+
+function syncNotificationChannels(eventType) {
+    const master = document.getElementById(notificationKey(eventType));
+    const channels = document.getElementById(`notification-channels-${eventType}`);
+    if (!master || !channels) return;
+    channels.style.opacity = master.checked ? '1' : '.45';
+    channels.querySelectorAll('input').forEach(input => input.disabled = !master.checked);
+}
+
+async function saveNotificationSettings() {
+    try {
+        const keys = notificationEventCatalog.flatMap(([eventType]) => [notificationKey(eventType), ...['email', 'telegram', 'browser'].map(channel => notificationKey(eventType, channel))]);
+        for (const key of keys) {
+            const el = document.getElementById(key);
+            const setting = settingsCache.find(s => s.key === key);
+            if (el && setting && (el.checked ? 'true' : 'false') !== setting.value) {
+                await apiFetch(`${API}/settings/${key}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value: el.checked ? 'true' : 'false' }) });
+                setting.value = el.checked ? 'true' : 'false';
+            }
+        }
+        showToast('تنظیمات مرکزی اعلان‌ها ذخیره شد', 'success');
+    } catch (e) {
+        showToast('خطا در ذخیره تنظیمات اعلان‌ها: ' + e.message, 'error');
+    }
+}
+
 async function loadSettings(activeTabOverride = null) {
     const role = window.currentUser ? window.currentUser.role : 'group_view';
 
@@ -658,6 +729,7 @@ async function loadSettings(activeTabOverride = null) {
             </div>`;
             con.innerHTML += html;
         }
+        renderNotificationManagement();
     }
 
     pendingNVRDeletes = new Set();
@@ -717,7 +789,7 @@ async function apply() {
         showToast('تنظیمات با موفقیت ذخیره شد و مانیتورینگ ریستارت گردید', 'success');
         
         // Find currently visible tab by checking which card is displayed
-        const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'grp-Limits', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
+        const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Notifications', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'grp-Limits', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
         let activeTab = null;
         for (const id of tabs) {
             const el = document.getElementById(id);
@@ -742,7 +814,7 @@ function switchSettingsTab(tabId) {
     const detailsCon = document.getElementById('settings-detail-container');
     if (detailsCon) detailsCon.style.display = 'block';
 
-    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'grp-Limits', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
+    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Notifications', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'grp-Limits', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -776,7 +848,7 @@ function goBackToSettingsMenu() {
     if (detailsCon) detailsCon.style.display = 'none';
 
     // Hide all card tabs
-    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
+    const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Notifications', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'grp-Limits', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -820,6 +892,12 @@ function renderSettingsMenu(role) {
             title: 'تنظیمات تلگرام',
             desc: 'پیکربندی توکن ربات اطلاع‌رسان و شناسه‌های گفتگوی کانال/گروه',
             icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`,
+            roles: ['admin']
+        },
+        'grp-Notifications': {
+            title: 'مدیریت اعلان‌ها',
+            desc: 'کنترل روشن یا خاموش بودن هر رویداد و کانال ارسال آن، بدون حذف لاگ‌ها',
+            icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
             roles: ['admin']
         },
         'grp-Outages': {
