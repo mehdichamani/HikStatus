@@ -2,6 +2,7 @@ const API = '/api';
 let logOff = 0, logFilter = '', logSearchVal = '', loading = false, allLoaded = false;
 let currentCamId, currentImp, settingsCache = [], nvrCache = [], groupCache = [], dashCamerasCache = [];
 let ws = null, wsRetryDelay = 1000, dashCamSearchVal = '', dashCamFilter = 'all';
+let dashCamRecordingFilter = 'all';
 
 async function apiFetch(url, options = {}) {
     try {
@@ -85,6 +86,11 @@ async function fetchDash() {
     updateDashFromWS(cams);
 }
 
+function setDashCamRecordingFilter(val) {
+    dashCamRecordingFilter = val;
+    renderDash();
+}
+
 function renderDash() {
     let filteredCams = dashCamerasCache;
 
@@ -93,6 +99,23 @@ function renderDash() {
         filteredCams = filteredCams.filter(c => c.status === 'Online');
     } else if (dashCamFilter === 'offline') {
         filteredCams = filteredCams.filter(c => c.status !== 'Online');
+    }
+
+    // Apply recording status filter
+    if (dashCamRecordingFilter === 'on') {
+        filteredCams = filteredCams.filter(c => c.recording_scheduled === true);
+    } else if (dashCamRecordingFilter === 'off') {
+        filteredCams = filteredCams.filter(c => c.recording_scheduled === false);
+    } else if (dashCamRecordingFilter === 'continuous') {
+        filteredCams = filteredCams.filter(c => c.recording_scheduled === true && c.recording_schedule_type && c.recording_schedule_type.includes('مداوم'));
+    } else if (dashCamRecordingFilter === 'motion') {
+        filteredCams = filteredCams.filter(c => c.recording_scheduled === true && c.recording_schedule_type && c.recording_schedule_type.includes('حرکتی'));
+    } else if (dashCamRecordingFilter === 'alarm') {
+        filteredCams = filteredCams.filter(c => c.recording_scheduled === true && c.recording_schedule_type && c.recording_schedule_type === 'آلارم (Alarm)');
+    } else if (dashCamRecordingFilter === 'motion_alarm') {
+        filteredCams = filteredCams.filter(c => c.recording_scheduled === true && c.recording_schedule_type && c.recording_schedule_type.includes('حرکت و آلارم'));
+    } else if (dashCamRecordingFilter === 'event') {
+        filteredCams = filteredCams.filter(c => c.recording_scheduled === true && c.recording_schedule_type && c.recording_schedule_type.includes('رویداد'));
     }
 
     // Render Offline Section
