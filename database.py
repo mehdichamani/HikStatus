@@ -140,7 +140,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)
     password_hash: str           # sha256 hex (simple, no extra deps)
-    role: str = "group_view"     # "admin" | "group_control" | "group_view"
+    role: str = "group_view"     # "admin" | "it_manager" | "inspector" | "group_view"
     group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
     accessible_group_ids: Optional[str] = Field(default=None)
     is_active: bool = True
