@@ -1162,10 +1162,11 @@ function validateNVRInputs() {
     if (!ipValue) {
         ipValid = false;
     } else {
-        const ipPattern = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        // ریجکس منعطف جهت پذیرش همزمان آدرس‌های IP و نام‌های دامنه یا میزبان (مانند DDNSها)
+        const ipPattern = /^[a-zA-Z0-9_\-\.]+(:[0-9]+)?$/;
         if (!ipPattern.test(ipValue)) {
             ipValid = false;
-            errMsg += 'قالب آدرس IP نامعتبر است. ';
+            errMsg += 'قالب آدرس IP یا میزبان نامعتبر است. ';
         }
     }
 
@@ -1449,14 +1450,31 @@ function startEditNVR(ip) {
     if (!row) return;
 
     row.innerHTML = `
-        <div style="display: flex; gap: 8px; align-items: center; width: 100%; flex-wrap: wrap;">
-            <span class="list-item-ip" style="font-weight: bold; margin-left: 8px;">${n.ip}</span>
-            <input class="form-input form-input-sm" id="edit-nvr-name-${escaped}" value="${n.name || ''}" placeholder="نام دلخواه" style="width: 140px; height: 28px; font-size: 12px; padding: 2px 8px;">
-            <input class="form-input form-input-sm" id="edit-nvr-user-${escaped}" value="${n.user || ''}" placeholder="نام کاربری" style="width: 100px; height: 28px; font-size: 12px; padding: 2px 8px;">
-            <input class="form-input form-input-sm" id="edit-nvr-pass-${escaped}" type="password" placeholder="رمز عبور جدید" style="width: 120px; height: 28px; font-size: 12px; padding: 2px 8px;">
-            <input class="form-input form-input-sm" id="edit-nvr-rtsp-port-${escaped}" type="number" value="${n.rtsp_port || 554}" placeholder="پورت RTSP" style="width: 80px; height: 28px; font-size: 12px; padding: 2px 8px;">
-            <button class="btn btn-primary" onclick="saveNVRRow('${n.ip}')" style="padding: 4px 10px; font-size: 12px; height: 28px;">ذخیره</button>
-            <button class="btn" style="padding: 4px 10px; font-size: 12px; height: 28px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);" onclick="cancelEditNVR('${n.ip}')">انصراف</button>
+        <div class="edit-nvr-form">
+            <div class="form-group-compact">
+                <label class="compact-label">آدرس IP یا میزبان</label>
+                <input class="form-input form-input-ltr" id="edit-nvr-ip-${escaped}" value="${n.ip}" placeholder="آدرس IP یا میزبان">
+            </div>
+            <div class="form-group-compact">
+                <label class="compact-label">نام دلخواه</label>
+                <input class="form-input" id="edit-nvr-name-${escaped}" value="${n.name || ''}" placeholder="نام دلخواه">
+            </div>
+            <div class="form-group-compact">
+                <label class="compact-label">نام کاربری</label>
+                <input class="form-input form-input-ltr" id="edit-nvr-user-${escaped}" value="${n.user || ''}" placeholder="نام کاربری">
+            </div>
+            <div class="form-group-compact">
+                <label class="compact-label">رمز عبور جدید</label>
+                <input class="form-input form-input-ltr" id="edit-nvr-pass-${escaped}" type="password" placeholder="رمز عبور جدید">
+            </div>
+            <div class="form-group-compact">
+                <label class="compact-label">پورت RTSP</label>
+                <input class="form-input form-input-ltr" id="edit-nvr-rtsp-port-${escaped}" type="number" value="${n.rtsp_port || 554}" placeholder="پورت RTSP">
+            </div>
+            <div style="display: flex; gap: 6px; align-items: flex-end;">
+                <button class="btn btn-primary" onclick="saveNVRRow('${n.ip}')" style="flex: 1; height: 38px;">ذخیره</button>
+                <button class="btn" style="flex: 1; height: 38px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);" onclick="cancelEditNVR('${n.ip}')">انصراف</button>
+            </div>
         </div>
     `;
 }
@@ -1473,11 +1491,21 @@ function cancelEditNVR(ip) {
 
 async function saveNVRRow(ip) {
     const escaped = ip.replace(/[^\w]/g, '_');
+    const ipEl = document.getElementById(`edit-nvr-ip-${escaped}`);
     const nameEl = document.getElementById(`edit-nvr-name-${escaped}`);
     const userEl = document.getElementById(`edit-nvr-user-${escaped}`);
     const passEl = document.getElementById(`edit-nvr-pass-${escaped}`);
     const rtspPortEl = document.getElementById(`edit-nvr-rtsp-port-${escaped}`);
     
+    if (!ipEl || !ipEl.value.trim()) {
+        return showToast('آدرس IP یا میزبان الزامی است', 'error');
+    }
+    const newIp = ipEl.value.trim();
+    const ipPattern = /^[a-zA-Z0-9_\-\.]+(:[0-9]+)?$/;
+    if (!ipPattern.test(newIp)) {
+        return showToast('قالب آدرس IP یا میزبان نامعتبر است.', 'error');
+    }
+
     if (!userEl.value.trim()) {
         return showToast('نام کاربری الزامی است', 'error');
     }
@@ -1488,6 +1516,7 @@ async function saveNVRRow(ip) {
     }
     
     const payload = {
+        ip: newIp,
         name: nameEl.value.trim() || null,
         user: userEl.value.trim(),
         rtsp_port: portVal
@@ -1509,11 +1538,7 @@ async function saveNVRRow(ip) {
         const nRes = await apiFetch(`${API}/nvrs`);
         nvrCache = await nRes.json();
         
-        const n = nvrCache.find(x => x.ip === ip);
-        const row = document.getElementById(`nvr-row-${escaped}`);
-        if (row && n) {
-            row.outerHTML = renderNVRRow(n, false);
-        }
+        loadSettings();
     } catch (e) {
         showToast('خطا در به‌روزرسانی NVR: ' + e.message, 'error');
     }

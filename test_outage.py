@@ -56,7 +56,7 @@ def test_task_analyze_outages_and_auto_classification(session, client):
     group = NVRGroup(id=1, name="کارخانه تست")
     session.add(group)
 
-    nvr = NVR(ip="192.168.1.100", name="NVR تست", group_id=1, status="Online")
+    nvr = NVR(ip="192.168.1.100", name="NVR تست", group_id=1, status="Online", user="admin")
     session.add(nvr)
 
     # ساخت دو دوربین روی این NVR

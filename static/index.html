@@ -1216,36 +1216,22 @@
                             </button>
                             <h3>مدیریت NVRها</h3>
                         </div>
-                        <div class="nvr-form" style="position: relative;">
-                            <div style="flex: 1; min-width: 120px;">
+                        <div class="nvr-form-wrapper">
+                            <div class="nvr-form">
                                 <input id="nvrName" class="form-input" placeholder="نام دلخواه (مثلاً طبقه اول)">
-                            </div>
-                            <div style="flex: 1; min-width: 120px; position: relative;">
-                                <input id="nvrIp" class="form-input form-input-ltr" placeholder="آدرس IP" oninput="validateNVRInputs()">
-                            </div>
-                            <div style="width: 100px; flex: none;">
-                                <input id="nvrUser" class="form-input form-input-sm form-input-ltr" placeholder="نام کاربری">
-                            </div>
-                            <div style="width: 100px; flex: none;">
-                                <input id="nvrPass" class="form-input form-input-sm form-input-ltr" type="password" placeholder="رمز عبور">
-                            </div>
-                            <div style="width: 100px; flex: none; position: relative;">
-                                <input id="nvrRtspPort" class="form-input form-input-sm form-input-ltr" type="number"
+                                <input id="nvrIp" class="form-input form-input-ltr" placeholder="آدرس IP یا میزبان" oninput="validateNVRInputs()">
+                                <input id="nvrUser" class="form-input form-input-ltr" placeholder="نام کاربری">
+                                <input id="nvrPass" class="form-input form-input-ltr" type="password" placeholder="رمز عبور">
+                                <input id="nvrRtspPort" class="form-input form-input-ltr" type="number"
                                     placeholder="پورت RTSP" value="554" oninput="validateNVRInputs()">
-                            </div>
-                            <div style="width: 160px; flex: none;">
-                                <select id="nvrGroup" class="form-input form-input-sm" style="width: 100%;">
+                                <select id="nvrGroup" class="form-input" style="width: 100%;">
                                     <option value="">بدون کارخانه (بدون گروه)</option>
                                 </select>
+                                <button id="btn-add-nvr" class="btn btn-primary" onclick="addNVR()" title="افزودن NVR" aria-label="افزودن NVR" style="height: 38px;">
+                                    افزودن NVR
+                                </button>
                             </div>
-                            <button id="btn-add-nvr" class="btn btn-primary btn-icon-only" onclick="addNVR()" title="افزودن NVR" aria-label="افزودن NVR">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <line x1="12" y1="5" x2="12" y2="19" />
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                </svg>
-                            </button>
-                            <span id="nvr-validation-msg" style="position: absolute; top: 100%; right: 16px; color: var(--danger); font-size: 11px; margin-top: 2px;"></span>
+                            <span id="nvr-validation-msg" style="display: block; color: var(--danger); font-size: 11px; margin-top: 4px; padding: 0 16px; min-height: 16px;"></span>
                         </div>
                         <div id="nvr-list" class="list-container"></div>
                         <div class="settings-action-row">

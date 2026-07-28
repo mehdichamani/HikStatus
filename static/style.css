@@ -1094,20 +1094,37 @@ body {
 
 /* ===== NVR FORM ===== */
 .nvr-form {
-    display: flex;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
     padding: 16px;
-    flex-wrap: wrap;
+    align-items: center;
 }
 
 .nvr-form .form-input {
-    flex: 1;
-    min-width: 120px;
+    width: 100%;
 }
 
-.nvr-form .form-input-sm {
-    width: 100px;
-    flex: none;
+/* ===== EDIT NVR FORM ===== */
+.edit-nvr-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    width: 100%;
+    align-items: end;
+    padding: 8px 0;
+}
+
+.form-group-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.compact-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
 /* ===== LIST ITEMS ===== */
@@ -1840,11 +1857,11 @@ body {
     }
 
     .nvr-form {
-        flex-direction: column;
+        grid-template-columns: 1fr;
     }
 
-    .nvr-form .form-input-sm {
-        width: 100%;
+    .edit-nvr-form {
+        grid-template-columns: 1fr;
     }
 
     .danger-row {
