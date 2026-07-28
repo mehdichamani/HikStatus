@@ -5088,12 +5088,25 @@ if ('serviceWorker' in navigator) {
 
 // Outage Explanations UI logic
 let outagesCache = [];
+let outagesSelectedIds = [];
+let currentOutagePage = 1;
+const outagesPerPage = 15;
+let currentSuggestedCause = null;
+let currentSuggestedDetail = null;
+let isBulkExplanation = false;
 
 async function loadOutageExplanations() {
     try {
         const res = await apiFetch(`${API}/outage-explanations`);
         outagesCache = await res.json();
         
+        outagesSelectedIds = [];
+        currentOutagePage = 1;
+        updateOutagesBulkBar();
+
+        const selectAllChk = document.getElementById('outage-select-all');
+        if (selectAllChk) selectAllChk.checked = false;
+
         // Populate the group filter dynamically
         populateOutageGroupFilter();
         
@@ -5137,6 +5150,7 @@ function renderOutagesList() {
     const filterGroupVal = document.getElementById('outage-filter-group').value;
     const filterStatusVal = document.getElementById('outage-filter-status').value;
     const filterDaysVal = document.getElementById('outage-filter-days').value;
+    const searchVal = document.getElementById('outage-search') ? document.getElementById('outage-search').value.toLowerCase().trim() : '';
     
     let filtered = outagesCache;
     
@@ -5148,6 +5162,10 @@ function renderOutagesList() {
     // 2. Status Filter
     if (filterStatusVal === 'pending') {
         filtered = filtered.filter(o => o.status === 'pending');
+    } else if (filterStatusVal === 'explained') {
+        filtered = filtered.filter(o => o.status === 'explained');
+    } else if (filterStatusVal === 'expired') {
+        filtered = filtered.filter(o => o.status === 'expired');
     }
     
     // 3. Days Filter
@@ -5159,35 +5177,78 @@ function renderOutagesList() {
             return startMs >= cutoff;
         });
     }
+
+    // 4. Search Filter
+    if (searchVal) {
+        filtered = filtered.filter(o =>
+            (o.camera_name && o.camera_name.toLowerCase().includes(searchVal)) ||
+            (o.camera_ip && o.camera_ip.toLowerCase().includes(searchVal))
+        );
+    }
     
-    if (filtered.length === 0) {
-        list.innerHTML = '<tr><td colspan="12" class="empty-state" style="text-align: center; padding: 20px;">هیچ قطعی یافت نشد</td></tr>';
+    const totalCount = filtered.length;
+    const totalPages = Math.ceil(totalCount / outagesPerPage) || 1;
+    if (currentOutagePage > totalPages) {
+        currentOutagePage = totalPages;
+    }
+    if (currentOutagePage < 1) {
+        currentOutagePage = 1;
+    }
+
+    const startIndex = (currentOutagePage - 1) * outagesPerPage;
+    const endIndex = Math.min(startIndex + outagesPerPage, totalCount);
+
+    const pStart = document.getElementById('outages-pagination-start');
+    const pEnd = document.getElementById('outages-pagination-end');
+    const pTotal = document.getElementById('outages-pagination-total');
+    if (pStart) pStart.textContent = totalCount === 0 ? 0 : startIndex + 1;
+    if (pEnd) pEnd.textContent = endIndex;
+    if (pTotal) pTotal.textContent = totalCount;
+
+    renderOutagesPageButtons(totalPages);
+
+    if (totalCount === 0) {
+        list.innerHTML = '<tr><td colspan="13" class="empty-state" style="text-align: center; padding: 20px;">هیچ قطعی یافت نشد</td></tr>';
         return;
     }
     
+    const paginated = filtered.slice(startIndex, endIndex);
+
     const role = window.currentUser ? window.currentUser.role : 'group_view';
     const canExplain = role === 'admin' || role === 'it_manager';
     
-    list.innerHTML = filtered.map(o => {
+    list.innerHTML = paginated.map(o => {
         let statusBadge = '';
         let actionBtn = '';
         
         if (o.status === 'explained') {
             statusBadge = '<span class="badge badge-success" style="background:#10b981; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">رفع ابهام شده</span>';
-            actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">غیر قابل ویرایش</span>';
+            if (role === 'admin') {
+                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; background: #6366f1; border-color: #6366f1; cursor: pointer;">ویرایش</button>`;
+            } else {
+                actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">غیر قابل ویرایش</span>';
+            }
         } else if (o.status === 'expired') {
             statusBadge = '<span class="badge badge-danger" style="background:#ef4444; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">منقضی شده</span>';
-            actionBtn = '<span style="font-size: 12px; color: var(--danger);">پایان مهلت</span>';
+            if (role === 'admin') {
+                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; background: #6366f1; border-color: #6366f1; cursor: pointer;">رفع ابهام (ادمین)</button>`;
+            } else {
+                actionBtn = '<span style="font-size: 12px; color: var(--danger);">پایان مهلت</span>';
+            }
         } else {
             statusBadge = '<span class="badge badge-warning" style="background:#f59e0b; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">در انتظار رفع ابهام</span>';
             if (canExplain) {
-                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px;">رفع ابهام</button>`;
+                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; cursor: pointer;">رفع ابهام</button>`;
             } else {
                 actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">-</span>';
             }
         }
         
+        const isChecked = outagesSelectedIds.includes(o.id) ? 'checked' : '';
+        const checkboxHtml = `<input type="checkbox" class="outage-row-checkbox" value="${o.id}" ${isChecked} onchange="onOutageRowCheckboxChange(${o.id}, this.checked)" style="cursor: pointer;">`;
+
         return `<tr style="border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+            <td style="padding: 12px; text-align: center;">${checkboxHtml}</td>
             <td data-label="نام دوربین" style="padding: 12px;"><strong>${o.camera_name}</strong></td>
             <td data-label="IP" style="padding: 12px; font-family: monospace;">${o.camera_ip}</td>
             <td data-label="کارخانه" style="padding: 12px;">${o.group_name}</td>
@@ -5204,13 +5265,148 @@ function renderOutagesList() {
     }).join('');
 }
 
+function renderOutagesPageButtons(totalPages) {
+    const container = document.getElementById('outages-page-numbers');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const btnPrev = document.getElementById('outages-btn-prev');
+    const btnNext = document.getElementById('outages-btn-next');
+    if (btnPrev) btnPrev.disabled = currentOutagePage === 1;
+    if (btnNext) btnNext.disabled = currentOutagePage === totalPages;
+
+    const startPage = Math.max(1, currentOutagePage - 2);
+    const endPage = Math.min(totalPages, startPage + 4);
+
+    for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.className = i === currentOutagePage ? 'btn btn-primary' : 'btn btn-ghost';
+        btn.style.padding = '4px 8px';
+        btn.style.fontSize = '12px';
+        btn.style.minWidth = '28px';
+        btn.style.cursor = 'pointer';
+        btn.textContent = i;
+        btn.onclick = () => {
+            currentOutagePage = i;
+            renderOutagesList();
+        };
+        container.appendChild(btn);
+    }
+}
+
+function changeOutagesPage(direction) {
+    currentOutagePage += direction;
+    renderOutagesList();
+}
+
+function onOutageRowCheckboxChange(id, checked) {
+    if (checked) {
+        if (!outagesSelectedIds.includes(id)) {
+            outagesSelectedIds.push(id);
+        }
+    } else {
+        outagesSelectedIds = outagesSelectedIds.filter(x => x !== id);
+    }
+    updateOutagesBulkBar();
+}
+
+function toggleSelectAllOutages() {
+    const selectAllChk = document.getElementById('outage-select-all');
+    if (!selectAllChk) return;
+
+    const checked = selectAllChk.checked;
+    const checkboxes = document.querySelectorAll('.outage-row-checkbox');
+    checkboxes.forEach(chk => {
+        chk.checked = checked;
+        const id = parseInt(chk.value);
+        if (checked) {
+            if (!outagesSelectedIds.includes(id)) {
+                outagesSelectedIds.push(id);
+            }
+        } else {
+            outagesSelectedIds = outagesSelectedIds.filter(x => x !== id);
+        }
+    });
+    updateOutagesBulkBar();
+}
+
+function updateOutagesBulkBar() {
+    const bar = document.getElementById('outages-bulk-bar');
+    const cnt = document.getElementById('outages-selected-count');
+    if (!bar) return;
+
+    if (outagesSelectedIds.length > 0) {
+        bar.classList.remove('hidden');
+        if (cnt) cnt.textContent = outagesSelectedIds.length;
+    } else {
+        bar.classList.add('hidden');
+    }
+}
+
 async function openExplanationModal(id) {
+    isBulkExplanation = false;
     const o = outagesCache.find(x => x.id === id);
     if (!o) return;
     
     document.getElementById('exp-outage-id').value = id;
     
+    // مدیریت بنر پیشنهاد هوشمند سیستم
+    const banner = document.getElementById('outages-suggestion-banner');
+    const bannerText = document.getElementById('outages-suggestion-text');
+    if (banner && bannerText) {
+        if (o.suggested_cause) {
+            currentSuggestedCause = o.suggested_cause;
+            currentSuggestedDetail = o.suggested_detail || '';
+            bannerText.textContent = `${o.suggested_cause} - ${o.suggested_detail}`;
+            banner.classList.remove('hidden');
+        } else {
+            currentSuggestedCause = null;
+            currentSuggestedDetail = null;
+            banner.classList.add('hidden');
+        }
+    }
+
     // Populate active causes dynamically from database
+    try {
+        const res = await apiFetch(`/api/outage-causes`);
+        const causes = await res.json();
+        const sel = document.getElementById('exp-type');
+        if (sel) {
+            sel.innerHTML = causes
+                .filter(c => c.is_active)
+                .map(c => `<option value="${c.name}">${c.name}</option>`)
+                .join('');
+
+            if (o.explanation_type) {
+                sel.value = o.explanation_type;
+            }
+        }
+    } catch (e) {
+        console.error('Error fetching causes for modal:', e);
+    }
+
+    document.getElementById('exp-detail').value = o.explanation_detail || '';
+
+    const modal = document.getElementById('explanationModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('open');
+    }
+}
+
+async function openBulkExplanationModal() {
+    if (outagesSelectedIds.length === 0) {
+        showToast('هیچ موردی انتخاب نشده است', 'error');
+        return;
+    }
+    isBulkExplanation = true;
+
+    // پنهان کردن بنر پیشنهاد هوشمند برای ثبت دسته‌جمعی
+    const banner = document.getElementById('outages-suggestion-banner');
+    if (banner) banner.classList.add('hidden');
+
+    document.getElementById('exp-outage-id').value = '';
+
     try {
         const res = await apiFetch(`/api/outage-causes`);
         const causes = await res.json();
@@ -5234,6 +5430,33 @@ async function openExplanationModal(id) {
     }
 }
 
+function applySystemSuggestion() {
+    if (currentSuggestedCause) {
+        const sel = document.getElementById('exp-type');
+        if (sel) {
+            let found = false;
+            for (let i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === currentSuggestedCause) {
+                    sel.value = currentSuggestedCause;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                const opt = document.createElement('option');
+                opt.value = currentSuggestedCause;
+                opt.textContent = currentSuggestedCause;
+                sel.appendChild(opt);
+                sel.value = currentSuggestedCause;
+            }
+        }
+    }
+    if (currentSuggestedDetail) {
+        document.getElementById('exp-detail').value = currentSuggestedDetail;
+    }
+    showToast('پیشنهاد هوشمند سیستم با موفقیت اعمال شد');
+}
+
 function closeExplanationModal() {
     const modal = document.getElementById('explanationModal');
     if (modal) {
@@ -5243,17 +5466,34 @@ function closeExplanationModal() {
 }
 
 async function submitExplanation() {
-    const id = parseInt(document.getElementById('exp-outage-id').value);
     const explanation_type = document.getElementById('exp-type').value;
     const explanation_detail = document.getElementById('exp-detail').value.trim();
     
     try {
-        await apiFetch(`${API}/outage-explanations/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ explanation_type, explanation_detail })
-        });
-        showToast('رفع ابهام قطعی با موفقیت انجام شد');
+        if (isBulkExplanation) {
+            if (outagesSelectedIds.length === 0) {
+                showToast('هیچ موردی برای ثبت انتخاب نشده است', 'error');
+                return;
+            }
+            await apiFetch(`${API}/outage-explanations/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ids: outagesSelectedIds,
+                    explanation_type,
+                    explanation_detail
+                })
+            });
+            showToast('رفع ابهام دسته‌جمعی قطعی‌ها با موفقیت انجام شد');
+        } else {
+            const id = parseInt(document.getElementById('exp-outage-id').value);
+            await apiFetch(`${API}/outage-explanations/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ explanation_type, explanation_detail })
+            });
+            showToast('رفع ابهام قطعی با موفقیت انجام شد');
+        }
         closeExplanationModal();
         loadOutageExplanations();
     } catch (e) {

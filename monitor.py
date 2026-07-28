@@ -1177,74 +1177,120 @@ async def task_analyze_outages(override_now: Optional[datetime] = None):
     from database import Settings, DowntimeEvent, Camera, NVR, OutageExplanation
     from sqlmodel import select
     from datetime import datetime, timedelta
+    from collections import defaultdict
 
-
-    
-    logger.info("Starting definite outages analysis task...")
+    logger.info("شروع تسک تحلیل قطعی‌های قطعی...")
     now = override_now or datetime.now()
+    # نرمال‌سازی زمان فعلی جهت جلوگیری از تفاوت‌های میکروثانیه‌ای
+    now = now.replace(second=0, microsecond=0)
     
     with Session(engine) as session:
-        # 1. Read config
-        # N: Minimum hours of downtime to check (parsed as float for decimal support)
+        # ۱. خواندن تنظیمات مربوطه
         min_hours_cfg = session.get(Settings, "OUTAGE_MIN_HOURS_TO_EXPLAIN")
         try:
             min_hours = float(min_hours_cfg.value) if min_hours_cfg else 2.0
         except ValueError:
             min_hours = 2.0
         
-        # Deadline for it_manager to explain (hours)
         deadline_hours_cfg = session.get(Settings, "OUTAGE_EXPLANATION_DEADLINE_HOURS")
         deadline_hours = int(deadline_hours_cfg.value) if deadline_hours_cfg else 24
         
-        # We analyze the past 24 hours ending at execution time ('now')
-        start_dt = now - timedelta(hours=24)
-        end_dt = now
+        # مشخص کردن بازه روزهای تقویمی برای جلوگیری از گپ‌های محاسباتی
+        yesterday_date = (now - timedelta(days=1)).date()
         
-        logger.info(f"Analyzing outages in the past 24 hours between {start_dt} and {end_dt} (threshold >= {min_hours} hours)")
+        # واکشی زمان آخرین تحلیل موفق
+        last_run_cfg = session.get(Settings, "OUTAGE_LAST_ANALYSIS_TIME")
+        start_date = yesterday_date
+        if last_run_cfg:
+            try:
+                last_run_dt = datetime.fromisoformat(last_run_cfg.value)
+                start_date = last_run_dt.date()
+            except Exception:
+                start_date = yesterday_date
         
-        # Find all cameras and check aggregate downtime
+        # محدود کردن حداکثر تحلیل به ۷ روز گذشته برای جلوگیری از پردازش فوق سنگین
+        seven_days_ago = (now - timedelta(days=7)).date()
+        if start_date < seven_days_ago:
+            start_date = seven_days_ago
+
+        # تولید لیست روزهایی که باید تحلیل شوند
+        days_to_analyze = []
+        current_day = start_date
+        while current_day <= yesterday_date:
+            days_to_analyze.append(current_day)
+            current_day += timedelta(days=1)
+
+        if not days_to_analyze:
+            days_to_analyze = [yesterday_date]
+
+        logger.info(f"روزهای مورد بررسی جهت تحلیل قطعی‌ها: {days_to_analyze}")
         cameras = session.exec(select(Camera)).all()
         added_count = 0
         
-        # Local import of calculate_downtime_range to avoid circular dependency
-        from main import calculate_downtime_range
-        
-        for camera in cameras:
-            total_mins = calculate_downtime_range(session, camera.id, start_dt, end_dt)
-            if total_mins >= min_hours * 60:
-                # Check if we already have an OutageExplanation for this camera in this specific 24h block
-                existing = session.exec(
-                    select(OutageExplanation).where(
-                        OutageExplanation.camera_id == camera.id,
-                        OutageExplanation.start_time == start_dt,
-                        OutageExplanation.end_time == end_dt
-                    )
-                ).first()
-                if existing:
-                    continue
-                
-                nvr = session.get(NVR, camera.nvr_ip)
-                group_id = nvr.group_id if nvr else None
-                
-                # Register outage explanation record for the daily aggregate
-                outage_exp = OutageExplanation(
-                    camera_id=camera.id,
-                    downtime_event_id=None,
-                    group_id=group_id,
-                    start_time=start_dt,
-                    end_time=end_dt,
-                    created_at=now,
-                    assigned_deadline=now + timedelta(hours=deadline_hours),
-                    explanation_type=None,
-                    explanation_detail=None,
-                    explained_by_user_id=None,
-                    explained_at=None
+        for day in days_to_analyze:
+            start_dt = datetime.combine(day, datetime.min.time()).replace(microsecond=0)
+            end_dt = datetime.combine(day, datetime.max.time()).replace(microsecond=0)
+
+            logger.info(f"در حال تحلیل بازه استاندارد {start_dt} تا {end_dt}...")
+
+            # واکشی فله‌ای تمام رویدادهای خاموشی هم‌پوشان با بازه کل برای رفع گلوگاه N+1
+            events = session.exec(
+                select(DowntimeEvent).where(
+                    DowntimeEvent.start_time < end_dt,
+                    (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time > start_dt)
                 )
-                session.add(outage_exp)
-                added_count += 1
+            ).all()
+
+            # دسته‌بندی کارآمد رویدادها در حافظه
+            events_by_camera = defaultdict(list)
+            for e in events:
+                events_by_camera[e.camera_id].append(e)
                 
-        # 3. Update last run configuration
-        last_run_cfg = session.get(Settings, "OUTAGE_LAST_ANALYSIS_TIME")
+            # بررسی خاموشی برای هر دوربین
+            for camera in cameras:
+                cam_events = events_by_camera[camera.id]
+                total_seconds = 0
+                for e in cam_events:
+                    e_end = e.end_time or now
+                    overlap_start = max(e.start_time, start_dt)
+                    overlap_end = min(e_end, end_dt)
+                    if overlap_end > overlap_start:
+                        total_seconds += (overlap_end - overlap_start).total_seconds()
+
+                total_mins = int(total_seconds / 60)
+                if total_mins >= min_hours * 60:
+                    # بررسی عدم وجود تکرار بر اساس بازه نرمال‌شده منحصربه‌فرد روزانه
+                    existing = session.exec(
+                        select(OutageExplanation).where(
+                            OutageExplanation.camera_id == camera.id,
+                            OutageExplanation.start_time == start_dt,
+                            OutageExplanation.end_time == end_dt
+                        )
+                    ).first()
+                    if existing:
+                        continue
+
+                    nvr = session.get(NVR, camera.nvr_ip)
+                    group_id = nvr.group_id if nvr else None
+
+                    # ثبت رکورد رفع ابهام تجمیعی روزانه
+                    outage_exp = OutageExplanation(
+                        camera_id=camera.id,
+                        downtime_event_id=None,
+                        group_id=group_id,
+                        start_time=start_dt,
+                        end_time=end_dt,
+                        created_at=now,
+                        assigned_deadline=now + timedelta(hours=deadline_hours),
+                        explanation_type=None,
+                        explanation_detail=None,
+                        explained_by_user_id=None,
+                        explained_at=None
+                    )
+                    session.add(outage_exp)
+                    added_count += 1
+
+        # به‌روزرسانی تنظیمات آخرین زمان تحلیل موفق
         if not last_run_cfg:
             last_run_cfg = Settings(key="OUTAGE_LAST_ANALYSIS_TIME", value=now.isoformat(), description="Last time outages were analyzed")
         else:
@@ -1252,7 +1298,7 @@ async def task_analyze_outages(override_now: Optional[datetime] = None):
         session.add(last_run_cfg)
         
         session.commit()
-        logger.info(f"Definite outages analysis task completed. Added {added_count} new unexplained outages.")
+        logger.info(f"تسک تحلیل قطعی‌ها با موفقیت پایان یافت. تعداد {added_count} مورد قطعی جدید ثبت شد.")
 
 async def start_monitor_loop():
     logger.info("Monitor loop started (via scheduler)...")
