@@ -2862,6 +2862,36 @@ jdp-container .jdp-btn-close:hover {
     white-space: nowrap !important;
 }
 
+.dash-actions-toolbar .recording-filter {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 24px 5px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-family: inherit;
+    height: 32px;
+    direction: rtl;
+    cursor: pointer;
+    outline: none;
+    appearance: auto;
+    min-width: 110px;
+    white-space: nowrap;
+    transition: var(--transition);
+}
+
+.dash-actions-toolbar .recording-filter:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.dash-actions-toolbar .recording-filter option {
+    background: var(--surface-2);
+    color: var(--text);
+    padding: 4px 8px;
+    direction: rtl;
+}
+
 @media (max-width: 767px) {
     .dash-actions-toolbar {
         flex-direction: row !important;
