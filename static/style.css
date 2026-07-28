@@ -2927,6 +2927,14 @@ jdp-container .jdp-btn-close:hover {
     width: 100%;
 }
 
+@media (min-width: 768px) {
+    .settings-menu-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+}
+
 .settings-menu-item {
     background: var(--surface);
     border: 1px solid var(--border);
