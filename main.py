@@ -1442,7 +1442,8 @@ async def get_camera_snapshot(id: int, session: Session = Depends(get_session), 
     if not nvr:
         raise HTTPException(status_code=404, detail="NVR not found")
         
-    if user["role"] != "admin" and nvr.group_id != user["group_id"]:
+    accessible_groups = get_user_accessible_groups(user, session)
+    if accessible_groups is not None and nvr.group_id not in accessible_groups:
         raise HTTPException(status_code=403, detail="دسترسی غیرمجاز به این دوربین")
         
     try:
@@ -1482,7 +1483,8 @@ def get_camera_live_page(id: int, session: Session = Depends(get_session), user:
     if not nvr:
         raise HTTPException(status_code=404, detail="NVR not found")
         
-    if user["role"] != "admin" and nvr.group_id != user["group_id"]:
+    accessible_groups = get_user_accessible_groups(user, session)
+    if accessible_groups is not None and nvr.group_id not in accessible_groups:
         raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
         
     html_content = f"""
@@ -1644,7 +1646,8 @@ async def stream_camera(id: int, session: Session = Depends(get_session), user: 
     if not nvr:
         raise HTTPException(status_code=404, detail="NVR not found")
         
-    if user["role"] != "admin" and nvr.group_id != user["group_id"]:
+    accessible_groups = get_user_accessible_groups(user, session)
+    if accessible_groups is not None and nvr.group_id not in accessible_groups:
         raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
         
     decrypted_pass = decrypt_password(nvr.password)
@@ -2208,6 +2211,22 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     two_factor_enabled: Optional[bool] = None
 
+def validate_accessible_groups(accessible_group_ids: Optional[str], session: Session):
+    if not accessible_group_ids:
+        return
+    val = accessible_group_ids.strip()
+    if val == "*":
+        return
+    parts = [x.strip() for x in val.split(",") if x.strip()]
+    if not parts:
+        raise HTTPException(status_code=400, detail="قالب دسترسی چندگانه معتبر نیست")
+    for p in parts:
+        if not p.isdigit():
+            raise HTTPException(status_code=400, detail=f"شناسه گروه '{p}' باید عدد باشد")
+        g_id = int(p)
+        if not session.get(NVRGroup, g_id):
+            raise HTTPException(status_code=400, detail=f"گروه با شناسه {g_id} وجود ندارد")
+
 @app.get("/api/users", response_model=list[User])
 def get_users(session: Session = Depends(get_session), user: dict = Depends(require_admin)):
     return session.exec(select(User)).all()
@@ -2218,6 +2237,12 @@ def create_user(payload: UserCreate, session: Session = Depends(get_session), us
     if existing:
         raise HTTPException(status_code=400, detail="نام کاربری تکراری است")
     
+    if payload.group_id is not None:
+        if not session.get(NVRGroup, payload.group_id):
+            raise HTTPException(status_code=400, detail=f"گروه با شناسه {payload.group_id} وجود ندارد")
+
+    validate_accessible_groups(payload.accessible_group_ids, session)
+
     db_user = User(
         username=payload.username,
         password_hash=hash_password(payload.password),
@@ -2242,7 +2267,38 @@ def update_user(id: int, payload: UserUpdate, session: Session = Depends(get_ses
     db_user = session.get(User, id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
+    if db_user.id == user["user_id"] or db_user.username == user["username"]:
+        if payload.role is not None and payload.role != db_user.role:
+            raise HTTPException(status_code=400, detail="شما نمی‌توانید نقش کاربری خود را تغییر دهید")
+        if payload.is_active is False:
+            raise HTTPException(status_code=400, detail="شما نمی‌توانید حساب کاربری خود را غیرفعال کنید")
+
+    if payload.group_id is not None:
+        if not session.get(NVRGroup, payload.group_id):
+            raise HTTPException(status_code=400, detail=f"گروه با شناسه {payload.group_id} وجود ندارد")
+
+    if payload.accessible_group_ids is not None or "accessible_group_ids" in payload.model_fields_set:
+        validate_accessible_groups(payload.accessible_group_ids, session)
+
+    changes = []
+    if payload.role is not None and payload.role != db_user.role:
+        changes.append(f"نقش از '{db_user.role}' به '{payload.role}'")
+    if payload.is_active is not None and payload.is_active != db_user.is_active:
+        status_old = "فعال" if db_user.is_active else "غیرفعال"
+        status_new = "فعال" if payload.is_active else "غیرفعال"
+        changes.append(f"وضعیت فعال بودن از '{status_old}' به '{status_new}'")
+    if payload.group_id is not None and payload.group_id != db_user.group_id:
+        changes.append(f"گروه اصلی از '{db_user.group_id}' به '{payload.group_id}'")
+    if (payload.accessible_group_ids is not None or "accessible_group_ids" in payload.model_fields_set) and payload.accessible_group_ids != db_user.accessible_group_ids:
+        changes.append(f"دسترسی‌های چندگانه از '{db_user.accessible_group_ids}' به '{payload.accessible_group_ids}'")
+    if payload.password:
+        changes.append("رمز عبور تغییر یافت")
+
+    details_str = f"حساب کاربر ({db_user.username}) ویرایش شد"
+    if changes:
+        details_str += f". تغییرات: {', '.join(changes)}"
+
     if payload.password:
         db_user.password_hash = hash_password(payload.password)
     if payload.role is not None:
@@ -2260,7 +2316,7 @@ def update_user(id: int, payload: UserUpdate, session: Session = Depends(get_ses
         
     session.add(db_user)
     session.commit()
-    log_event(session, category="User", action="USER_UPDATE", details=f"حساب کاربر ({db_user.username}) ویرایش شد", level="INFO", actor_username=user.get("username","admin"), group_id=db_user.group_id, target_type="User", target_id=db_user.id)
+    log_event(session, category="User", action="USER_UPDATE", details=details_str, level="INFO", actor_username=user.get("username","admin"), group_id=db_user.group_id, target_type="User", target_id=db_user.id)
     return db_user
 
 @app.delete("/api/users/{id}")
@@ -2606,5 +2662,11 @@ def change_my_password_endpoint(payload: ChangePasswordRequest, session: Session
         
     db_user.password_hash = hash_password(payload.new_password)
     session.add(db_user)
+
+    # ابطال تمام نشست‌های فعال کاربر بعد از تغییر رمز عبور جهت امنیت بیشتر
+    active_sessions = session.exec(select(UserSession).where(UserSession.username == db_user.username)).all()
+    for s in active_sessions:
+        session.delete(s)
+
     session.commit()
     return {"status": "ok"}
