@@ -441,21 +441,22 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                                     enabled = child.text == 'true'
                             elif c_local in ('recordScheduleType', 'scheduleType', 'recordType'):
                                 sched_type = child.text
-                            elif c_local == 'RecordSchedule':
+                            elif c_local in ('RecordSchedule', 'TrackSchedule'):
                                 for sub_child in child:
                                     sc_local = get_local_name(sub_child)
                                     if sc_local in ('scheduleType', 'ScheduleType', 'recordScheduleType'):
                                         sched_type = sub_child.text
-                                        
-                        # Fallback for schedule type
+
+                        # Search for ActionRecordingMode inside Actions (per-camera type)
                         if sched_type is None:
-                            def_rec_elem = None
                             for sub_elem in elem.iter():
-                                if get_local_name(sub_elem) in ('DefaultRecordingMode', 'ActionRecordingMode'):
-                                    def_rec_elem = sub_elem
-                                    break
-                            if def_rec_elem is not None:
-                                sched_type = def_rec_elem.text
+                                if get_local_name(sub_elem) == 'Actions':
+                                    for action_child in sub_elem:
+                                        if get_local_name(action_child) == 'ActionRecordingMode':
+                                            sched_type = action_child.text
+                                            break
+                                    if sched_type is not None:
+                                        break
 
                         if t_id is not None:
                             tracks_data[t_id] = {'enabled': enabled, 'type': sched_type}
@@ -518,26 +519,32 @@ def sync_recording_schedule_config(ip, user, password, session=None):
                                     enabled = elem.text == 'true'
                             elif local_name in ('recordScheduleType', 'scheduleType', 'recordType'):
                                 sched_type = elem.text
-                            elif local_name == 'RecordSchedule':
+                            elif local_name in ('RecordSchedule', 'TrackSchedule'):
                                 for sub_child in elem:
                                     sc_local = get_local_name(sub_child)
                                     if sc_local in ('scheduleType', 'ScheduleType', 'recordScheduleType'):
                                         sched_type = sub_child.text
-                                        
-                        # Fallback for schedule type
+
+                        # Search for ActionRecordingMode inside Actions (per-camera type)
                         if sched_type is None:
-                            def_rec_elem = None
                             for elem in root_s.iter():
-                                if get_local_name(elem) in ('DefaultRecordingMode', 'ActionRecordingMode'):
-                                    def_rec_elem = elem
-                                    break
-                            if def_rec_elem is not None:
-                                sched_type = def_rec_elem.text
+                                if get_local_name(elem) == 'Actions':
+                                    for action_child in elem:
+                                        if get_local_name(action_child) == 'ActionRecordingMode':
+                                            sched_type = action_child.text
+                                            break
+                                    if sched_type is not None:
+                                        break
                 except Exception as e_single:
                     logger.warning(f"Failed to fetch single track {track_id} for NVR {ip}: {e_single}")
 
             # Translate new schedule type
-            new_schedule_type = translation_map.get(sched_type, sched_type) if sched_type else None
+            if sched_type:
+                new_schedule_type = translation_map.get(sched_type, sched_type)
+                if sched_type not in translation_map:
+                    logger.debug(f"Unmapped recording type '{sched_type}' for {cam.name} (CH {cam.channel_id}) on {nvr_name}, using raw value")
+            else:
+                new_schedule_type = None
 
             # Detect recording changes (only if camera had previous data — skip first sync)
             old_enabled = cam.recording_scheduled
