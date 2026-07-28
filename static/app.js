@@ -1229,22 +1229,40 @@ function renderNVRRow(n, deleted = false) {
         ? `<span class="badge" style="font-size: 11px; margin-right: 6px; background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 2px 6px; border-radius: 4px;">غیرفعال</span>`
         : '';
 
-    return `<div class="list-item" id="nvr-row-${escaped}" data-ip="${n.ip}" style="${disabledStyle}">
-        <div class="list-item-info">
-            ${n.name ? `<strong style="margin-left: 8px; color: var(--text-primary);">${n.name}</strong>` : ''}
-            <span class="list-item-ip">${n.ip}</span>
-            <span class="list-item-user">(${n.user})</span>
-            <span class="badge" style="font-size: 11px; margin-right: 6px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 2px 6px; border-radius: 4px;">RTSP: ${n.rtsp_port || 554}</span>
-            ${enabledBadge}
-            ${groupSelectOrLabel}
+    let extendedStats = '';
+    if (n.cpu_usage !== null && n.cpu_usage !== undefined) {
+        extendedStats += `<span style="font-size: 11px; margin-right: 6px; color: var(--text-secondary);" title="میزان مصرف پردازنده">CPU: ${n.cpu_usage}%</span>`;
+    }
+    if (n.memory_usage !== null && n.memory_usage !== undefined) {
+        extendedStats += `<span style="font-size: 11px; margin-right: 6px; color: var(--text-secondary);" title="میزان مصرف حافظه">RAM: ${n.memory_usage}%</span>`;
+    }
+    if (n.model) {
+         extendedStats += `<span style="font-size: 11px; margin-right: 6px; color: var(--text-secondary);" title="مدل دستگاه">Model: ${n.model}</span>`;
+    }
+    if (n.uptime) {
+         let days = Math.floor(n.uptime / 86400);
+         extendedStats += `<span style="font-size: 11px; margin-right: 6px; color: var(--text-secondary);" title="مدت زمان روشن بودن">Uptime: ${days}d</span>`;
+    }
+
+    return `<div class="list-item" id="nvr-row-${escaped}" data-ip="${n.ip}" style="${disabledStyle}; flex-direction: column; align-items: stretch; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="list-item-info">
+                ${n.name ? `<strong style="margin-left: 8px; color: var(--text-primary);">${n.name}</strong>` : ''}
+                <span class="list-item-ip">${n.ip}</span>
+                <span class="list-item-user">(${n.user})</span>
+                <span class="badge" style="font-size: 11px; margin-right: 6px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 2px 6px; border-radius: 4px;">RTSP: ${n.rtsp_port || 554}</span>
+                ${enabledBadge}
+                ${groupSelectOrLabel}
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                <label class="toggle" style="transform: scale(0.85); transform-origin: right; margin: 0;">
+                    <input type="checkbox" ${n.enabled !== false ? 'checked' : ''} onchange="toggleNVRenabled('${n.ip}', this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+                ${actionBtns}
+            </div>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
-            <label class="toggle" style="transform: scale(0.85); transform-origin: right; margin: 0;">
-                <input type="checkbox" ${n.enabled !== false ? 'checked' : ''} onchange="toggleNVRenabled('${n.ip}', this.checked)">
-                <span class="toggle-slider"></span>
-            </label>
-            ${actionBtns}
-        </div>
+        ${extendedStats ? `<div style="display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; border-top: 1px dashed var(--border);">${extendedStats}</div>` : ''}
     </div>`;
 }
 
