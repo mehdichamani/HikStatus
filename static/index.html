@@ -1101,6 +1101,23 @@
                             <option value="30">۳۰ روز اخیر</option>
                         </select>
                     </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 6px; min-width: 250px;">
+                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">جستجوی نام یا IP دوربین</label>
+                        <input type="text" id="outage-search" class="form-input" oninput="filterOutages()"
+                            placeholder="جستجو بر اساس نام یا IP..." style="padding: 6px 12px; font-size: 13px; width: 100%;">
+                    </div>
+                </div>
+
+                <!-- Bulk Actions Bar -->
+                <div id="outages-bulk-bar" class="hidden"
+                    style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid rgba(59, 130, 246, 0.2); flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 13px; font-weight: 600; color: var(--text);">تعداد رکوردهای انتخاب‌شده: <span id="outages-selected-count" style="color: var(--primary);">0</span></span>
+                    </div>
+                    <button class="btn btn-primary" onclick="openBulkExplanationModal()" style="padding: 6px 14px; font-size: 13px;">
+                        رفع ابهام دسته‌جمعی موارد انتخاب‌شده
+                    </button>
                 </div>
 
                 <div class="table-container" style="overflow-x: auto; margin-top: 15px;">
@@ -1108,6 +1125,9 @@
                         style="width: 100%; border-collapse: collapse; text-align: right; min-width: 900px;">
                         <thead>
                             <tr style="border-bottom: 2px solid var(--border);">
+                                <th style="padding: 12px; width: 40px; text-align: center;">
+                                    <input type="checkbox" id="outage-select-all" onchange="toggleSelectAllOutages()" style="cursor: pointer;">
+                                </th>
                                 <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">نام دوربین
                                 </th>
                                 <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">IP</th>
@@ -1132,6 +1152,18 @@
                             <!-- Populated dynamically -->
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Pagination Controls -->
+                <div id="outages-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px;">
+                    <div style="font-size: 13px; color: var(--text-secondary);">
+                        نمایش <span id="outages-pagination-start">0</span> تا <span id="outages-pagination-end">0</span> از <span id="outages-pagination-total">0</span> قطعی
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button class="btn btn-ghost" id="outages-btn-prev" onclick="changeOutagesPage(-1)" style="padding: 4px 10px; font-size: 12px;">قبلی</button>
+                        <div id="outages-page-numbers" style="display: flex; gap: 4px; align-items: center;"></div>
+                        <button class="btn btn-ghost" id="outages-btn-next" onclick="changeOutagesPage(1)" style="padding: 4px 10px; font-size: 12px;">بعدی</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -2346,6 +2378,16 @@
             </div>
             <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 16px;">
                 <input type="hidden" id="exp-outage-id">
+
+                <!-- System suggestion banner -->
+                <div id="outages-suggestion-banner" class="hidden"
+                    style="padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #10b981;">💡 پیشنهاد هوشمند سیستم</span>
+                        <button class="btn btn-primary" onclick="applySystemSuggestion()" style="padding: 2px 8px; font-size: 11px; background: #10b981; border-color: #10b981; cursor: pointer; color: white;">اعمال پیشنهاد</button>
+                    </div>
+                    <div id="outages-suggestion-text" style="font-size: 12px; color: var(--text-secondary);"></div>
+                </div>
 
                 <div class="form-field-group" style="margin-bottom: 0;">
                     <label class="form-label" for="exp-type">علت قطعی:</label>

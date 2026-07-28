@@ -2342,14 +2342,61 @@ def get_outage_explanations(session: Session = Depends(get_session), user: dict 
     groups = {g.id: g for g in session.exec(select(NVRGroup)).all()}
     users = {u.id: u for u in session.exec(select(User)).all()}
     
+    # گروه‌بندی دوربین‌ها بر اساس NVR IP برای منطق طبقه‌بندی خودکار
+    cameras_by_nvr = {}
+    for c in cameras.values():
+        if c.nvr_ip:
+            cameras_by_nvr.setdefault(c.nvr_ip, []).append(c)
+
     output = []
     now = datetime.now()
+
+    # واکشی فله‌ای تمام رویدادهای خاموشی هم‌پوشان با بازه‌های قطعی جهت رفع گلوگاه N+1
+    outage_camera_ids = {o.camera_id for o in outages}
+    if not outages:
+        events = []
+    else:
+        min_start = min(o.start_time for o in outages)
+        max_end = now
+        for o in outages:
+            if o.end_time and o.end_time > max_end:
+                max_end = o.end_time
+
+        events = session.exec(
+            select(DowntimeEvent).where(
+                DowntimeEvent.camera_id.in_(list(outage_camera_ids)),
+                DowntimeEvent.start_time < max_end,
+                (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time > min_start)
+            )
+        ).all()
+
+    # دسته‌بندی کارآمد رویدادها در حافظه
+    events_by_camera = {}
+    for e in events:
+        events_by_camera.setdefault(e.camera_id, []).append(e)
+
+    # متد کمکی جهت محاسبه مدت قطعی در حافظه بدون کوئری دیتابیس
+    def calculate_downtime_in_memory(cam_id, start_ts, end_ts):
+        total_minutes = 0
+        limit_end = end_ts or now
+        for e in events_by_camera.get(cam_id, []):
+            e_end = e.end_time or now
+            overlap_start = max(e.start_time, start_ts)
+            overlap_end = min(e_end, limit_end)
+            if overlap_end > overlap_start:
+                total_minutes += (overlap_end - overlap_start).total_seconds() / 60
+        return int(total_minutes)
+
+    # واکشی علت‌های قطعی فعال دیتابیس برای پیشنهاد علت مناسب
+    active_causes = [c.name for c in session.exec(select(OutageCause).where(OutageCause.is_active == True)).all()]
+
     for o in outages:
         cam = cameras.get(o.camera_id)
         group = groups.get(o.group_id)
         user_obj = users.get(o.explained_by_user_id) if o.explained_by_user_id else None
         
-        total_mins = calculate_downtime_range(session, o.camera_id, o.start_time, o.end_time)
+        # محاسبه مدت زمان قطعی در حافظه
+        total_mins = calculate_downtime_in_memory(o.camera_id, o.start_time, o.end_time)
         duration_hours = round(total_mins / 60, 1)
         
         shamsi_start = format_shamsi_datetime(o.start_time)
@@ -2364,6 +2411,38 @@ def get_outage_explanations(session: Session = Depends(get_session), user: dict 
         else:
             status_val = "pending"
             
+        # منطق پیشنهاد هوشمند علت قطعی (Auto-Classification)
+        suggested_cause = None
+        suggested_detail = None
+        if cam and cam.nvr_ip:
+            siblings = cameras_by_nvr.get(cam.nvr_ip, [])
+            n_total = len(siblings)
+            n_down = 0
+            limit_end = o.end_time or now
+            for sib in siblings:
+                for e in events_by_camera.get(sib.id, []):
+                    e_end = e.end_time or now
+                    overlap_start = max(e.start_time, o.start_time)
+                    overlap_end = min(e_end, limit_end)
+                    if overlap_end > overlap_start:
+                        n_down += 1
+                        break
+            # اگر بیش از ۸۰٪ دوربین‌های این NVR قطع بوده‌اند
+            if n_total > 1 and (n_down / n_total) >= 0.8:
+                # تلاش برای یافتن نزدیک‌ترین علت معتبر در دیتابیس
+                matched_cause = "قطع ارتباط با سوئیچ مرکزی / خاموشی NVR"
+                # اگر در دیتابیس وجود ندارد، نزدیک‌ترین مورد مانند "مشکلات دیگر" یا اولین علت را قرار می‌دهیم
+                if matched_cause not in active_causes:
+                    # تلاش برای پیدا کردن کلمه کلیدی شبکه یا سوئیچ
+                    for ac in active_causes:
+                        if "شبکه" in ac or "سوئیچ" in ac:
+                            matched_cause = ac
+                            break
+                    else:
+                        matched_cause = "مشکلات دیگر"
+                suggested_cause = matched_cause
+                suggested_detail = f"بیش از ۸۰٪ دوربین‌های این NVR ({cam.nvr_ip}) همزمان قطع شده‌اند ({n_down} از {n_total} دوربین)"
+
         output.append({
             "id": o.id,
             "camera_name": cam.name if cam else "نامشخص",
@@ -2381,9 +2460,16 @@ def get_outage_explanations(session: Session = Depends(get_session), user: dict 
             "shamsi_end": shamsi_end,
             "shamsi_deadline": shamsi_deadline,
             "shamsi_explained_at": shamsi_explained_at,
-            "status": status_val
+            "status": status_val,
+            "suggested_cause": suggested_cause,
+            "suggested_detail": suggested_detail
         })
     return output
+
+class BulkOutageExplanationSubmit(BaseModel):
+    ids: list[int]
+    explanation_type: str
+    explanation_detail: Optional[str] = None
 
 @app.put("/api/outage-explanations/{id}")
 def submit_outage_explanation(id: int, payload: OutageExplanationSubmit, session: Session = Depends(get_session), user: dict = Depends(require_control)):
@@ -2394,11 +2480,14 @@ def submit_outage_explanation(id: int, payload: OutageExplanationSubmit, session
     if user["role"] != "admin" and outage.group_id != user["group_id"]:
         raise HTTPException(status_code=403, detail="دسترسی غیرمجاز برای ویرایش قطعی این کارخانه")
         
-    if outage.explained_at:
-        raise HTTPException(status_code=400, detail="ابهام این قطعی قبلاً رفع شده و غیرقابل تغییر است")
-        
     now = datetime.now()
-    if now > outage.assigned_deadline:
+    is_admin = (user["role"] == "admin")
+
+    # ادمین همواره مجاز به ویرایش توضیحات یا رفع ابهام مجدد است
+    if outage.explained_at and not is_admin:
+        raise HTTPException(status_code=400, detail="ابهام این قطعی قبلاً رفع شده و برای کاربران غیر ادمین غیرقابل تغییر است")
+
+    if now > outage.assigned_deadline and not is_admin:
         raise HTTPException(status_code=400, detail="مهلت رفع ابهام این قطعی به پایان رسیده است")
         
     # Check if the explanation_type is a valid active cause in the database
@@ -2415,6 +2504,43 @@ def submit_outage_explanation(id: int, payload: OutageExplanationSubmit, session
     session.commit()
     
     return {"status": "ok", "message": "رفع ابهام قطعی با موفقیت انجام شد"}
+
+@app.post("/api/outage-explanations/bulk")
+def submit_bulk_outage_explanations(payload: BulkOutageExplanationSubmit, session: Session = Depends(get_session), user: dict = Depends(require_control)):
+    # بررسی ولید بودن علت قطعی
+    cause = session.exec(select(OutageCause).where(OutageCause.name == payload.explanation_type, OutageCause.is_active == True)).first()
+    if not cause:
+        raise HTTPException(status_code=400, detail="علت قطعی نامعتبر است")
+
+    now = datetime.now()
+    is_admin = (user["role"] == "admin")
+    updated_count = 0
+
+    for oid in payload.ids:
+        outage = session.get(OutageExplanation, oid)
+        if not outage:
+            continue
+
+        # بررسی نقش و کارخانه
+        if not is_admin and outage.group_id != user["group_id"]:
+            raise HTTPException(status_code=403, detail=f"دسترسی غیرمجاز برای ویرایش قطعی کارخانه با شناسه {oid}")
+
+        # ادمین همواره مجاز به ویرایش توضیحات است
+        if outage.explained_at and not is_admin:
+            raise HTTPException(status_code=400, detail=f"ابهام قطعی با شناسه {oid} قبلاً رفع شده و برای کاربران غیر ادمین غیرقابل تغییر است")
+
+        if now > outage.assigned_deadline and not is_admin:
+            raise HTTPException(status_code=400, detail=f"مهلت رفع ابهام قطعی با شناسه {oid} به پایان رسیده است")
+
+        outage.explanation_type = payload.explanation_type
+        outage.explanation_detail = payload.explanation_detail
+        outage.explained_by_user_id = user["user_id"]
+        outage.explained_at = now
+        session.add(outage)
+        updated_count += 1
+
+    session.commit()
+    return {"status": "ok", "message": f"رفع ابهام دسته‌جمعی برای {updated_count} قطعی با موفقیت انجام شد", "updated_count": updated_count}
 
 # --- Outage Causes Management API ---
 class OutageCauseCreate(BaseModel):
