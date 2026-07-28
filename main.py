@@ -189,6 +189,12 @@ def seed_scheduled_tasks():
                 interval=7200
             ),
             ScheduledTask(
+                id="sync_nvr_health",
+                name="پایش سلامت تجهیزات NVR",
+                description="دریافت وضعیت منابع سخت‌افزاری (CPU و حافظه)، وضعیت هاردها و زمان داخلی دستگاه‌های NVR",
+                interval=7200
+            ),
+            ScheduledTask(
                 id="capture_camera_snapshots",
                 name="گرفتن پیش‌نمایش دوربین‌ها (Snapshot)",
                 description="دریافت تصویر لحظه‌ای از sub-stream دوربین‌های آنلاین و ذخیره برای نمایش در پنل وب",
