@@ -327,9 +327,8 @@ def poll_nvr_thread(nvr_data):
                 cam_ip = port.find('ns:ipAddress', namespace).text if port is not None else "0.0.0.0"
                 results.append({"channel_id": chan_id, "ip": cam_ip, "online": online})
 
-            # Fetch extended info now that we know auth is successful
-            ext_info = fetch_nvr_extended_info(ip, user, password, session)
-            return ("OK", (results, ext_info))
+            # Fetch extended info has been moved to a separate scheduled task sync_nvr_health to optimize resources
+            return ("OK", (results, None))
         elif resp.status_code == 401:
             return ("AUTH_FAIL", "Authentication failed (401)")
         return ("FAIL", f"HTTP {resp.status_code}")
@@ -1092,6 +1091,48 @@ async def task_sync_nvr_stats():
     for n, r in zip(nvrs, results):
         if isinstance(r, Exception):
             logger.error(f"Stats sync failed for {n.ip}: {r}")
+
+async def task_sync_nvr_health():
+    from database import decrypt_password
+    with Session(engine) as session:
+        nvrs = session.exec(select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")).all()
+    if not nvrs:
+        return
+    logger.info(f"Syncing NVR health/extended info for {len(nvrs)} NVRs in parallel...")
+
+    def sync_one_nvr_health(n_ip, n_user, n_pass_enc):
+        try:
+            password = decrypt_password(n_pass_enc)
+            req_sess = requests.Session()
+            req_sess.trust_env = False
+            return fetch_nvr_extended_info(n_ip, n_user, password, req_sess)
+        except Exception as e:
+            logger.error(f"Failed to fetch health info for {n_ip}: {e}")
+            return None
+
+    results = await asyncio.gather(
+        *[asyncio.to_thread(sync_one_nvr_health, n.ip, n.user, n.password) for n in nvrs],
+        return_exceptions=True
+    )
+
+    with Session(engine) as session:
+        for nvr, ext_info in zip(nvrs, results):
+            if isinstance(ext_info, Exception) or not ext_info:
+                continue
+
+            db_nvr = session.get(NVR, nvr.ip)
+            if db_nvr and ext_info:
+                if ext_info['model'] is not None: db_nvr.model = ext_info['model']
+                if ext_info['firmware_version'] is not None: db_nvr.firmware_version = ext_info['firmware_version']
+                if ext_info['serial_number'] is not None: db_nvr.serial_number = ext_info['serial_number']
+                if ext_info['mac_address'] is not None: db_nvr.mac_address = ext_info['mac_address']
+                if ext_info['uptime'] is not None: db_nvr.uptime = ext_info['uptime']
+                if ext_info['cpu_usage'] is not None: db_nvr.cpu_usage = ext_info['cpu_usage']
+                if ext_info['memory_usage'] is not None: db_nvr.memory_usage = ext_info['memory_usage']
+                if ext_info['hdd_status'] is not None: db_nvr.hdd_status = ext_info['hdd_status']
+                if ext_info['device_time'] is not None: db_nvr.device_time = ext_info['device_time']
+                session.add(db_nvr)
+        session.commit()
 
 async def task_cleanup_database():
     with Session(engine) as session:

@@ -295,6 +295,62 @@
                     </div>
                 </div>
 
+                <!-- Widget: NVR Health Details -->
+                <div class="dash-widget size-half" id="widget-nvr-health" data-widget-id="widget-nvr-health">
+                    <div class="dash-widget-controls">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">وضعیت سلامت NVRها</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-health')" title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-health')" title="حذف ویجت">✕</button>
+                        </div>
+                    </div>
+                    <div class="stat-card-combined" style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 280px;">
+                        <div class="stat-combined-header" style="display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
+                                <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                                <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                                <line x1="6" y1="6" x2="6.01" y2="6" />
+                                <line x1="6" y1="18" x2="6.01" y2="18" />
+                            </svg>
+                            <span class="stat-combined-title">وضعیت سلامت NVRها</span>
+                            <span class="widget-update-time" id="nvr-health-update-time" style="margin-right: auto; font-size: 11px; color: var(--text-muted);">بروزرسانی: در حال انتظار...</span>
+                        </div>
+                        <div id="nvr-health-list" class="widget-list-scrollable" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 8px;">
+                            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">در حال بارگذاری...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Widget: NVR Health Summary -->
+                <div class="dash-widget size-third" id="widget-nvr-health-summary" data-widget-id="widget-nvr-health-summary">
+                    <div class="dash-widget-controls">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
+                            <span class="widget-title-label">خلاصه وضعیت سلامت NVRها</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-health-summary')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-health-summary')" title="حذف ویجت">✕</button>
+                        </div>
+                    </div>
+                    <div class="stat-card-combined" style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 220px;">
+                        <div class="stat-combined-header" style="display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--success);">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                <polyline points="22 4 12 14.01 9 11.01" />
+                            </svg>
+                            <span class="stat-combined-title">خلاصه وضعیت سلامت NVRها</span>
+                            <span class="widget-update-time" id="nvr-health-summary-update-time" style="margin-right: auto; font-size: 11px; color: var(--text-muted);">بروزرسانی: در حال انتظار...</span>
+                        </div>
+                        <div id="nvr-health-summary-content" style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">
+                            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">در حال بارگذاری...</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Widget: Factory Summary -->
                 <div class="dash-widget size-third" id="widget-factory-summary" data-widget-id="widget-factory-summary">
                     <div class="dash-widget-controls">

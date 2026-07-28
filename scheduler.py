@@ -6,12 +6,13 @@ from typing import Optional
 from sqlmodel import Session, select
 from database import engine, ScheduledTask, Log
 from logging_config import logger, log_event
-from monitor import task_ping_cameras, task_sync_nvr_configs, task_sync_nvr_stats, task_cleanup_database, task_capture_camera_snapshots, task_analyze_outages, broadcast
+from monitor import task_ping_cameras, task_sync_nvr_configs, task_sync_nvr_stats, task_sync_nvr_health, task_cleanup_database, task_capture_camera_snapshots, task_analyze_outages, broadcast
 
 TASK_FUNCTIONS = {
     "ping_cameras": task_ping_cameras,
     "sync_nvr_configs": task_sync_nvr_configs,
     "sync_nvr_stats": task_sync_nvr_stats,
+    "sync_nvr_health": task_sync_nvr_health,
     "cleanup_database": task_cleanup_database,
     "capture_camera_snapshots": task_capture_camera_snapshots,
     "analyze_outages": task_analyze_outages
@@ -59,6 +60,8 @@ class TaskScheduler:
                     t.next_run = now + timedelta(seconds=10)
                 elif t.id == "sync_nvr_stats":
                     t.next_run = now + timedelta(seconds=20)
+                elif t.id == "sync_nvr_health":
+                    t.next_run = now + timedelta(seconds=30)
                 elif t.id == "capture_camera_snapshots":
                     # Start with a 5 minutes delay on startup
                     t.next_run = now + timedelta(minutes=5)

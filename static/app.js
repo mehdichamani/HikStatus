@@ -80,6 +80,14 @@ async function fetchDash() {
     } catch (e) {
         console.error('Error loading Groups:', e);
     }
+    try {
+        const tRes = await apiFetch(`${API}/scheduler/tasks`);
+        if (tRes.ok) {
+            scheduledTasksCache = await tRes.json();
+        }
+    } catch (e) {
+        console.error('Error loading Tasks:', e);
+    }
     const res = await apiFetch(`${API}/cameras`);
     const cams = await res.json();
 
@@ -1229,21 +1237,6 @@ function renderNVRRow(n, deleted = false) {
         ? `<span class="badge" style="font-size: 11px; margin-right: 6px; background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 2px 6px; border-radius: 4px;">غیرفعال</span>`
         : '';
 
-    let extendedStats = '';
-    if (n.cpu_usage !== null && n.cpu_usage !== undefined) {
-        extendedStats += `<span style="font-size: 11px; margin-right: 6px; color: var(--text-secondary);" title="میزان مصرف پردازنده">CPU: ${n.cpu_usage}%</span>`;
-    }
-    if (n.memory_usage !== null && n.memory_usage !== undefined) {
-        extendedStats += `<span style="font-size: 11px; margin-right: 6px; color: var(--text-secondary);" title="میزان مصرف حافظه">RAM: ${n.memory_usage}%</span>`;
-    }
-    if (n.model) {
-         extendedStats += `<span style="font-size: 11px; margin-right: 6px; color: var(--text-secondary);" title="مدل دستگاه">Model: ${n.model}</span>`;
-    }
-    if (n.uptime) {
-         let days = Math.floor(n.uptime / 86400);
-         extendedStats += `<span style="font-size: 11px; margin-right: 6px; color: var(--text-secondary);" title="مدت زمان روشن بودن">Uptime: ${days}d</span>`;
-    }
-
     return `<div class="list-item" id="nvr-row-${escaped}" data-ip="${n.ip}" style="${disabledStyle}; flex-direction: column; align-items: stretch; gap: 8px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div class="list-item-info">
@@ -1262,7 +1255,6 @@ function renderNVRRow(n, deleted = false) {
                 ${actionBtns}
             </div>
         </div>
-        ${extendedStats ? `<div style="display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; border-top: 1px dashed var(--border);">${extendedStats}</div>` : ''}
     </div>`;
 }
 
@@ -2438,6 +2430,8 @@ function updateDashFromWS(cams) {
     renderImportantCamerasWidget();
     renderOffCamerasWidget();
     renderCameraChangesWidget();
+    renderNvrHealthWidget();
+    renderNvrHealthSummaryWidget();
     renderDashboardCharts();
 
     const dashLoader = document.getElementById('dashLoader');
@@ -4975,6 +4969,10 @@ function handleTaskStatusUpdate(task) {
     if (activeTabBtn && activeTabBtn.getAttribute('data-tab') === 'sec-tasks') {
         renderScheduledTasks();
     }
+    if (task.id === 'sync_nvr_health') {
+        renderNvrHealthWidget();
+        renderNvrHealthSummaryWidget();
+    }
 }
 
 // ===== GLOBAL SEARCH AND DROPDOWN =====
@@ -5294,6 +5292,8 @@ function cycleWidgetSize(widgetId) {
 const DEFAULT_WIDGET_ORDER = [
     'widget-cam-stats',
     'widget-nvr-stats',
+    'widget-nvr-health',
+    'widget-nvr-health-summary',
     'widget-factory-summary',
     'widget-off-recording',
     'widget-camera-changes',
@@ -5309,6 +5309,8 @@ const DEFAULT_WIDGET_ORDER = [
 const WIDGET_METADATA = {
     'widget-cam-stats': { title: 'وضعیت دوربین‌ها', desc: 'نمایش تعداد کل، متصل و قطع دوربین‌ها' },
     'widget-nvr-stats': { title: 'وضعیت NVRها', desc: 'نمایش تعداد کل، متصل و قطع دستگاه‌های NVR' },
+    'widget-nvr-health': { title: 'وضعیت سلامت NVRها', desc: 'نمایش اطلاعات سخت‌افزاری پردازنده، حافظه، دیسک‌ها و کارکرد NVRها' },
+    'widget-nvr-health-summary': { title: 'خلاصه وضعیت سلامت NVRها', desc: 'نمایش گزارش خلاصه سلامت و هشدارهای سخت‌افزاری تجهیزات ضبط' },
     'widget-factory-summary': { title: 'خلاصه کارخانه‌ها', desc: 'نمایش آمار کلی کارخانجات' },
     'widget-off-recording': { title: 'دوربین‌های ضبط خاموش', desc: 'لیست دوربین‌هایی که ضبط آن‌ها غیرفعال است به همراه جزئیات' },
     'widget-camera-changes': { title: 'تغییرات اخیر دوربین‌ها', desc: 'نمایش لیست دوربین‌های حذف یا اضافه شده در ۲۴ ساعت و هفته/ماه اخیر' },
@@ -5564,6 +5566,203 @@ function updateAddWidgetModalContent() {
             </div>
         `;
     }).join('');
+}
+
+function toPersianNumbers(str) {
+    const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    return String(str).replace(/[0-9]/g, (w) => persianDigits[+w]);
+}
+
+function formatTimeAgo(dateStr) {
+    if (!dateStr) return 'هرگز';
+    const now = new Date();
+    const lastRun = new Date(dateStr);
+    const diffMs = now - lastRun;
+    if (diffMs < 0) return 'هم‌اکنون';
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'چند لحظه پیش';
+    if (diffMins < 60) {
+        return toPersianNumbers(`${diffMins} دقیقه پیش`);
+    }
+    const diffHours = Math.floor(diffMins / 60);
+    const remMins = diffMins % 60;
+    if (remMins === 0) {
+        return toPersianNumbers(`${diffHours} ساعت پیش`);
+    }
+    return toPersianNumbers(`${diffHours} ساعت و ${remMins} دقیقه پیش`);
+}
+
+function formatHddInfo(hddJsonStr) {
+    if (!hddJsonStr) return '💿 اطلاعات هارد: نامشخص';
+    try {
+        const hdds = JSON.parse(hddJsonStr);
+        if (!Array.isArray(hdds) || hdds.length === 0) return '💿 بدون هارد دیسک';
+        return hdds.map(h => {
+            const capVal = parseFloat(h.capacity) || 0;
+            const freeVal = parseFloat(h.freeSpace) || 0;
+
+            let capGB = capVal > 50000 ? (capVal / 1024).toFixed(1) : capVal.toFixed(1);
+            let freeGB = freeVal > 50000 ? (freeVal / 1024).toFixed(1) : freeVal.toFixed(1);
+
+            let capStr = capGB > 900 ? `${(capGB / 1024).toFixed(1)}TB` : `${capGB}GB`;
+            let freeStr = freeGB > 900 ? `${(freeGB / 1024).toFixed(1)}TB` : `${freeGB}GB`;
+
+            let statusClass = h.status === 'OK' ? 'text-success' : 'text-danger';
+            let statusLabel = h.status === 'OK' ? 'سالم' : (h.status || 'خطا');
+            return `<div style="padding-right: 4px; display: flex; align-items: center; gap: 8px;">
+                <span>💾 ${h.name || 'هارد'}: ${toPersianNumbers(capStr)} / ${toPersianNumbers(freeStr)} خالی</span>
+                <span class="${statusClass}" style="font-weight: bold;">(${statusLabel})</span>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        return '💿 خطا در خواندن اطلاعات هارد';
+    }
+}
+
+function renderNvrHealthWidget() {
+    const listEl = document.getElementById('nvr-health-list');
+    if (!listEl) return;
+
+    const updateTimeEl = document.getElementById('nvr-health-update-time');
+    if (updateTimeEl) {
+        const task = scheduledTasksCache.find(t => t.id === 'sync_nvr_health');
+        updateTimeEl.textContent = task && task.last_run ? `بروزرسانی: ${formatTimeAgo(task.last_run)}` : 'بروزرسانی: در حال انتظار...';
+    }
+
+    const activeNvrs = nvrCache.filter(n => n.enabled !== false);
+    if (activeNvrs.length === 0) {
+        listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">دستگاه NVR فعال یافت نشد.</div>';
+        return;
+    }
+
+    const html = activeNvrs.map(n => {
+        let statusBadge = '';
+        if (n.status === 'Online') {
+            statusBadge = '<span class="badge badge-success" style="font-size: 11px; padding: 2px 6px;">متصل</span>';
+        } else if (n.status === 'AuthError') {
+            statusBadge = '<span class="badge badge-danger" style="font-size: 11px; padding: 2px 6px;">خطای احراز هویت</span>';
+        } else {
+            statusBadge = '<span class="badge badge-danger" style="font-size: 11px; padding: 2px 6px;">قطع ارتباط</span>';
+        }
+
+        const cpuVal = n.cpu_usage !== null && n.cpu_usage !== undefined ? `${n.cpu_usage}%` : 'نامشخص';
+        const ramVal = n.memory_usage !== null && n.memory_usage !== undefined ? `${n.memory_usage}%` : 'نامشخص';
+
+        let uptimeVal = 'نامشخص';
+        if (n.uptime) {
+            let days = Math.floor(n.uptime / 86400);
+            let hours = Math.floor((n.uptime % 86400) / 3600);
+            if (days > 0) {
+                uptimeVal = `${days} روز و ${hours} ساعت`;
+            } else {
+                uptimeVal = `${hours} ساعت`;
+            }
+        }
+
+        const hddHtml = formatHddInfo(n.hdd_status);
+
+        return `
+            <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <strong style="font-size: 13px; color: var(--text-primary);">${n.name || 'NVR بدون نام'}</strong>
+                        <span class="mono" style="font-size: 11px; color: var(--text-secondary);">${n.ip}</span>
+                    </div>
+                    <div>${statusBadge}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 11px; color: var(--text-secondary); border-top: 1px dashed var(--border); padding-top: 8px;">
+                    <div>⚙️ پردازنده: <strong style="color: var(--text);">${toPersianNumbers(cpuVal)}</strong></div>
+                    <div>🧠 حافظه: <strong style="color: var(--text);">${toPersianNumbers(ramVal)}</strong></div>
+                    <div>⏱️ کارکرد: <strong style="color: var(--text);">${toPersianNumbers(uptimeVal)}</strong></div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+                    ${hddHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    listEl.innerHTML = html;
+}
+
+function renderNvrHealthSummaryWidget() {
+    const contentEl = document.getElementById('nvr-health-summary-content');
+    if (!contentEl) return;
+
+    const updateTimeEl = document.getElementById('nvr-health-summary-update-time');
+    if (updateTimeEl) {
+        const task = scheduledTasksCache.find(t => t.id === 'sync_nvr_health');
+        updateTimeEl.textContent = task && task.last_run ? `بروزرسانی: ${formatTimeAgo(task.last_run)}` : 'بروزرسانی: در حال انتظار...';
+    }
+
+    const activeNvrs = nvrCache.filter(n => n.enabled !== false);
+    if (activeNvrs.length === 0) {
+        contentEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">دستگاه NVR فعال یافت نشد.</div>';
+        return;
+    }
+
+    const total = activeNvrs.length;
+    const online = activeNvrs.filter(n => n.status === 'Online').length;
+    const offline = activeNvrs.filter(n => n.status !== 'Online' && n.status !== 'AuthError').length;
+    const authError = activeNvrs.filter(n => n.status === 'AuthError').length;
+
+    let totalHdds = 0;
+    let failedHdds = 0;
+    activeNvrs.forEach(n => {
+        if (n.hdd_status) {
+            try {
+                const hdds = JSON.parse(n.hdd_status);
+                if (Array.isArray(hdds)) {
+                    totalHdds += hdds.length;
+                    failedHdds += hdds.filter(h => h.status !== 'OK').length;
+                }
+            } catch (e) {}
+        }
+    });
+
+    const highCpu = activeNvrs.filter(n => n.cpu_usage !== null && n.cpu_usage > 80).length;
+    const highRam = activeNvrs.filter(n => n.memory_usage !== null && n.memory_usage > 90).length;
+
+    let hddStatusText = '<span class="text-success" style="font-weight: bold;">تمامی هاردها سالم هستند</span>';
+    if (totalHdds === 0) {
+        hddStatusText = '<span class="text-muted">اطلاعات هارد در دسترس نیست</span>';
+    } else if (failedHdds > 0) {
+        hddStatusText = `<span class="text-danger" style="font-weight: bold;">⚠️ ${toPersianNumbers(failedHdds)} خطا در هاردها</span>`;
+    }
+
+    let resourceAlertText = '<span class="text-success">نرمال</span>';
+    if (highCpu > 0 || highRam > 0) {
+        resourceAlertText = '<span class="text-danger" style="font-weight: bold;">⚠️ بار مصرفی بالا</span>';
+    }
+
+    contentEl.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="stat-row">
+                <span class="stat-label">تعداد کل NVRهای فعال</span>
+                <span class="stat-value" style="font-weight: bold;">${toPersianNumbers(total)}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">دستگاه‌های متصل</span>
+                <span class="stat-value text-success" style="font-weight: bold;">${toPersianNumbers(online)}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">دستگاه‌های قطع شده</span>
+                <span class="stat-value ${offline > 0 ? 'text-danger' : 'text-muted'}" style="font-weight: bold;">${toPersianNumbers(offline)}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">خطای احراز هویت</span>
+                <span class="stat-value ${authError > 0 ? 'text-danger' : 'text-muted'}" style="font-weight: bold;">${toPersianNumbers(authError)}</span>
+            </div>
+            <div class="stat-row" style="border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 4px;">
+                <span class="stat-label">سلامت ذخیره‌سازی (HDD)</span>
+                <span class="stat-value" style="font-size: 11px;">${hddStatusText}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">مصرف منابع سخت‌افزاری</span>
+                <span class="stat-value" style="font-size: 11px;">${resourceAlertText}</span>
+            </div>
+        </div>
+    `;
 }
 
 function renderImportantCamerasWidget() {
