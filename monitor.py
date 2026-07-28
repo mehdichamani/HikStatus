@@ -204,6 +204,108 @@ def cleanup_old_data(session, days=90):
     except Exception as e:
         logger.warning(f"Failed to cleanup old data: {e}")
 
+def fetch_nvr_extended_info(ip, user, password, req_sess):
+    info = {
+        "model": None, "firmware_version": None, "serial_number": None,
+        "mac_address": None, "uptime": None, "cpu_usage": None,
+        "memory_usage": None, "hdd_status": None, "device_time": None
+    }
+
+    import xml.etree.ElementTree as ET
+    import re
+
+    def _parse_xml(content):
+        try:
+            return ET.fromstring(content)
+        except Exception:
+            try:
+                content_str = content.decode('utf-8', errors='ignore')
+                content_str = re.sub(r'xmlns="[^"]+"', '', content_str, count=1)
+                return ET.fromstring(content_str)
+            except Exception:
+                return None
+
+    # 1. System Info
+    try:
+        url_info = f"http://{ip}/ISAPI/System/deviceInfo"
+        r = req_sess.get(url_info, auth=HTTPDigestAuth(user, password), timeout=5, proxies={})
+        if r.status_code == 200:
+            root = _parse_xml(r.content)
+            ns = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
+            m = root.find('.//ns:model', ns)
+            if m is not None: info['model'] = m.text
+            fv = root.find('.//ns:firmwareVersion', ns)
+            if fv is not None: info['firmware_version'] = fv.text
+            sn = root.find('.//ns:serialNumber', ns)
+            if sn is not None: info['serial_number'] = sn.text
+            ma = root.find('.//ns:macAddress', ns)
+            if ma is not None: info['mac_address'] = ma.text
+    except Exception:
+        pass
+
+    # 2. System Status (CPU, Memory, Uptime)
+    try:
+        url_status = f"http://{ip}/ISAPI/System/status"
+        r = req_sess.get(url_status, auth=HTTPDigestAuth(user, password), timeout=5, proxies={})
+        if r.status_code == 200:
+            root = _parse_xml(r.content)
+            ns = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
+            up = root.find('.//ns:deviceUpTime', ns)
+            if up is not None and up.text and up.text.isdigit():
+                info['uptime'] = int(up.text)
+
+            cpus = root.findall('.//ns:CPUList/ns:CPU/ns:cpuUtilization', ns)
+            if cpus and cpus[0].text and cpus[0].text.isdigit():
+                info['cpu_usage'] = int(cpus[0].text)
+
+            mems = root.findall('.//ns:MemoryList/ns:Memory/ns:memoryUsage', ns)
+            if mems and mems[0].text and mems[0].text.isdigit():
+                info['memory_usage'] = int(mems[0].text)
+    except Exception:
+        pass
+
+    # 3. HDD Status
+    try:
+        url_hdd = f"http://{ip}/ISAPI/ContentMgmt/Storage"
+        r = req_sess.get(url_hdd, auth=HTTPDigestAuth(user, password), timeout=5, proxies={})
+        if r.status_code == 200:
+            root = _parse_xml(r.content)
+            ns = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
+            hdds = []
+            for hdd in root.findall('.//ns:hdd', ns):
+                hdd_info = {
+                    "id": hdd.find('ns:id', ns).text if hdd.find('ns:id', ns) is not None else "",
+                    "name": hdd.find('ns:hddName', ns).text if hdd.find('ns:hddName', ns) is not None else "",
+                    "capacity": hdd.find('ns:capacity', ns).text if hdd.find('ns:capacity', ns) is not None else "0",
+                    "freeSpace": hdd.find('ns:freeSpace', ns).text if hdd.find('ns:freeSpace', ns) is not None else "0",
+                    "status": hdd.find('ns:status', ns).text if hdd.find('ns:status', ns) is not None else "",
+                    "property": hdd.find('ns:property', ns).text if hdd.find('ns:property', ns) is not None else ""
+                }
+                hdds.append(hdd_info)
+            import json
+            if hdds:
+                info['hdd_status'] = json.dumps(hdds)
+    except Exception:
+        pass
+
+    # 4. Device Time
+    try:
+        url_time = f"http://{ip}/ISAPI/System/time"
+        r = req_sess.get(url_time, auth=HTTPDigestAuth(user, password), timeout=5, proxies={})
+        if r.status_code == 200:
+            root = _parse_xml(r.content)
+            ns = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
+            lt = root.find('.//ns:localTime', ns)
+            if lt is not None and lt.text:
+                try:
+                    info['device_time'] = datetime.strptime(lt.text[:19], "%Y-%m-%dT%H:%M:%S")
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    return info
+
 def poll_nvr_thread(nvr_data):
     from database import decrypt_password
     ip, user, password = nvr_data
@@ -224,7 +326,10 @@ def poll_nvr_thread(nvr_data):
                 port = channel.find('ns:sourceInputPortDescriptor', namespace)
                 cam_ip = port.find('ns:ipAddress', namespace).text if port is not None else "0.0.0.0"
                 results.append({"channel_id": chan_id, "ip": cam_ip, "online": online})
-            return ("OK", results)
+
+            # Fetch extended info now that we know auth is successful
+            ext_info = fetch_nvr_extended_info(ip, user, password, session)
+            return ("OK", (results, ext_info))
         elif resp.status_code == 401:
             return ("AUTH_FAIL", "Authentication failed (401)")
         return ("FAIL", f"HTTP {resp.status_code}")
@@ -818,6 +923,26 @@ async def task_ping_cameras():
             else:
                 await process_nvr_alerts(session, nvr_obj, False)
                 
+                # Update NVR extended info
+                if isinstance(payload, tuple) and len(payload) == 2:
+                    cam_payload, ext_info = payload
+                else:
+                    cam_payload, ext_info = payload, None
+
+                if ext_info:
+                    if ext_info['model'] is not None: nvr_obj.model = ext_info['model']
+                    if ext_info['firmware_version'] is not None: nvr_obj.firmware_version = ext_info['firmware_version']
+                    if ext_info['serial_number'] is not None: nvr_obj.serial_number = ext_info['serial_number']
+                    if ext_info['mac_address'] is not None: nvr_obj.mac_address = ext_info['mac_address']
+                    if ext_info['uptime'] is not None: nvr_obj.uptime = ext_info['uptime']
+                    if ext_info['cpu_usage'] is not None: nvr_obj.cpu_usage = ext_info['cpu_usage']
+                    if ext_info['memory_usage'] is not None: nvr_obj.memory_usage = ext_info['memory_usage']
+                    if ext_info['hdd_status'] is not None: nvr_obj.hdd_status = ext_info['hdd_status']
+                    if ext_info['device_time'] is not None: nvr_obj.device_time = ext_info['device_time']
+                    session.add(nvr_obj)
+
+                payload = cam_payload
+
             for d in payload:
                 stmt = select(Camera).where(Camera.nvr_ip == nvr_obj.ip, Camera.channel_id == d['channel_id'])
                 db_cam = session.exec(stmt).first()

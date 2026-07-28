@@ -35,6 +35,17 @@ class NVR(SQLModel, table=True):
     group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
     rtsp_port: int = Field(default=554)
 
+    # اطلاعات پیشرفته NVR
+    model: Optional[str] = None
+    firmware_version: Optional[str] = None
+    serial_number: Optional[str] = None
+    mac_address: Optional[str] = None
+    uptime: Optional[int] = None
+    cpu_usage: Optional[int] = None
+    memory_usage: Optional[int] = None
+    hdd_status: Optional[str] = None  # JSON string to store HDD info
+    device_time: Optional[datetime] = None
+
 class Camera(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
