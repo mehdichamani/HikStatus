@@ -6,10 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0a0a0f">
     <script>
-        const storedTheme = localStorage.getItem('hikstatus-theme');
+        const storedTheme = localStorage.getItem('hikstatus-theme') || 'system';
         if (storedTheme === 'light') {
             document.documentElement.setAttribute('data-theme', 'light');
             document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f8fafc');
+        } else if (storedTheme === 'system') {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                document.documentElement.setAttribute('data-theme', 'light');
+                document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f8fafc');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0a0a0f');
+            }
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0a0a0f');
         }
     </script>
     <link rel="manifest" href="/manifest.json">
@@ -1075,13 +1086,6 @@
             <div id="settings-menu-container" style="max-width: 800px; margin: 0 auto; width: 100%; padding: 0 10px;">
                 <div class="card-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
                     <h3 style="font-size: 16px; font-weight: 700; color: var(--text);">تنظیمات سیستم</h3>
-                    <button class="btn btn-ghost" onclick="loadSettings()" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23 4 23 10 17 10" />
-                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                        </svg>
-                        <span>بارگذاری مجدد</span>
-                    </button>
                 </div>
                 <div id="settings-menu-list" class="settings-menu-list"></div>
             </div>

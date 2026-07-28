@@ -4,6 +4,14 @@ let currentCamId, currentImp, settingsCache = [], nvrCache = [], groupCache = []
 let ws = null, wsRetryDelay = 1000, dashCamSearchVal = '', dashCamFilter = 'all';
 let dashCamRecordingFilter = 'all';
 
+let collapsedFactories = new Set(JSON.parse(localStorage.getItem('collapsedFactories') || '[]'));
+let collapsedNvrs = new Set(JSON.parse(localStorage.getItem('collapsedNvrs') || '[]'));
+
+function saveCollapsedState() {
+    localStorage.setItem('collapsedFactories', JSON.stringify([...collapsedFactories]));
+    localStorage.setItem('collapsedNvrs', JSON.stringify([...collapsedNvrs]));
+}
+
 async function apiFetch(url, options = {}) {
     try {
         const res = await fetch(url, options);
@@ -33,6 +41,15 @@ async function nav(id, activeTabOverride = null) {
     if (view) view.classList.add('active');
 
     document.querySelectorAll(`[data-view="${id}"]`).forEach(e => e.classList.add('active'));
+
+    const fabDash = document.getElementById('fab-dash-controls');
+    if (fabDash) {
+        if (id === 'dash') {
+            fabDash.classList.remove('hidden');
+        } else {
+            fabDash.classList.add('hidden');
+        }
+    }
 
     if (id === 'dash') fetchDash();
     if (id === 'map') initOrRefreshMap();
@@ -180,7 +197,8 @@ function renderDash() {
         let totalCams = 0;
         ips.forEach(ip => { totalCams += (groups[ip] || []).length; });
 
-        let factoryHtml = `<div class="factory-section open" id="factory-${g.id}">
+        const isFactoryCollapsed = collapsedFactories.has(String(g.id));
+        let factoryHtml = `<div class="factory-section ${isFactoryCollapsed ? '' : 'open'}" id="factory-${g.id}">
             <div class="factory-header" onclick="toggleFactory(${g.id})">
                 <div class="factory-header-left">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/></svg>
@@ -203,8 +221,9 @@ function renderDash() {
             const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
             const cards = sorted.map(c => createCard(c)).join('');
+            const isNvrCollapsed = collapsedNvrs.has(ip);
             factoryHtml += `
-                <div class="nvr-block open ${isNvrOffline ? 'offline' : ''}">
+                <div class="nvr-block ${isNvrCollapsed ? '' : 'open'} ${isNvrOffline ? 'offline' : ''}">
                     <div class="nvr-header" onclick="toggleNvr(this)">
                         <div class="nvr-header-left">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
@@ -213,7 +232,7 @@ function renderDash() {
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
-                    <div class="nvr-grid">${cards}</div>
+                    <div class="nvr-grid" style="${isNvrCollapsed ? 'display: none;' : ''}">${cards}</div>
                 </div>`;
         });
 
@@ -226,7 +245,8 @@ function renderDash() {
         let totalUnassigned = 0;
         unassignedNvrIps.forEach(ip => { totalUnassigned += (groups[ip] || []).length; });
 
-        let unassignedHtml = `<div class="factory-section open" id="factory-unassigned">
+        const isUnassignedCollapsed = collapsedFactories.has('unassigned');
+        let unassignedHtml = `<div class="factory-section ${isUnassignedCollapsed ? '' : 'open'}" id="factory-unassigned">
             <div class="factory-header" onclick="toggleFactory('unassigned')">
                 <div class="factory-header-left">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-secondary);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -248,8 +268,9 @@ function renderDash() {
             const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
             const cards = sorted.map(c => createCard(c)).join('');
+            const isNvrCollapsed = collapsedNvrs.has(ip);
             unassignedHtml += `
-                <div class="nvr-block open ${isNvrOffline ? 'offline' : ''}">
+                <div class="nvr-block ${isNvrCollapsed ? '' : 'open'} ${isNvrOffline ? 'offline' : ''}">
                     <div class="nvr-header" onclick="toggleNvr(this)">
                         <div class="nvr-header-left">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
@@ -258,7 +279,7 @@ function renderDash() {
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
-                    <div class="nvr-grid">${cards}</div>
+                    <div class="nvr-grid" style="${isNvrCollapsed ? 'display: none;' : ''}">${cards}</div>
                 </div>`;
         });
 
@@ -283,33 +304,69 @@ function toggleNvr(header) {
     const grid = header.nextElementSibling;
     block.classList.toggle('open');
     grid.style.display = block.classList.contains('open') ? 'grid' : 'none';
+
+    const ipEl = header.querySelector('.nvr-ip');
+    if (ipEl) {
+        const ip = ipEl.textContent.trim();
+        if (block.classList.contains('open')) {
+            collapsedNvrs.delete(ip);
+        } else {
+            collapsedNvrs.add(ip);
+        }
+        saveCollapsedState();
+    }
 }
 
 function toggleFactory(id) {
     const el = document.getElementById('factory-' + id);
-    if (el) el.classList.toggle('open');
+    if (el) {
+        el.classList.toggle('open');
+        const strId = String(id);
+        if (el.classList.contains('open')) {
+            collapsedFactories.delete(strId);
+        } else {
+            collapsedFactories.add(strId);
+        }
+        saveCollapsedState();
+    }
 }
 
 function expandAllFactories() {
     document.querySelectorAll('.factory-section').forEach(sec => {
         sec.classList.add('open');
+        const id = sec.id.replace('factory-', '');
+        collapsedFactories.delete(String(id));
     });
     document.querySelectorAll('.nvr-block').forEach(blk => {
         blk.classList.add('open');
         const grid = blk.querySelector('.nvr-grid');
         if (grid) grid.style.display = 'grid';
+
+        const ipEl = blk.querySelector('.nvr-ip');
+        if (ipEl) {
+            collapsedNvrs.delete(ipEl.textContent.trim());
+        }
     });
+    saveCollapsedState();
 }
 
 function collapseAllFactories() {
     document.querySelectorAll('.factory-section').forEach(sec => {
         sec.classList.remove('open');
+        const id = sec.id.replace('factory-', '');
+        collapsedFactories.add(String(id));
     });
     document.querySelectorAll('.nvr-block').forEach(blk => {
         blk.classList.remove('open');
         const grid = blk.querySelector('.nvr-grid');
         if (grid) grid.style.display = 'none';
+
+        const ipEl = blk.querySelector('.nvr-ip');
+        if (ipEl) {
+            collapsedNvrs.add(ipEl.textContent.trim());
+        }
     });
+    saveCollapsedState();
 }
 
 function toggleReportBlock(header) {
@@ -2462,37 +2519,80 @@ async function logout() {
     window.location.href = '/login';
 }
 
-function toggleTheme() {
+function applyTheme(theme) {
     const root = document.documentElement;
-    const isLight = root.getAttribute('data-theme') === 'light';
-    const newTheme = isLight ? 'dark' : 'light';
+    const meta = document.querySelector('meta[name="theme-color"]');
 
-    if (newTheme === 'light') {
-        root.setAttribute('data-theme', 'light');
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f8fafc');
-    } else {
-        root.removeAttribute('data-theme');
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0a0a0f');
+    let actualTheme = theme;
+    if (theme === 'system') {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            actualTheme = 'light';
+        } else {
+            actualTheme = 'dark';
+        }
     }
 
-    localStorage.setItem('hikstatus-theme', newTheme);
-    updateThemeIcon();
+    if (actualTheme === 'light') {
+        root.setAttribute('data-theme', 'light');
+        if (meta) meta.setAttribute('content', '#f8fafc');
+    } else {
+        root.removeAttribute('data-theme');
+        if (meta) meta.setAttribute('content', '#0a0a0f');
+    }
+
+    localStorage.setItem('hikstatus-theme', theme);
+    updateThemeIcon(theme);
 }
 
-function updateThemeIcon() {
+// System theme listener
+if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+        const currentTheme = localStorage.getItem('hikstatus-theme') || 'system';
+        if (currentTheme === 'system') {
+            applyTheme('system');
+        }
+    });
+}
+
+function toggleTheme() {
+    const currentTheme = localStorage.getItem('hikstatus-theme') || 'system';
+    let nextTheme = 'light';
+    if (currentTheme === 'system') {
+        nextTheme = 'light';
+    } else if (currentTheme === 'light') {
+        nextTheme = 'dark';
+    } else if (currentTheme === 'dark') {
+        nextTheme = 'system';
+    }
+
+    applyTheme(nextTheme);
+
+    let themeLabel = '';
+    if (nextTheme === 'system') themeLabel = 'هماهنگ با سیستم';
+    else if (nextTheme === 'light') themeLabel = 'روشن';
+    else if (nextTheme === 'dark') themeLabel = 'تاریک';
+
+    if (typeof showToast === 'function') {
+        showToast(`پوسته به حالت «${themeLabel}» تغییر یافت`);
+    }
+}
+
+function updateThemeIcon(theme) {
     const btn = document.getElementById('btn-theme-toggle');
     if (!btn) return;
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
 
-    if (isLight) {
-        // Moon icon for switching to dark
+    const currentTheme = theme || localStorage.getItem('hikstatus-theme') || 'system';
+
+    if (currentTheme === 'system') {
         btn.innerHTML = `
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
             </svg>
         `;
-    } else {
-        // Sun icon for switching to light
+        btn.setAttribute('title', 'پوسته: هماهنگ با سیستم');
+    } else if (currentTheme === 'light') {
         btn.innerHTML = `
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="5"></circle>
@@ -2506,12 +2606,20 @@ function updateThemeIcon() {
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
             </svg>
         `;
+        btn.setAttribute('title', 'پوسته: روشن');
+    } else {
+        btn.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        `;
+        btn.setAttribute('title', 'پوسته: تاریک');
     }
 }
 
 // Call on load to set initial icon and kiosk listeners
 document.addEventListener('DOMContentLoaded', () => {
-    updateThemeIcon();
+    applyTheme(localStorage.getItem('hikstatus-theme') || 'system');
     initKioskListeners();
     initDashboardCustomization();
 });
