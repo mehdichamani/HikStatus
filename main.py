@@ -302,9 +302,7 @@ def check_rate_limit(ip):
         _login_attempts[ip].append(now)
     return True
 
-@app.get("/api/health")
-def health_check():
-    return {"status": "ok", "version": "1.0.0"}
+# اندپوئینت قدیمی کنترل سلامتی به app/api/v1/endpoints/status.py منتقل شد.
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -1873,21 +1871,7 @@ def get_heatmap_stats(session: Session = Depends(get_session), user: dict = Depe
             output.append({"day": d, "hour": h, "value": int(grid[d][h])})
     return output
 
-@app.get("/api/settings", response_model=list[Settings])
-def get_settings(session: Session = Depends(get_session), user: dict = Depends(require_admin)): return session.exec(select(Settings)).all()
-
-@app.put("/api/settings/{key}")
-def update_setting(key: str, p: Settings, session: Session = Depends(get_session), user: dict = Depends(require_admin)):
-    s = session.get(Settings, key)
-    if not s:
-        raise HTTPException(status_code=404, detail="Setting not found")
-    old_val = s.value
-    s.value = p.value
-    session.add(s)
-    session.commit()
-    log_event(session, category="Config", action="SETTING_UPDATE", details=f"تنظیم سیستم '{key}' از '{old_val}' به '{p.value}' تغییر یافت", level="WARNING", actor_username=user.get("username", "admin"), target_type="Setting", target_id=key)
-    invalidate_config_cache()
-    return s
+# اندپوئینت‌های تنظیمات عمومی به app/api/v1/endpoints/status.py منتقل شدند.
 
 
 @app.get("/api/logs")
@@ -2740,3 +2724,9 @@ def change_my_password_endpoint(payload: ChangePasswordRequest, session: Session
 
     session.commit()
     return {"status": "ok"}
+
+
+# ایمپورت ماژول‌های جدید به ساختار ماژولار پروژه
+original_app = app
+import app.main
+app = original_app
