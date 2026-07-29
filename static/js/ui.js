@@ -487,7 +487,7 @@ export async function showCam(data) {
 }
 
 export function playLiveStream() {
-    window.open(`/api/cameras/${currentCamId}/live`, '_blank');
+    window.open(`/api/v1/cameras/${currentCamId}/live`, '_blank');
 }
 
 export async function cycleImpModal() {
@@ -3646,7 +3646,7 @@ export async function openExplanationModal(id) {
 
     // Populate active causes dynamically from database
     try {
-        const res = await apiFetch(`/api/outage-causes`);
+        const res = await apiFetch(`/api/v1/outage-causes`);
         const causes = await res.json();
         const sel = document.getElementById('exp-type');
         if (sel) {
@@ -3686,7 +3686,7 @@ export async function openBulkExplanationModal() {
     document.getElementById('exp-outage-id').value = '';
 
     try {
-        const res = await apiFetch(`/api/outage-causes`);
+        const res = await apiFetch(`/api/v1/outage-causes`);
         const causes = await res.json();
         const sel = document.getElementById('exp-type');
         if (sel) {
