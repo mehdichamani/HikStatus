@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlmodel import Session, select
 from typing import Optional
 
-from database import get_session, Settings
-from logging_config import log_event
-from alerts import invalidate_config_cache
+from app.database import get_session, Settings
+from app.logging_config import log_event
+from app.services.alerts import invalidate_config_cache
 
 router = APIRouter()
 

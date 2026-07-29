@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 
 import main
 from main import get_session, require_auth, require_control, require_admin
-from database import Camera, DowntimeEvent, OutageExplanation, OutageCause, User, NVRGroup, NVR
-import monitor
+from app.database import Camera, DowntimeEvent, OutageExplanation, OutageCause, User, NVRGroup, NVR
+from app.services import monitor
 
 # ایجاد پایگاه‌داده تست جداگانه در دایرکتوری داده
 test_sqlite_url = "sqlite:///data/test_monitor_temp.db"

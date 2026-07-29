@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from sqlmodel import Session, select
-from database import Camera, CameraChangeEvent, NVR, NVRGroup
+from app.database import Camera, CameraChangeEvent, NVR, NVRGroup
 
 def to_persian_numbers(s: str) -> str:
     eng = "0123456789"

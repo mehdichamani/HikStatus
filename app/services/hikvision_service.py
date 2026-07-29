@@ -5,7 +5,7 @@ from requests.auth import HTTPDigestAuth
 import subprocess
 import signal
 import os
-from database import decrypt_password
+from app.database import decrypt_password
 
 async def fetch_camera_snapshot(nvr, camera) -> tuple:
     """

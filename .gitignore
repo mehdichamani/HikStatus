@@ -8,6 +8,7 @@ __pycache__/
 # Ignores the database containing passwords, settings, and logs
 data/
 *.db
+test_*.db
 
 # --- Secrets ---
 .env

@@ -1,6 +1,6 @@
 import pytest
 import inspect
-from monitor import task_sync_nvr_health
+from app.services.monitor import task_sync_nvr_health
 
 @pytest.mark.asyncio
 async def test_task_sync_nvr_health_exists():
