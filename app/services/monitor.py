@@ -307,7 +307,7 @@ def fetch_nvr_extended_info(ip, user, password, req_sess):
     return info
 
 def poll_nvr_thread(nvr_data):
-    from database import decrypt_password
+    from app.database import decrypt_password
     ip, user, password = nvr_data
     password = decrypt_password(password)
     url = f"http://{ip}/ISAPI/ContentMgmt/InputProxy/channels/status"
@@ -486,7 +486,7 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
     session.add(nvr_obj)
 
 def sync_recording_schedule_config(ip, user, password, session=None):
-    from database import decrypt_password
+    from app.database import decrypt_password
     password = decrypt_password(password)
     is_local_session = session is None
     db_session = session if session is not None else Session(engine)
@@ -714,7 +714,7 @@ def run_config_sync_in_thread(ip, user, password):
     sync_recording_schedule_config(ip, user, password)
 
 def sync_recording_stats_from_nvr(ip, user, password, session=None):
-    from database import decrypt_password
+    from app.database import decrypt_password
     password = decrypt_password(password)
     import uuid
     import urllib.parse
@@ -1093,7 +1093,7 @@ async def task_sync_nvr_stats():
             logger.error(f"Stats sync failed for {n.ip}: {r}")
 
 async def task_sync_nvr_health():
-    from database import decrypt_password
+    from app.database import decrypt_password
     with Session(engine) as session:
         nvrs = session.exec(select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")).all()
     if not nvrs:
@@ -1167,7 +1167,7 @@ def get_substream_channel_id(chan_id_str: str) -> str:
         return f"{chan_id_str}02"
 
 async def task_capture_camera_snapshots():
-    from database import decrypt_password
+    from app.database import decrypt_password
     with Session(engine) as session:
         cameras = session.exec(select(Camera).where(Camera.status == "Online")).all()
         nvrs = {n.ip: n for n in session.exec(select(NVR)).all()}
