@@ -5,7 +5,8 @@ from sqlmodel import SQLModel, create_engine, Session, select
 from datetime import datetime, timedelta
 import unittest.mock as mock
 
-from main import app, get_session, require_auth, require_control, require_admin
+import main
+from main import get_session, require_auth, require_control, require_admin
 from database import (
     Camera, DowntimeEvent, OutageExplanation, OutageCause, User,
     NVRGroup, NVR, Settings, UserSession, MapPlan, ScheduledTask, hash_password
@@ -76,13 +77,13 @@ def client_fixture(session):
     def require_admin_override():
         return {"user_id": 1, "username": "admin", "role": "admin", "group_id": None}
 
-    app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[require_auth] = require_auth_override
-    app.dependency_overrides[require_control] = require_control_override
-    app.dependency_overrides[require_admin] = require_admin_override
+    main.app.dependency_overrides[get_session] = get_session_override
+    main.app.dependency_overrides[require_auth] = require_auth_override
+    main.app.dependency_overrides[require_control] = require_control_override
+    main.app.dependency_overrides[require_admin] = require_admin_override
 
-    yield TestClient(app)
-    app.dependency_overrides.clear()
+    yield TestClient(main.app)
+    main.app.dependency_overrides.clear()
 
 
 # ==================== ۱. تست‌های اندپوئینت‌های عمومی و سیستمی ====================
@@ -137,7 +138,7 @@ def test_endpoint_auth_login_success(session, client):
     session.commit()
 
     # غیرفعال کردن موقت دیپندنسی اورراید لاگین جهت تست جریان واقعی
-    app.dependency_overrides.pop(require_auth, None)
+    main.app.dependency_overrides.pop(require_auth, None)
 
     payload = {"username": "test_login_user", "password": "correct_pass"}
     response = client.post("/api/auth/login", json=payload)

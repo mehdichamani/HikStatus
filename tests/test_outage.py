@@ -4,7 +4,8 @@ from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, create_engine, Session, select
 from datetime import datetime, timedelta
 
-from main import app, get_session, require_auth, require_control, require_admin
+import main
+from main import get_session, require_auth, require_control, require_admin
 from database import Camera, DowntimeEvent, OutageExplanation, OutageCause, User, NVRGroup, NVR
 import monitor
 
@@ -43,13 +44,13 @@ def client_fixture(session):
     def require_admin_override():
         return {"user_id": 1, "username": "admin", "role": "admin", "group_id": None}
 
-    app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[require_auth] = require_auth_override
-    app.dependency_overrides[require_control] = require_control_override
-    app.dependency_overrides[require_admin] = require_admin_override
+    main.app.dependency_overrides[get_session] = get_session_override
+    main.app.dependency_overrides[require_auth] = require_auth_override
+    main.app.dependency_overrides[require_control] = require_control_override
+    main.app.dependency_overrides[require_admin] = require_admin_override
 
-    yield TestClient(app)
-    app.dependency_overrides.clear()
+    yield TestClient(main.app)
+    main.app.dependency_overrides.clear()
 
 def test_task_analyze_outages_and_auto_classification(session, client):
     # ۱. تعریف ساختار کارخانه، NVR و دوربین‌ها برای تست پیشنهاد هوشمند
