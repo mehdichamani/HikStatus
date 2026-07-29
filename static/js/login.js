@@ -13,7 +13,7 @@ let tempToken = '';
             let redirecting = false;
 
             try {
-                const res = await fetch('/api/auth/login', {
+                const res = await fetch('/api/v1/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
@@ -79,7 +79,7 @@ let tempToken = '';
             let redirecting = false;
 
             try {
-                const res = await fetch('/api/auth/login/2fa', {
+                const res = await fetch('/api/v1/auth/login/2fa', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ temp_token: tempToken, code })
@@ -122,6 +122,22 @@ let tempToken = '';
             document.getElementById('login-2fa-form').style.display = 'none';
             document.getElementById('error-msg').classList.remove('show');
         }
+
+        // Bind DOM event listeners to keep HTML free of inline JS
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', handleLogin);
+            }
+            const login2faForm = document.getElementById('login-2fa-form');
+            if (login2faForm) {
+                login2faForm.addEventListener('submit', handle2FALogin);
+            }
+            const cancel2faBtn = document.getElementById('btn-cancel-2fa');
+            if (cancel2faBtn) {
+                cancel2faBtn.addEventListener('click', cancel2FALogin);
+            }
+        });
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

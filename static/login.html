@@ -24,7 +24,7 @@
             <div class="error-msg" id="error-msg"></div>
             
             <!-- Standard Login Form -->
-            <form id="login-form" onsubmit="handleLogin(event)">
+            <form id="login-form">
                 <div class="form-group">
                     <label class="form-label">نام کاربری</label>
                     <input type="text" id="username" class="form-input" placeholder="نام کاربری" autocomplete="username"
@@ -42,7 +42,7 @@
             </form>
 
             <!-- 2FA Verification Form -->
-            <form id="login-2fa-form" onsubmit="handle2FALogin(event)" style="display: none;">
+            <form id="login-2fa-form" style="display: none;">
                 <div style="text-align: center; margin-bottom: 20px;">
                     <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(99, 102, 241, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; color: var(--primary);">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -61,7 +61,7 @@
                     <span class="spinner"></span>
                     <span class="btn-text">تایید و ورود</span>
                 </button>
-                <button type="button" class="btn-login" style="background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: normal;" onclick="cancel2FALogin()">
+                <button type="button" id="btn-cancel-2fa" class="btn-login" style="background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: normal;">
                     <span class="btn-text">بازگشت به صفحه ورود</span>
                 </button>
             </form>

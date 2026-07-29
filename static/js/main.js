@@ -106,7 +106,7 @@ window.chartStatusInstance = null;
 // --- INIT ---
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/v1/auth/me');
         if (res.ok) {
             window.currentUser = await res.json();
             applyRoleUI();
