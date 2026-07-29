@@ -243,6 +243,12 @@ app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # بازنویسی مسیرهای /api/v1/ به /api/ در صورتی که در روتر v1 تعریف نشده باشند
+        if request.url.path.startswith("/api/v1/"):
+            subpath = request.url.path[8:]
+            if not (subpath.startswith("cameras") or subpath.startswith("nvrs") or subpath.startswith("settings") or subpath.startswith("health")):
+                request.scope['path'] = "/api/" + subpath
+
         response = await call_next(request)
         if response.status_code == 401 and not request.url.path.startswith("/api/"):
             return RedirectResponse(url="/login")

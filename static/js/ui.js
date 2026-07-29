@@ -1,39 +1,11 @@
-const API = '/api';
-let logOff = 0, logFilter = '', logSearchVal = '', loading = false, allLoaded = false;
-let currentCamId, currentImp, settingsCache = [], nvrCache = [], groupCache = [], dashCamerasCache = [];
-let ws = null, wsRetryDelay = 1000, dashCamSearchVal = '', dashCamFilter = 'all';
-let dashCamRecordingFilter = 'all';
+// ماژول مدیریت رابط کاربری (UI) و رندر کردن عناصر DOM
 
-let collapsedFactories = new Set(JSON.parse(localStorage.getItem('collapsedFactories') || '[]'));
-let collapsedNvrs = new Set(JSON.parse(localStorage.getItem('collapsedNvrs') || '[]'));
-
-function saveCollapsedState() {
+export function saveCollapsedState() {
     localStorage.setItem('collapsedFactories', JSON.stringify([...collapsedFactories]));
     localStorage.setItem('collapsedNvrs', JSON.stringify([...collapsedNvrs]));
 }
 
-async function apiFetch(url, options = {}) {
-    try {
-        const res = await fetch(url, options);
-        if (res.status === 401) {
-            window.location.href = '/login';
-            throw new Error('Unauthorized');
-        }
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ detail: res.statusText }));
-            throw new Error(err.detail || 'Request failed');
-        }
-        return res;
-    } catch (e) {
-        console.error('API Error:', e);
-        if (e instanceof TypeError || e.message === 'Failed to fetch' || e.name === 'TypeError') {
-            setConnectionStatus(false);
-        }
-        throw e;
-    }
-}
-
-async function nav(id, activeTabOverride = null) {
+export async function nav(id, activeTabOverride = null) {
     document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
     document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(e => e.classList.remove('active'));
 
@@ -64,11 +36,11 @@ async function nav(id, activeTabOverride = null) {
     if (id === 'outages') loadOutageExplanations();
 }
 
-function showAboutUs() {
+export function showAboutUs() {
     nav('settings', 'sec-about');
 }
 
-function closeModal() {
+export function closeModal() {
     document.getElementById('camModal').classList.remove('open');
     const img = document.getElementById('m-snap-img');
     if (img) img.src = '';
@@ -76,47 +48,19 @@ function closeModal() {
     if (container) container.style.display = 'none';
 }
 
-// --- DASHBOARD & SUMMARY ---
-function getNvrNum(ip) { return ip.split('.').pop(); }
+export function getNvrNum(ip) { return ip.split('.').pop(); }
 
-function getNvrDisplayName(ip) {
+export function getNvrDisplayName(ip) {
     const nvrObj = nvrCache.find(n => n.ip === ip);
     return nvrObj && nvrObj.name ? nvrObj.name : `NVR ${getNvrNum(ip)}`;
 }
 
-async function fetchDash() {
-    try {
-        const nRes = await apiFetch(`${API}/nvrs`);
-        nvrCache = await nRes.json();
-    } catch (e) {
-        console.error('Error loading NVRs:', e);
-    }
-    try {
-        const gRes = await apiFetch(`${API}/groups`);
-        groupCache = await gRes.json();
-    } catch (e) {
-        console.error('Error loading Groups:', e);
-    }
-    try {
-        const tRes = await apiFetch(`${API}/scheduler/tasks`);
-        if (tRes.ok) {
-            scheduledTasksCache = await tRes.json();
-        }
-    } catch (e) {
-        console.error('Error loading Tasks:', e);
-    }
-    const res = await apiFetch(`${API}/cameras`);
-    const cams = await res.json();
-
-    updateDashFromWS(cams);
-}
-
-function setDashCamRecordingFilter(val) {
+export function setDashCamRecordingFilter(val) {
     dashCamRecordingFilter = val;
     renderDash();
 }
 
-function renderDash() {
+export function renderDash() {
     let filteredCams = dashCamerasCache;
 
     // Apply status filter
@@ -296,7 +240,7 @@ function renderDash() {
     }
 }
 
-function setDashCamFilter(filter) {
+export function setDashCamFilter(filter) {
     dashCamFilter = filter;
     document.querySelectorAll('.chip[id^="filter-cam-"]').forEach(b => {
         b.classList.remove('active');
@@ -307,7 +251,7 @@ function setDashCamFilter(filter) {
     renderDash();
 }
 
-function toggleNvr(header) {
+export function toggleNvr(header) {
     const block = header.parentElement;
     const grid = header.nextElementSibling;
     block.classList.toggle('open');
@@ -325,7 +269,7 @@ function toggleNvr(header) {
     }
 }
 
-function toggleFactory(id) {
+export function toggleFactory(id) {
     const el = document.getElementById('factory-' + id);
     if (el) {
         el.classList.toggle('open');
@@ -339,7 +283,7 @@ function toggleFactory(id) {
     }
 }
 
-function expandAllFactories() {
+export function expandAllFactories() {
     document.querySelectorAll('.factory-section').forEach(sec => {
         sec.classList.add('open');
         const id = sec.id.replace('factory-', '');
@@ -358,7 +302,7 @@ function expandAllFactories() {
     saveCollapsedState();
 }
 
-function collapseAllFactories() {
+export function collapseAllFactories() {
     document.querySelectorAll('.factory-section').forEach(sec => {
         sec.classList.remove('open');
         const id = sec.id.replace('factory-', '');
@@ -377,14 +321,14 @@ function collapseAllFactories() {
     saveCollapsedState();
 }
 
-function toggleReportBlock(header) {
+export function toggleReportBlock(header) {
     const block = header.closest('.report-block');
     if (block) {
         block.classList.toggle('collapsed');
     }
 }
 
-function escapeHTML(str) {
+export function escapeHTML(str) {
     if (typeof str !== 'string') return str;
     return str.replace(/[&<>'"]/g,
         tag => ({
@@ -397,7 +341,7 @@ function escapeHTML(str) {
     );
 }
 
-function createCard(c) {
+export function createCard(c) {
     const stClass = c.status === 'Online' ? 'status-online' : 'status-offline';
     const meta = encodeURIComponent(JSON.stringify(c));
     const star = c.importance === 3 ? '<span class="cam-card-star">★</span>' : '';
@@ -420,7 +364,7 @@ function createCard(c) {
     </div>`;
 }
 
-function formatShamsiDate(dateInput) {
+export function formatShamsiDate(dateInput) {
     if (!dateInput) return 'نامشخص';
     const date = new Date(dateInput);
     if (isNaN(date.getTime())) return 'نامشخص';
@@ -450,7 +394,7 @@ function formatShamsiDate(dateInput) {
     }
 }
 
-async function showCam(data) {
+export async function showCam(data) {
     const c = JSON.parse(decodeURIComponent(data));
     currentCamId = c.id;
     currentImp = c.importance;
@@ -542,11 +486,11 @@ async function showCam(data) {
     document.getElementById('m-d24').textContent = s.down_24h + ' دقیقه';
 }
 
-function playLiveStream() {
+export function playLiveStream() {
     window.open(`/api/cameras/${currentCamId}/live`, '_blank');
 }
 
-async function cycleImpModal() {
+export async function cycleImpModal() {
     let n = currentImp + 1;
     if (n > 3) n = 1;
     await apiFetch(`${API}/cameras/${currentCamId}`, {
@@ -559,50 +503,12 @@ async function cycleImpModal() {
     fetchDash();
 }
 
-// --- SETTINGS ---
-const settingLabels = {
-    'MAIL_ENABLED': 'فعال‌سازی ایمیل',
-    'MAIL_SERVER': 'سرور ایمیل',
-    'MAIL_PORT': 'پورت',
-    'MAIL_USER': 'نام کاربری',
-    'MAIL_PASS': 'رمز عبور',
-    'MAIL_RECIPIENTS': 'گیرندگان',
-    'MAIL_FIRST_ALERT_DELAY_MINUTES': 'تأخیر اعلان اولیه (دقیقه)',
-    'MAIL_LOW_IMPORTANCE_DELAY_MINUTES': 'تأخیر اعلان اهمیت کم (دقیقه)',
-    'MAIL_ALERT_FREQUENCY_MINUTES': 'فاصله اعلان‌ها (دقیقه)',
-    'MAIL_MUTE_AFTER_N_ALERTS': 'بی‌صدا پس از N اعلان',
-    'TELEGRAM_ENABLED': 'فعال‌سازی تلگرام',
-    'TELEGRAM_BOT_TOKEN': 'توکن ربات',
-    'TELEGRAM_CHAT_IDS': 'شناسه چت‌ها',
-    'TELEGRAM_PROXY': 'آدرس پروکسی',
-    'TELEGRAM_FIRST_ALERT_DELAY_MINUTES': 'تأخیر اعلان اولیه (دقیقه)',
-    'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES': 'تأخیر اعلان اهمیت کم (دقیقه)',
-    'TELEGRAM_ALERT_FREQUENCY_MINUTES': 'فاصله اعلان‌ها (دقیقه)',
-    'TELEGRAM_MUTE_AFTER_N_ALERTS': 'بی‌صدا پس از N اعلان',
-    'OUTAGE_MIN_HOURS_TO_EXPLAIN': 'حداقل زمان قطعی جهت نیاز به رفع ابهام (ساعت)',
-    'OUTAGE_EXPLANATION_DEADLINE_HOURS': 'مهلت رفع ابهام قطعی (ساعت)',
-    'OUTAGE_ANALYSIS_DAYS': 'روزهای بررسی قطعی در هفته',
-    'OUTAGE_ANALYSIS_TIME': 'ساعت بررسی قطعی‌ها (مثال: 07:30)',
-};
-
-const notificationEventCatalog = [
-    ['camera_offline', 'قطع دوربین', 'ارسال هشدار هنگام قطع شدن دوربین'],
-    ['camera_recovered', 'وصل مجدد دوربین', 'ارسال پیام بازگشت دوربین به وضعیت آنلاین'],
-    ['nvr_offline', 'قطع ارتباط NVR', 'ارسال هشدار هنگام در دسترس نبودن NVR'],
-    ['nvr_recovered', 'وصل مجدد NVR', 'ارسال پیام بازگشت NVR به وضعیت آنلاین'],
-    ['nvr_auth_error', 'خطای احراز هویت NVR', 'نمایش خطای نام کاربری یا رمز عبور NVR'],
-    ['camera_topology_changed', 'افزودن یا حذف دوربین', 'اعلان تغییر ساختار دوربین‌های یک NVR'],
-    ['recording_changed', 'تغییر تنظیمات ضبط', 'اعلان تغییر وضعیت یا نوع ضبط دوربین'],
-    ['downtime_hourly_summary', 'گزارش قطعی ساعتی', 'ارسال گزارش دوره‌ای دوربین‌های قطع‌شده'],
-    ['delivery_failure', 'خطای ارسال اعلان', 'نمایش خطای ناموفق بودن ارسال ایمیل یا تلگرام'],
-];
-
-function notificationKey(eventType, channel = null) {
+export function notificationKey(eventType, channel = null) {
     const prefix = `NOTIFY_${eventType.toUpperCase()}`;
     return channel ? `${prefix}_${channel.toUpperCase()}` : `${prefix}_ENABLED`;
 }
 
-function renderNotificationManagement() {
+export function renderNotificationManagement() {
     const con = document.getElementById('config-forms');
     if (!con || !settingsCache.length) return;
     const values = Object.fromEntries(settingsCache.map(s => [s.key, s.value]));
@@ -631,7 +537,7 @@ function renderNotificationManagement() {
     notificationEventCatalog.forEach(([eventType]) => syncNotificationChannels(eventType));
 }
 
-function syncNotificationChannels(eventType) {
+export function syncNotificationChannels(eventType) {
     const master = document.getElementById(notificationKey(eventType));
     const channels = document.getElementById(`notification-channels-${eventType}`);
     if (!master || !channels) return;
@@ -639,7 +545,7 @@ function syncNotificationChannels(eventType) {
     channels.querySelectorAll('input').forEach(input => input.disabled = !master.checked);
 }
 
-async function saveNotificationSettings() {
+export async function saveNotificationSettings() {
     try {
         const keys = notificationEventCatalog.flatMap(([eventType]) => [notificationKey(eventType), ...['email', 'telegram', 'browser'].map(channel => notificationKey(eventType, channel))]);
         for (const key of keys) {
@@ -656,244 +562,7 @@ async function saveNotificationSettings() {
     }
 }
 
-async function loadSettings(activeTabOverride = null) {
-    const role = window.currentUser ? window.currentUser.role : 'group_view';
-
-    // 1. Immediately render the settings list menu
-    renderSettingsMenu(role);
-
-    // 2. Determine display based on activeTabOverride
-    if (activeTabOverride) {
-        switchSettingsTab(activeTabOverride);
-    } else {
-        goBackToSettingsMenu();
-    }
-
-    // 3. Parallelize fetches to load data instantly
-    let settingsPromise = Promise.resolve([]);
-    if (role === 'admin') {
-        settingsPromise = apiFetch(`${API}/settings`).then(res => res.json());
-    }
-    const groupsPromise = apiFetch(`${API}/groups`).then(res => res.json()).catch(() => []);
-    const nvrsPromise = apiFetch(`${API}/nvrs`).then(res => res.json()).catch(() => []);
-
-    const [settings, groups, nvrs] = await Promise.all([settingsPromise, groupsPromise, nvrsPromise]);
-    settingsCache = settings;
-    groupCache = groups;
-    nvrCache = nvrs;
-
-    const nvrForm = document.querySelector('#sec-nvr .nvr-form');
-    if (nvrForm) {
-        nvrForm.style.display = (role === 'admin') ? '' : 'none';
-    }
-
-    const con = document.getElementById('config-forms');
-    con.innerHTML = '';
-
-    if (role === 'admin') {
-        const groupsConfig = {
-            'ایمیل': ['MAIL_ENABLED', 'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASS', 'MAIL_RECIPIENTS', 'MAIL_FIRST_ALERT_DELAY_MINUTES', 'MAIL_LOW_IMPORTANCE_DELAY_MINUTES', 'MAIL_ALERT_FREQUENCY_MINUTES', 'MAIL_MUTE_AFTER_N_ALERTS'],
-            'تلگرام': ['TELEGRAM_ENABLED', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY', 'TELEGRAM_FIRST_ALERT_DELAY_MINUTES', 'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES', 'TELEGRAM_ALERT_FREQUENCY_MINUTES', 'TELEGRAM_MUTE_AFTER_N_ALERTS'],
-            'قطعی‌ها': ['OUTAGE_MIN_HOUTS_TO_EXPLAIN', 'OUTAGE_EXPLANATION_DEADLINE_HOURS', 'OUTAGE_ANALYSIS_DAYS', 'OUTAGE_ANALYSIS_TIME'] // Note: OUTAGE_MIN_HOURS_TO_EXPLAIN key fallback
-        };
-
-        // Find the actual keys in the settings database so we don't request wrong keys
-        const actualKeys = settingsCache.map(s => s.key);
-        const emailKeys = ['MAIL_ENABLED', 'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASS', 'MAIL_RECIPIENTS', 'MAIL_FIRST_ALERT_DELAY_MINUTES', 'MAIL_LOW_IMPORTANCE_DELAY_MINUTES', 'MAIL_ALERT_FREQUENCY_MINUTES', 'MAIL_MUTE_AFTER_N_ALERTS'].filter(k => actualKeys.includes(k));
-        const telegramKeys = ['TELEGRAM_ENABLED', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY', 'TELEGRAM_FIRST_ALERT_DELAY_MINUTES', 'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES', 'TELEGRAM_ALERT_FREQUENCY_MINUTES', 'TELEGRAM_MUTE_AFTER_N_ALERTS'].filter(k => actualKeys.includes(k));
-        const outageKeys = ['OUTAGE_MIN_HOURS_TO_EXPLAIN', 'OUTAGE_MIN_HOUTS_TO_EXPLAIN', 'OUTAGE_EXPLANATION_DEADLINE_HOURS', 'OUTAGE_ANALYSIS_DAYS', 'OUTAGE_ANALYSIS_TIME'].filter(k => actualKeys.includes(k));
-
-        const groupsMapping = {
-            'ایمیل': emailKeys,
-            'تلگرام': telegramKeys,
-            'قطعی‌ها': outageKeys
-        };
-
-        const groupKeys = {
-            'ایمیل': 'Email',
-            'تلگرام': 'Telegram',
-            'قطعی‌ها': 'Outages'
-        };
-
-        for (const [grp, keys] of Object.entries(groupsMapping)) {
-            const engKey = groupKeys[grp];
-            const hasTestBtn = ['Email', 'Telegram'].includes(engKey);
-
-            let html = `<div class="card" id="grp-${engKey}" style="display: none;">
-                <div class="settings-card-header">
-                    <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </button>
-                    <h3>تنظیمات ${grp}</h3>
-                    ${hasTestBtn ? `<button class="btn btn-ghost" style="padding:4px 12px; font-size:11px; margin-right: auto;" onclick="testConn('${engKey.toLowerCase()}')">تست اتصال</button>` : ''}
-                </div>`;
-
-            // 1. Add Master toggle if it exists
-            const enabledKey = keys.find(k => k.endsWith('ENABLED'));
-            if (enabledKey) {
-                const item = settingsCache.find(s => s.key === enabledKey);
-                if (item) {
-                    const label = settingLabels[enabledKey] || enabledKey;
-                    html += `<div class="settings-toggle-header">
-                        <span class="toggle-label">${label}</span>
-                        <label class="toggle">
-                            <input type="checkbox" id="${enabledKey}" ${item.value === 'true' ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>`;
-                }
-            }
-
-            // 2. Add grid container for other fields
-            html += `<div class="settings-fields-grid">`;
-
-            keys.forEach(k => {
-                if (k.endsWith('ENABLED')) return; // already handled
-
-                const item = settingsCache.find(s => s.key === k);
-                if (!item) return;
-                const label = settingLabels[k] || k;
-
-                if (k === 'OUTAGE_ANALYSIS_DAYS') {
-                    const daysVal = item.value || '';
-                    const selectedDays = daysVal.split(',').map(x => x.trim());
-                    const weekDaysConfig = [
-                        { name: 'شنبه', val: '5' },
-                        { name: 'یک‌شنبه', val: '6' },
-                        { name: 'دوشنبه', val: '0' },
-                        { name: 'سه‌شنبه', val: '1' },
-                        { name: 'چهارشنبه', val: '2' },
-                        { name: 'پنج‌شنبه', val: '3' },
-                        { name: 'جمعه', val: '4' }
-                    ];
-                    
-                    let daysCheckboxes = weekDaysConfig.map(day => {
-                        return `<label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; user-select: none;">
-                            <input type="checkbox" class="day-select-chk" value="${day.val}" ${selectedDays.includes(day.val) ? 'checked' : ''} onchange="updateOutageDaysValue()">
-                            <span>${day.name}</span>
-                        </label>`;
-                    }).join('');
-                    
-                    html += `<div class="form-field-group span-2">
-                        <label class="form-label">${label}</label>
-                        <input type="hidden" id="OUTAGE_ANALYSIS_DAYS" value="${daysVal}">
-                        <div class="days-checkbox-group" style="display: flex; flex-wrap: wrap; gap: 16px; background: var(--surface-2); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-top: 5px;">
-                            ${daysCheckboxes}
-                        </div>
-                    </div>`;
-                    return;
-                }
-
-                const isLongField = ['MAIL_RECIPIENTS', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY'].includes(k);
-                const gridClass = isLongField ? 'span-2' : '';
-
-                html += `<div class="form-field-group ${gridClass}">
-                    <label class="form-label">${label}</label>
-                    <input class="form-input" id="${k}" value="${item.value || ''}" type="${k.includes('PASS') || k.includes('TOKEN') ? 'password' : 'text'}">
-                </div>`;
-            });
-
-            html += `</div>`;
-
-            if (engKey === 'Outages') {
-                html += `
-                <div class="form-field-group span-2" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px;">
-                    <label class="form-label" style="font-weight: bold; font-size: 14px;">مدیریت علت‌های قطعی (رفع ابهام)</label>
-                    <div style="display: flex; gap: 8px; margin-top: 10px; margin-bottom: 15px;">
-                        <input id="new-cause-name" class="form-input" placeholder="علت جدید (مثال: قطع فیبر نوری)" style="flex: 1;">
-                        <button class="btn btn-primary" onclick="addOutageCause()" style="padding: 8px 16px;">افزودن علت</button>
-                    </div>
-                    <div id="causes-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
-                        <!-- Dynamically populated -->
-                    </div>
-                </div>`;
-            }
-
-            html += `<div class="settings-action-row">
-                    <button class="btn btn-primary" onclick="apply()">ذخیره و اعمال تنظیمات</button>
-                </div>
-            </div>`;
-            con.innerHTML += html;
-        }
-        renderNotificationManagement();
-    }
-
-    pendingNVRDeletes = new Set();
-    document.getElementById('nvr-list').innerHTML = nvrCache.map(n =>
-        renderNVRRow(n)
-    ).join('');
-
-    // Populate group options in Add NVR form dropdown
-    const nvrGroupSelect = document.getElementById('nvrGroup');
-    if (nvrGroupSelect) {
-        if (!groupCache || !Array.isArray(groupCache)) {
-            nvrGroupSelect.innerHTML = '<option value="">بدون کارخانه (بدون گروه)</option>';
-        } else {
-            nvrGroupSelect.innerHTML = '<option value="">بدون کارخانه (بدون گروه)</option>' + groupCache.map(g => 
-                `<option value="${g.id}">${g.name}</option>`
-            ).join('');
-        }
-    }
-
-    // Re-run active tab rendering if an override is active
-    if (activeTabOverride) {
-        switchSettingsTab(activeTabOverride);
-    }
-    
-    if (window.currentUser && window.currentUser.role === 'admin') {
-        loadOutageCauses();
-    }
-}
-
-async function saveAll(silent = false) {
-    let changed = 0;
-    for (const s of settingsCache) {
-        const el = document.getElementById(s.key);
-        if (el) {
-            let val = el.value;
-            if (el.type === 'checkbox') val = el.checked ? 'true' : 'false';
-            if (val !== s.value) {
-                await apiFetch(`${API}/settings/${s.key}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: s.key, value: val })
-                });
-                changed++;
-            }
-        }
-    }
-    if (!silent) {
-        showToast('تنظیمات با موفقیت ذخیره شد', 'success');
-    }
-    return changed;
-}
-
-async function apply() {
-    try {
-        await saveAll(true);
-        await apiFetch(`${API}/monitor/restart`, { method: 'POST' });
-        showToast('تنظیمات با موفقیت ذخیره شد و مانیتورینگ ریستارت گردید', 'success');
-        
-        // Find currently visible tab by checking which card is displayed
-        const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Notifications', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'grp-Limits', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
-        let activeTab = null;
-        for (const id of tabs) {
-            const el = document.getElementById(id);
-            if (el && el.style.display !== 'none' && el.style.display !== '') {
-                activeTab = id;
-                break;
-            }
-        }
-        // Reload settings and restore the same tab
-        await loadSettings(activeTab);
-    } catch (e) {
-        showToast('خطا در ذخیره و اعمال تغییرات: ' + e.message, 'error');
-    }
-}
-
-function switchSettingsTab(tabId) {
+export function switchSettingsTab(tabId) {
     // Hide menu list container
     const menuCon = document.getElementById('settings-menu-container');
     if (menuCon) menuCon.style.display = 'none';
@@ -930,7 +599,7 @@ function switchSettingsTab(tabId) {
     }
 }
 
-function goBackToSettingsMenu() {
+export function goBackToSettingsMenu() {
     // Hide details container
     const detailsCon = document.getElementById('settings-detail-container');
     if (detailsCon) detailsCon.style.display = 'none';
@@ -947,7 +616,7 @@ function goBackToSettingsMenu() {
     if (menuCon) menuCon.style.display = 'block';
 }
 
-function renderSettingsMenu(role) {
+export function renderSettingsMenu(role) {
     const menuList = document.getElementById('settings-menu-list');
     if (!menuList) return;
 
@@ -1064,8 +733,7 @@ function renderSettingsMenu(role) {
     menuList.innerHTML = html;
 }
 
-
-function updateOutageDaysValue() {
+export function updateOutageDaysValue() {
     const chks = document.querySelectorAll('.day-select-chk');
     const selected = [];
     chks.forEach(c => {
@@ -1079,74 +747,7 @@ function updateOutageDaysValue() {
     }
 }
 
-async function loadOutageCauses() {
-    const list = document.getElementById('causes-list');
-    if (!list) return;
-    
-    try {
-        const res = await apiFetch(`/api/outage-causes`);
-        const causes = await res.json();
-        
-        list.innerHTML = causes.map(c => {
-            const statusText = c.is_active ? '' : ' (غیرفعال شده)';
-            const actionBtn = `<button class="btn btn-ghost" onclick="deleteOutageCause(${c.id})" style="color: var(--danger); padding: 2px 8px; font-size: 11px;">حذف</button>`;
-            return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
-                <span style="font-size: 13px; ${c.is_active ? '' : 'color: var(--text-muted); text-decoration: line-through;'}">${c.name}${statusText}</span>
-                ${c.is_active ? actionBtn : ''}
-            </div>`;
-        }).join('');
-    } catch(e) {
-        console.error('Error loading outage causes:', e);
-    }
-}
-
-async function addOutageCause() {
-    const input = document.getElementById('new-cause-name');
-    const name = input.value.trim();
-    if (!name) return showToast('نام علت را وارد کنید', 'error');
-    
-    try {
-        const res = await apiFetch(`/api/outage-causes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || 'خطا در ثبت علت');
-        }
-        showToast('علت جدید با موفقیت اضافه شد');
-        input.value = '';
-        loadOutageCauses();
-    } catch (e) {
-        showToast(e.message, 'error');
-    }
-}
-
-async function deleteOutageCause(id) {
-    if (!await showConfirm('آیا از حذف/غیرفعال‌سازی این علت قطعی اطمینان دارید؟')) return;
-    try {
-        const res = await apiFetch(`/api/outage-causes/${id}`, { method: 'DELETE' });
-        const data = await res.json();
-        showToast(data.message);
-        loadOutageCauses();
-    } catch (e) {
-        showToast(e.message, 'error');
-    }
-}
-
-
-
-async function testConn(type) {
-    try {
-        await apiFetch(`/api/test/${type}`, { method: 'POST' });
-        showToast('تست موفق');
-    } catch (e) {
-        showToast('تست ناموفق: ' + e.message, 'error');
-    }
-}
-
-function validateNVRInputs() {
+export function validateNVRInputs() {
     const ipInput = document.getElementById('nvrIp');
     const portInput = document.getElementById('nvrRtspPort');
     const msgLabel = document.getElementById('nvr-validation-msg');
@@ -1203,37 +804,7 @@ function validateNVRInputs() {
     }
 }
 
-async function addNVR() {
-    if (!validateNVRInputs()) {
-        return showToast('لطفاً مقادیر ورودی را به درستی وارد کنید', 'error');
-    }
-    const name = document.getElementById('nvrName').value.trim();
-    const ip = document.getElementById('nvrIp').value.trim();
-    const u = document.getElementById('nvrUser').value.trim();
-    const p = document.getElementById('nvrPass').value;
-    const rtspPort = parseInt(document.getElementById('nvrRtspPort').value) || 554;
-    const groupEl = document.getElementById('nvrGroup');
-    const groupId = groupEl && groupEl.value ? parseInt(groupEl.value) : null;
-    
-    if (!ip || !u) return showToast('IP و نام کاربری الزامی است', 'error');
-
-    await apiFetch(`${API}/nvrs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name || null, ip, user: u, password: p || null, enabled: true, rtsp_port: rtspPort, group_id: groupId })
-    });
-    document.getElementById('nvrName').value = '';
-    document.getElementById('nvrIp').value = '';
-    document.getElementById('nvrUser').value = '';
-    document.getElementById('nvrPass').value = '';
-    document.getElementById('nvrRtspPort').value = '554';
-    if (groupEl) groupEl.value = '';
-    loadSettings();
-}
-
-let pendingNVRDeletes = new Set();
-
-function renderNVRRow(n, deleted = false) {
+export function renderNVRRow(n, deleted = false) {
     const escaped = n.ip.replace(/[^\w]/g, '_');
     if (deleted) {
         return `<div class="list-item list-item-deleted" id="nvr-row-${escaped}" data-ip="${n.ip}">
@@ -1316,23 +887,7 @@ function renderNVRRow(n, deleted = false) {
     </div>`;
 }
 
-async function toggleNVRenabled(ip, enabled) {
-    try {
-        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ enabled })
-        });
-        const nRes = await apiFetch(`${API}/nvrs`);
-        nvrCache = await nRes.json();
-        document.getElementById('nvr-list').innerHTML = nvrCache.map(n => renderNVRRow(n)).join('');
-        showToast(enabled ? 'NVR فعال شد' : 'NVR غیرفعال شد');
-    } catch (e) {
-        showToast('خطا در تغییر وضعیت NVR: ' + e.message, 'error');
-    }
-}
-
-function renderGroupsList() {
+export function renderGroupsList() {
     const list = document.getElementById('group-list');
     if (!list) return;
     if (!groupCache || !Array.isArray(groupCache)) {
@@ -1357,63 +912,7 @@ function renderGroupsList() {
     `).join('');
 }
 
-async function addGroup() {
-    const name = document.getElementById('groupName').value.trim();
-    const desc = document.getElementById('groupDesc').value.trim();
-    if (!name) return showToast('نام کارخانه الزامی است', 'error');
-
-    try {
-        await apiFetch(`${API}/groups`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description: desc || null })
-        });
-        document.getElementById('groupName').value = '';
-        document.getElementById('groupDesc').value = '';
-        showToast('کارخانه با موفقیت اضافه شد');
-
-        // Refresh groups
-        const gRes = await apiFetch(`${API}/groups`);
-        groupCache = await gRes.json();
-        renderGroupsList();
-    } catch (e) {
-        showToast('خطا در افزودن کارخانه: ' + e.message, 'error');
-    }
-}
-
-async function deleteGroup(id) {
-    if (!await showConfirm('آیا از حذف این کارخانه اطمینان دارید؟ NVRهای این کارخانه بدون گروه خواهند شد.')) return;
-    try {
-        await apiFetch(`${API}/groups/${id}`, { method: 'DELETE' });
-        showToast('کارخانه حذف شد');
-
-        // Refresh groups and reload settings (to refresh NVR dropdowns)
-        const gRes = await apiFetch(`${API}/groups`);
-        groupCache = await gRes.json();
-        loadSettings();
-    } catch (e) {
-        showToast('خطا در حذف کارخانه: ' + e.message, 'error');
-    }
-}
-
-async function updateNVRGroup(ip, groupId) {
-    try {
-        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ group_id: groupId ? parseInt(groupId) : null })
-        });
-        showToast('کارخانه NVR به‌روزرسانی شد');
-
-        // Update local nvrCache
-        const nRes = await apiFetch(`${API}/nvrs`);
-        nvrCache = await nRes.json();
-    } catch (e) {
-        showToast('خطا در به‌روزرسانی کارخانه NVR: ' + e.message, 'error');
-    }
-}
-
-function delNVR(ip) {
+export function delNVR(ip) {
     pendingNVRDeletes.add(ip);
     const nvr = nvrCache.find(n => n.ip === ip);
     if (!nvr) return;
@@ -1422,7 +921,7 @@ function delNVR(ip) {
     if (row) row.outerHTML = renderNVRRow(nvr, true);
 }
 
-function undoNVRDelete(ip) {
+export function undoNVRDelete(ip) {
     pendingNVRDeletes.delete(ip);
     const nvr = nvrCache.find(n => n.ip === ip);
     if (!nvr) return;
@@ -1431,18 +930,7 @@ function undoNVRDelete(ip) {
     if (row) row.outerHTML = renderNVRRow(nvr, false);
 }
 
-async function applyNVRDelete(ip) {
-    try {
-        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, { method: 'DELETE' });
-        pendingNVRDeletes.delete(ip);
-        showToast('NVR با موفقیت حذف شد');
-        loadSettings();
-    } catch (e) {
-        showToast('خطا در حذف NVR: ' + e.message, 'error');
-    }
-}
-
-function startEditNVR(ip) {
+export function startEditNVR(ip) {
     const n = nvrCache.find(n => n.ip === ip);
     if (!n) return;
     const escaped = ip.replace(/[^\w]/g, '_');
@@ -1479,7 +967,7 @@ function startEditNVR(ip) {
     `;
 }
 
-function cancelEditNVR(ip) {
+export function cancelEditNVR(ip) {
     const n = nvrCache.find(n => n.ip === ip);
     if (!n) return;
     const escaped = ip.replace(/[^\w]/g, '_');
@@ -1489,147 +977,7 @@ function cancelEditNVR(ip) {
     }
 }
 
-async function saveNVRRow(ip) {
-    const escaped = ip.replace(/[^\w]/g, '_');
-    const ipEl = document.getElementById(`edit-nvr-ip-${escaped}`);
-    const nameEl = document.getElementById(`edit-nvr-name-${escaped}`);
-    const userEl = document.getElementById(`edit-nvr-user-${escaped}`);
-    const passEl = document.getElementById(`edit-nvr-pass-${escaped}`);
-    const rtspPortEl = document.getElementById(`edit-nvr-rtsp-port-${escaped}`);
-    
-    if (!ipEl || !ipEl.value.trim()) {
-        return showToast('آدرس IP یا میزبان الزامی است', 'error');
-    }
-    const newIp = ipEl.value.trim();
-    const ipPattern = /^[a-zA-Z0-9_\-\.]+(:[0-9]+)?$/;
-    if (!ipPattern.test(newIp)) {
-        return showToast('قالب آدرس IP یا میزبان نامعتبر است.', 'error');
-    }
-
-    if (!userEl.value.trim()) {
-        return showToast('نام کاربری الزامی است', 'error');
-    }
-
-    const portVal = parseInt(rtspPortEl.value.trim());
-    if (isNaN(portVal) || portVal < 1 || portVal > 65535) {
-        return showToast('پورت باید عددی بین ۱ تا ۶۵۵۳۵ باشد.', 'error');
-    }
-    
-    const payload = {
-        ip: newIp,
-        name: nameEl.value.trim() || null,
-        user: userEl.value.trim(),
-        rtsp_port: portVal
-    };
-    
-    if (passEl.value) {
-        payload.password = passEl.value;
-    }
-    
-    try {
-        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        showToast('NVR با موفقیت به‌روزرسانی شد');
-        
-        // Refresh local cache and UI
-        const nRes = await apiFetch(`${API}/nvrs`);
-        nvrCache = await nRes.json();
-        
-        loadSettings();
-    } catch (e) {
-        showToast('خطا در به‌روزرسانی NVR: ' + e.message, 'error');
-    }
-}
-
-async function purgeDatabase() {
-    if (!await showConfirm('توجه: تمامی اطلاعات دیتابیس (دوربین‌ها، NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات) به طور کامل پاک خواهند شد. آیا مطمئن هستید؟')) return;
-    try {
-        await apiFetch(`${API}/data/purge`, { method: 'POST' });
-        showToast('پاکسازی کامل دیتابیس با موفقیت انجام شد');
-        setTimeout(() => location.reload(), 1000);
-    } catch (e) {
-        showToast('خطا: ' + e.message, 'error');
-    }
-}
-
-async function restoreDatabase(input) {
-    const file = input.files[0];
-    if (!file) return;
-    // Reset input so selecting same file again triggers onchange
-    input.value = '';
-    if (!file.name.endsWith('.db')) {
-        showToast('فایل باید با پسوند .db باشد', 'error');
-        return;
-    }
-    if (!await showConfirm(`آیا مطمئنید؟ پایگاه داده فعلی با فایل "${file.name}" جایگزین خواهد شد و مانیتور راه‌اندازی مجدد می‌شود.`)) return;
-    const statusEl = document.getElementById('restore-status');
-    if (statusEl) statusEl.textContent = 'در حال آپلود...';
-    try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch(`${API}/data/restore`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ detail: 'خطای نامشخص' }));
-            throw new Error(err.detail || 'خطا در بازیابی');
-        }
-        if (statusEl) statusEl.textContent = '';
-        showToast('بازیابی با موفقیت انجام شد. در حال بارگذاری مجدد...');
-        setTimeout(() => location.reload(), 1500);
-    } catch (e) {
-        if (statusEl) statusEl.textContent = '';
-        showToast('خطا: ' + e.message, 'error');
-    }
-}
-
-async function importJsonConfig(input) {
-    const file = input.files[0];
-    if (!file) return;
-    input.value = '';
-    if (!file.name.endsWith('.json')) {
-        showToast('فایل باید با پسوند .json باشد', 'error');
-        return;
-    }
-    if (!await showConfirm(`توجه: با بارگذاری این فایل، تمامی تنظیمات فعلی، لیست NVRها، گروه‌ها و کاربران کاملاً حذف شده و با اطلاعات فایل "${file.name}" جایگزین خواهند شد. آیا ادامه می‌دهید؟`)) return;
-    const statusEl = document.getElementById('import-json-status');
-    if (statusEl) statusEl.textContent = 'در حال بارگذاری...';
-    try {
-        const text = await file.text();
-        let jsonData;
-        try {
-            jsonData = JSON.parse(text);
-        } catch (err) {
-            throw new Error('فرمت فایل JSON معتبر نیست');
-        }
-        
-        const res = await fetch(`${API}/config/import`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(jsonData),
-            credentials: 'include',
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ detail: 'خطای نامشخص' }));
-            throw new Error(err.detail || 'خطا در بارگذاری تنظیمات');
-        }
-        if (statusEl) statusEl.textContent = '';
-        showToast('پیکربندی JSON با موفقیت بارگذاری شد. در حال بازنشانی مانیتور...');
-        setTimeout(() => location.reload(), 1500);
-    } catch (e) {
-        if (statusEl) statusEl.textContent = '';
-        showToast('خطا: ' + e.message, 'error');
-    }
-}
-
-function showToast(msg, type = 'success') {
+export function showToast(msg, type = 'success') {
     const toast = document.createElement('div');
     toast.style.cssText = `
         position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
@@ -1651,9 +999,7 @@ function showToast(msg, type = 'success') {
     }, duration);
 }
 
-let confirmPromiseResolver = null;
-
-function showConfirm(message, title = 'تایید عملیات', isDangerous = true) {
+export function showConfirm(message, title = 'تایید عملیات', isDangerous = true) {
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-message').textContent = message;
     
@@ -1673,7 +1019,7 @@ function showConfirm(message, title = 'تایید عملیات', isDangerous = t
     });
 }
 
-function closeConfirmModal(result) {
+export function closeConfirmModal(result) {
     document.getElementById('confirmModal').classList.remove('open');
     if (confirmPromiseResolver) {
         confirmPromiseResolver(result);
@@ -1681,8 +1027,7 @@ function closeConfirmModal(result) {
     }
 }
 
-// --- LOGS ---
-function delayLogSearch() {
+export function delayLogSearch() {
     clearTimeout(logTimer);
     logTimer = setTimeout(() => {
         logSearchVal = document.getElementById('logSearch').value;
@@ -1690,28 +1035,19 @@ function delayLogSearch() {
     }, 500);
 }
 
-let logLevelFilter = 'all';
-
-function setLogLevelFilter(val) {
+export function setLogLevelFilter(val) {
     logLevelFilter = val;
     resetLogs();
 }
 
-function setFilter(btn, val) {
+export function setFilter(btn, val) {
     document.querySelectorAll('.filter-chips .chip').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     logFilter = val;
     resetLogs();
 }
 
-function resetLogs() {
-    document.getElementById('log-list').innerHTML = '';
-    logOff = 0;
-    allLoaded = false;
-    fetchLogs();
-}
-
-function translateLogDetails(text) {
+export function translateLogDetails(text) {
     if (!text) return "";
     let t = text;
     // NVR reconnected
@@ -1731,77 +1067,15 @@ function translateLogDetails(text) {
     return t;
 }
 
-async function fetchLogs() {
-    if (loading || allLoaded) return;
-    loading = true;
-    document.getElementById('logLoader').classList.remove('hidden');
-
-    let url = `${API}/logs?limit=30&offset=${logOff}`;
-    if (logFilter) url += `&category=${encodeURIComponent(logFilter)}`;
-    if (logLevelFilter && logLevelFilter !== 'all') url += `&level=${encodeURIComponent(logLevelFilter)}`;
-    if (logSearchVal) url += `&q=${encodeURIComponent(logSearchVal)}`;
-
-    const res = await apiFetch(url);
-    const logs = await res.json();
-
-    if (logs.length < 30) allLoaded = true;
-
-    document.getElementById('log-list').insertAdjacentHTML('beforeend', logs.map(l => {
-        let detail = translateLogDetails(l.details);
-        if (detail.includes('mins')) detail = `<span class="downtime-tag">${detail.match(/\d+m/)}</span> ` + detail;
-
-        const level = (l.level || 'INFO').toUpperCase();
-        let levelCls = 'status-success';
-        if (['ERROR', 'CRITICAL', 'FAILED', 'OFFLINE', 'AUTHERROR'].includes(level) || ['Error', 'Failed', 'Offline', 'AuthError'].includes(l.state)) {
-            levelCls = 'status-danger';
-        } else if (level === 'WARNING' || level === 'CHANGED') {
-            levelCls = 'status-warning';
-        }
-
-        const category = l.category || l.log_type || 'System';
-        const action = l.action || l.state || level;
-        const actor = (l.actor_username && l.actor_username !== 'system') 
-            ? `<span style="font-weight:600; color:var(--primary);">${l.actor_username}</span>` + (l.actor_ip ? ` <span style="font-size:11px; color:var(--text-muted);">(${l.actor_ip})</span>` : '')
-            : `<span style="color:var(--text-muted); font-size:12px;">سیستم</span>`;
-
-        return `<tr>
-            <td style="white-space:nowrap; font-size:12px;">${l.shamsi_date}</td>
-            <td style="white-space:nowrap;">
-                <span class="chip" style="font-size:11px; padding:2px 8px; border-radius:10px;">${category}</span>
-                <span class="${levelCls}" style="font-weight:600; font-size:11px; margin-right:4px;">${level}</span>
-            </td>
-            <td style="white-space:nowrap;">${actor}</td>
-            <td style="white-space:nowrap; font-weight:600; font-size:12px; color:var(--text);">${action}</td>
-            <td style="font-size:13px; line-height:1.4;">${detail}</td>
-        </tr>`;
-    }).join(''));
-
-    logOff += logs.length;
-    loading = false;
-    document.getElementById('logLoader').classList.add('hidden');
-}
-
-let logTimer;
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('logScroll').addEventListener('scroll', (e) => {
-        if (e.target.scrollTop + e.target.clientHeight >= e.target.scrollHeight - 100) fetchLogs();
-    });
-});
-
-// --- JALALI/GREGORIAN CONVERSIONS ---
-const BREAKS = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2262, 2324, 2394, 2456, 3178];
-const MIN_JALAALI_YEAR = BREAKS[0];
-const MAX_JALAALI_YEAR = BREAKS[BREAKS.length - 1] - 1;
-
-function div(a, b) {
+export function div(a, b) {
     return ~~(a / b);
 }
 
-function mod(a, b) {
+export function mod(a, b) {
     return a - ~~(a / b) * b;
 }
 
-function jalCalCore(jy) {
+export function jalCalCore(jy) {
     if (!Number.isFinite(jy) || jy < MIN_JALAALI_YEAR || jy > MAX_JALAALI_YEAR) {
         throw new RangeError(`Invalid Jalaali year ${jy}`);
     }
@@ -1830,13 +1104,13 @@ function jalCalCore(jy) {
     };
 }
 
-function g2d(gy, gm, gd) {
+export function g2d(gy, gm, gd) {
     let d = div((gy + div(gm - 8, 6) + 100100) * 1461, 4) + div(153 * mod(gm + 9, 12) + 2, 5) + gd - 34840408;
     d = d - div(div(gy + 100100 + div(gm - 8, 6), 100) * 3, 4) + 752;
     return d;
 }
 
-function d2g(jdn) {
+export function d2g(jdn) {
     let j = 4 * jdn + 139361631;
     j = j + div(div(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908;
     const i = div(mod(j, 1461), 4) * 5 + 308;
@@ -1850,7 +1124,7 @@ function d2g(jdn) {
     };
 }
 
-function jalCalShort(jy) {
+export function jalCalShort(jy) {
     const { gy, march } = jalCalCore(jy);
     return {
         gy,
@@ -1858,17 +1132,17 @@ function jalCalShort(jy) {
     };
 }
 
-function j2d(jy, jm, jd) {
+export function j2d(jy, jm, jd) {
     const r = jalCalShort(jy);
     return g2d(r.gy, 3, r.march) + (jm - 1) * 31 - div(jm, 7) * (jm - 7) + jd - 1;
 }
 
-function jalaliToGregorian(jy, jm, jd) {
+export function jalaliToGregorian(jy, jm, jd) {
     const g = d2g(j2d(jy, jm, jd));
     return [g.gy, g.gm, g.gd];
 }
 
-function formatPersianDateTime(date) {
+export function formatPersianDateTime(date) {
     const formatter = new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn', {
         year: 'numeric',
         month: '2-digit',
@@ -1890,7 +1164,7 @@ function formatPersianDateTime(date) {
     return `${year}/${month}/${day} ${hour}:${minute}`;
 }
 
-function parsePersianDateTime(val) {
+export function parsePersianDateTime(val) {
     if (!val) return null;
     const match = val.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2}))?/);
     if (!match) return null;
@@ -1903,140 +1177,21 @@ function parsePersianDateTime(val) {
     return new Date(gy, gm - 1, gd, hour, minute, 0);
 }
 
-// --- REPORTS ---
-function setPreset(h) {
+export function setPreset(h) {
     const end = new Date();
     const start = new Date(end.getTime() - (h * 60 * 60 * 1000));
     document.getElementById('startDt').value = formatPersianDateTime(start);
     document.getElementById('endDt').value = formatPersianDateTime(end);
 }
 
-async function genReport() {
-    toggleReportSection(false);
-
-    const startVal = document.getElementById('startDt').value;
-    const endVal = document.getElementById('endDt').value;
-    if (!startVal || !endVal) return showToast('محدوده زمانی را انتخاب کنید', 'error');
-
-    const startDate = parsePersianDateTime(startVal);
-    const endDate = parsePersianDateTime(endVal);
-    if (!startDate || !endDate) return showToast('قالب تاریخ نامعتبر است', 'error');
-
-    const s = startDate.getTime() / 1000;
-    const e = endDate.getTime() / 1000;
-
-    const loaderHtml = `
-        <div class="skeleton-loading">
-            <div class="skeleton skeleton-row"></div>
-            <div class="skeleton skeleton-row short"></div>
-            <div class="skeleton skeleton-row"></div>
-        </div>
-    `;
-    document.getElementById('rep-list').innerHTML = loaderHtml;
-    document.getElementById('rep-nvr-list').innerHTML = loaderHtml;
-    document.getElementById('rep-auth-list').innerHTML = loaderHtml;
-    document.getElementById('rep-task-list').innerHTML = loaderHtml;
-
-    const res = await apiFetch(`${API}/reports/generate?start=${s}&end=${e}`);
-    const data = await res.json();
-
-    // Load and render charts
-    loadAndRenderCharts(s, e);
-
-    // 1. Camera Downtimes
-    const cameras = data.cameras || [];
-    if (cameras.length === 0) {
-        document.getElementById('rep-list').innerHTML = '<div class="empty-state">قطعی‌ای یافت نشد</div>';
-    } else {
-        const max = Math.max(...cameras.map(i => i.mins));
-        document.getElementById('rep-list').innerHTML = cameras.map(i => {
-            const pct = Math.min(100, (i.mins / max) * 100);
-            return `<div class="report-item">
-                <div class="report-item-header">
-                    <span class="report-item-name">${i.name}</span>
-                    <span class="report-item-value">${i.mins} دقیقه</span>
-                </div>
-                <div class="report-bar">
-                    <div class="report-bar-fill" style="width:${pct}%"></div>
-                </div>
-            </div>`;
-        }).join('');
-    }
-
-    // 2. NVR Events
-    const nvrEvents = data.nvr_events || [];
-    if (nvrEvents.length === 0) {
-        document.getElementById('rep-nvr-list').innerHTML = '<div class="empty-state">رویدادی یافت نشد</div>';
-    } else {
-        document.getElementById('rep-nvr-list').innerHTML = nvrEvents.map(i => {
-            const statusClass = i.state === 'Online' ? 'success' : 'danger';
-            const statusText = i.state === 'Online' ? 'وصل مجدد NVR' : 'قطع ارتباط NVR';
-            return `<div class="report-item">
-                <div class="report-item-header" style="margin-bottom:0;">
-                    <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
-                        <span class="badge ${statusClass}">${statusText}</span>
-                        <span>${translateLogDetails(i.details)}</span>
-                    </span>
-                    <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
-                </div>
-            </div>`;
-        }).join('');
-    }
-
-    // 3. NVR Auth Errors
-    const authErrors = data.nvr_auth_errors || [];
-    if (authErrors.length === 0) {
-        document.getElementById('rep-auth-list').innerHTML = '<div class="empty-state">خطایی یافت نشد</div>';
-    } else {
-        document.getElementById('rep-auth-list').innerHTML = authErrors.map(i => {
-            return `<div class="report-item">
-                <div class="report-item-header" style="margin-bottom:0;">
-                    <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
-                        <span class="badge warning">خطای رمز عبور</span>
-                        <span>${translateLogDetails(i.details)}</span>
-                    </span>
-                    <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
-                </div>
-            </div>`;
-        }).join('');
-    }
-
-    // 4. Task Events
-    const taskEvents = data.task_events || [];
-    if (taskEvents.length === 0) {
-        document.getElementById('rep-task-list').innerHTML = '<div class="empty-state">رویدادی یافت نشد</div>';
-    } else {
-        document.getElementById('rep-task-list').innerHTML = taskEvents.map(i => {
-            const statusClass = i.state === 'Started' ? 'info' : (i.state === 'Success' ? 'success' : 'danger');
-            const statusText = i.state === 'Started' ? 'شروع اجرا' : (i.state === 'Success' ? 'پایان موفق' : 'خطای اجرا');
-            return `<div class="report-item">
-                <div class="report-item-header" style="margin-bottom:0;">
-                    <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
-                        <span class="badge ${statusClass}">${statusText}</span>
-                        <span>${translateLogDetails(i.details)}</span>
-                    </span>
-                    <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
-                </div>
-            </div>`;
-        }).join('');
-    }
-}
-
-function toggleReportSection(forceHeatmap = null) {
+export function toggleReportSection(forceHeatmap = null) {
     const listSection = document.getElementById('report-list-section');
     const heatmapSection = document.getElementById('report-heatmap-section');
     if (listSection) listSection.classList.remove('hidden');
     if (heatmapSection) heatmapSection.classList.remove('hidden');
 }
 
-// ===== CHARTS =====
-let chartTrendInstance = null;
-let chartCausesInstance = null;
-let chartGroupsInstance = null;
-let chartTopCamerasInstance = null;
-let chartStatusInstance = null;
-
-function switchChartTab(tabId) {
+export function switchChartTab(tabId) {
     const tabs = document.querySelectorAll('.chart-tab-content');
     tabs.forEach(t => t.style.display = 'none');
     
@@ -2063,32 +1218,12 @@ function switchChartTab(tabId) {
     if (tabId === 'tab-chart-status' && chartStatusInstance) chartStatusInstance.resize();
 }
 
-function getChartColor(varName, fallback) {
+export function getChartColor(varName, fallback) {
     const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
     return val || fallback;
 }
 
-async function loadAndRenderCharts(s, e) {
-    const chartsSection = document.getElementById('report-charts-section');
-    if (chartsSection) {
-        chartsSection.style.display = 'flex';
-    }
-    
-    try {
-        const res = await apiFetch(`${API}/reports/charts?start=${s}&end=${e}`);
-        const data = await res.json();
-        
-        renderTrendChart(data.trend_chart);
-        renderCausesChart(data.causes_chart);
-        renderGroupsChart(data.group_chart);
-        renderTopCamerasChart(data.top_cameras_chart);
-        renderStatusChart(data.status_chart);
-    } catch (err) {
-        console.error('Error loading charts:', err);
-    }
-}
-
-function renderTrendChart(chartData) {
+export function renderTrendChart(chartData) {
     const ctx = document.getElementById('chart-trend');
     if (!ctx) return;
     
@@ -2136,7 +1271,7 @@ function renderTrendChart(chartData) {
     });
 }
 
-function renderCausesChart(chartData) {
+export function renderCausesChart(chartData) {
     const ctx = document.getElementById('chart-causes');
     if (!ctx) return;
     
@@ -2193,7 +1328,7 @@ function renderCausesChart(chartData) {
     });
 }
 
-function renderGroupsChart(chartData) {
+export function renderGroupsChart(chartData) {
     const ctx = document.getElementById('chart-groups');
     if (!ctx) return;
     
@@ -2237,7 +1372,7 @@ function renderGroupsChart(chartData) {
     });
 }
 
-function renderTopCamerasChart(chartData) {
+export function renderTopCamerasChart(chartData) {
     const ctx = document.getElementById('chart-top-cameras');
     if (!ctx) return;
     
@@ -2282,7 +1417,7 @@ function renderTopCamerasChart(chartData) {
     });
 }
 
-function renderStatusChart(chartData) {
+export function renderStatusChart(chartData) {
     const ctx = document.getElementById('chart-status');
     if (!ctx) return;
     
@@ -2316,57 +1451,18 @@ function renderStatusChart(chartData) {
     });
 }
 
-// --- INIT ---
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const res = await fetch('/api/auth/me');
-        if (res.ok) {
-            window.currentUser = await res.json();
-            applyRoleUI();
-        } else {
-            window.location.href = '/login';
-            return;
-        }
-    } catch (e) {
-        console.error('Auth verification failed:', e);
-        window.location.href = '/login';
-        return;
-    }
-    if (typeof jalaliDatepicker !== 'undefined') {
-        jalaliDatepicker.startWatch({
-            time: true,
-            hasSecond: false
-        });
-    }
-    nav('dash');
-    warmUpSearchCache();
-    connectWS();
-    initBrowserAlerts();
-    checkAdminPasswordWarning();
-
-    // Hide initial loading screen
-    const loadingScreen = document.getElementById('initial-loading-screen');
-    if (loadingScreen) {
-        loadingScreen.style.opacity = '0';
-        loadingScreen.style.pointerEvents = 'none';
-        setTimeout(() => {
-            loadingScreen.style.display = 'none';
-        }, 400);
-    }
-});
-
-function checkAdminPasswordWarning() {
+export function checkAdminPasswordWarning() {
     if (localStorage.getItem('admin_plain_password') === '1') {
         document.getElementById('securityWarningModal').classList.add('open');
     }
 }
 
-function closeSecurityWarning() {
+export function closeSecurityWarning() {
     document.getElementById('securityWarningModal').classList.remove('open');
     localStorage.removeItem('admin_plain_password');
 }
 
-function setConnectionStatus(connected) {
+export function setConnectionStatus(connected) {
     const el = document.getElementById('header-status');
     const warningEl = document.getElementById('connection-warning');
     if (warningEl) {
@@ -2390,7 +1486,7 @@ function setConnectionStatus(connected) {
     }
 }
 
-function connectWS() {
+export function connectWS() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${location.host}/ws`);
 
@@ -2419,7 +1515,7 @@ function connectWS() {
     ws.onerror = () => ws.close();
 }
 
-function updateDashFromWS(cams) {
+export function updateDashFromWS(cams) {
     dashCamerasCache = cams;
 
     const on = cams.filter(c => c.status === 'Online').length;
@@ -2531,14 +1627,7 @@ function updateDashFromWS(cams) {
     }
 }
 
-async function logout() {
-    try {
-        await apiFetch(`${API}/auth/logout`, { method: 'POST' });
-    } catch (e) { }
-    window.location.href = '/login';
-}
-
-function applyTheme(theme) {
+export function applyTheme(theme) {
     const root = document.documentElement;
     const meta = document.querySelector('meta[name="theme-color"]');
 
@@ -2563,17 +1652,7 @@ function applyTheme(theme) {
     updateThemeIcon(theme);
 }
 
-// System theme listener
-if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
-        const currentTheme = localStorage.getItem('hikstatus-theme') || 'system';
-        if (currentTheme === 'system') {
-            applyTheme('system');
-        }
-    });
-}
-
-function toggleTheme() {
+export function toggleTheme() {
     const currentTheme = localStorage.getItem('hikstatus-theme') || 'system';
     let nextTheme = 'light';
     if (currentTheme === 'system') {
@@ -2596,7 +1675,7 @@ function toggleTheme() {
     }
 }
 
-function updateThemeIcon(theme) {
+export function updateThemeIcon(theme) {
     const btn = document.getElementById('btn-theme-toggle');
     if (!btn) return;
 
@@ -2636,18 +1715,11 @@ function updateThemeIcon(theme) {
     }
 }
 
-// Call on load to set initial icon and kiosk listeners
-document.addEventListener('DOMContentLoaded', () => {
-    applyTheme(localStorage.getItem('hikstatus-theme') || 'system');
-    initKioskListeners();
-    initDashboardCustomization();
-});
-
-function isKioskActive() {
+export function isKioskActive() {
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || document.body.classList.contains('kiosk-mode'));
 }
 
-function updateKioskUIState() {
+export function updateKioskUIState() {
     const isFS = isKioskActive();
     if (isFS) {
         document.body.classList.add('kiosk-mode');
@@ -2661,7 +1733,7 @@ function updateKioskUIState() {
     }
 }
 
-function toggleKiosk() {
+export function toggleKiosk() {
     const doc = document.documentElement;
     const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
 
@@ -2701,7 +1773,7 @@ function toggleKiosk() {
     }
 }
 
-function initKioskListeners() {
+export function initKioskListeners() {
     ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
         document.addEventListener(evt, () => {
             const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
@@ -2715,8 +1787,7 @@ function initKioskListeners() {
     });
 }
 
-// ===== BROWSER ALERTS & SOUND SYNTHESIS =====
-function initBrowserAlerts() {
+export function initBrowserAlerts() {
     if (localStorage.getItem('BROWSER_ALERT_ENABLED') === null) localStorage.setItem('BROWSER_ALERT_ENABLED', 'false');
     if (localStorage.getItem('BROWSER_ALERT_MUTED') === null) localStorage.setItem('BROWSER_ALERT_MUTED', 'false');
     
@@ -2733,7 +1804,7 @@ function initBrowserAlerts() {
     updateBrowserAlertsUI();
 }
 
-function updateBrowserAlertsUI() {
+export function updateBrowserAlertsUI() {
     const elEnabled = document.getElementById('BROWSER_ALERT_ENABLED');
     const elMuted = document.getElementById('BROWSER_ALERT_MUTED');
     if (!elEnabled || !elMuted) return;
@@ -2771,7 +1842,7 @@ function updateBrowserAlertsUI() {
     }
 }
 
-async function toggleBrowserAlerts(checkbox) {
+export async function toggleBrowserAlerts(checkbox) {
     if (checkbox.checked) {
         if (!("Notification" in window)) {
             showToast("این مرورگر از اعلان‌ها پشتیبانی نمی‌کند", "error");
@@ -2795,20 +1866,20 @@ async function toggleBrowserAlerts(checkbox) {
     updateBrowserAlertsUI();
 }
 
-function toggleGlobalMute(checkbox) {
+export function toggleGlobalMute(checkbox) {
     localStorage.setItem('BROWSER_ALERT_MUTED', checkbox.checked ? 'true' : 'false');
     showToast(checkbox.checked ? "صداها بی‌صدا شدند" : "صداها فعال شدند");
 }
 
-function toggleCategoryNotify(category, checkbox) {
+export function toggleCategoryNotify(category, checkbox) {
     localStorage.setItem(`BROWSER_NOTIFY_${category.toUpperCase()}_ENABLED`, checkbox.checked ? 'true' : 'false');
 }
 
-function toggleCategorySound(category, checkbox) {
+export function toggleCategorySound(category, checkbox) {
     localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, checkbox.checked ? 'true' : 'false');
 }
 
-function playSynthesizedSound(category) {
+export function playSynthesizedSound(category) {
     const isMuted = localStorage.getItem('BROWSER_ALERT_MUTED') === 'true';
     if (isMuted) return;
 
@@ -2870,7 +1941,7 @@ function playSynthesizedSound(category) {
     }
 }
 
-function testSound(category) {
+export function testSound(category) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return showToast("مرورگر شما از صدا پشتیبانی نمی‌کند", "error");
     
@@ -2886,7 +1957,7 @@ function testSound(category) {
     localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, originalSoundVal);
 }
 
-function testBrowserNotification() {
+export function testBrowserNotification() {
     if (!("Notification" in window)) {
         return showToast("این مرورگر از اعلان‌ها پشتیبانی نمی‌کند", "error");
     }
@@ -2905,7 +1976,7 @@ function testBrowserNotification() {
     }
 }
 
-function sendTestNotification() {
+export function sendTestNotification() {
     const notification = new Notification("تست اعلان HikStatus", {
         body: "سیستم اعلان مرورگر به درستی کار می‌کند!",
         icon: '/static/logo.webp',
@@ -2922,7 +1993,7 @@ function sendTestNotification() {
     };
 }
 
-function handleIncomingAlert(msg) {
+export function handleIncomingAlert(msg) {
     const isEnabled = localStorage.getItem('BROWSER_ALERT_ENABLED') === 'true';
     if (!isEnabled) return;
 
@@ -2949,31 +2020,7 @@ function handleIncomingAlert(msg) {
     playSynthesizedSound(category);
 }
 
-// ===== MAP & HEATMAP LOGIC =====
-let map = null;
-let mapMarkers = [];
-let mapClusterGroup = null;
-let mapEditMode = false;
-let mapType = 'floor';
-let mapImage = '';
-let mapCamerasList = [];
-let mapStartLat = 37.796067;
-let mapStartLng = 45.062508;
-let currentGroupId = null;
-let mapPlans = [];
-let activePlanId = null;
-let groupsCache = [];
-
-async function loadGroupsCache() {
-    try {
-        const res = await apiFetch(`${API}/groups`);
-        groupsCache = await res.json();
-    } catch (e) {
-        groupsCache = [];
-    }
-}
-
-function populateMapGroupSelect() {
+export function populateMapGroupSelect() {
     const sel = document.getElementById('map-group-select');
     if (!sel) return;
     const prev = sel.value;
@@ -2984,7 +2031,7 @@ function populateMapGroupSelect() {
     if (prev) sel.value = prev;
 }
 
-async function onMapGroupChange(groupId) {
+export async function onMapGroupChange(groupId) {
     currentGroupId = groupId ? parseInt(groupId) : null;
     mapPlans = [];
     activePlanId = null;
@@ -3023,25 +2070,7 @@ async function onMapGroupChange(groupId) {
     renderMapCameraList();
 }
 
-async function loadGroupPlans(groupId) {
-    try {
-        const res = await apiFetch(`${API}/groups/${groupId}/plans`);
-        mapPlans = await res.json();
-        if (mapPlans.length > 0 && !activePlanId) {
-            activePlanId = mapPlans[0].id;
-            mapImage = mapPlans[0].image_url;
-        } else if (mapPlans.length === 0) {
-            activePlanId = null;
-            mapImage = '';
-        }
-    } catch (e) {
-        mapPlans = [];
-        activePlanId = null;
-        mapImage = '';
-    }
-}
-
-function renderPlanTabs() {
+export function renderPlanTabs() {
     const container = document.getElementById('map-plan-tabs');
     const uploadBtn = document.getElementById('btn-upload-plan');
     if (!container) return;
@@ -3068,7 +2097,7 @@ function renderPlanTabs() {
     }).join('');
 }
 
-function switchPlan(planId) {
+export function switchPlan(planId) {
     const plan = mapPlans.find(p => p.id === planId);
     if (!plan) return;
     activePlanId = planId;
@@ -3078,66 +2107,7 @@ function switchPlan(planId) {
     renderMapCameraList();
 }
 
-async function uploadGroupPlan(input) {
-    if (!input.files || !input.files[0] || !currentGroupId) return;
-
-    const formData = new FormData();
-    formData.append('file', input.files[0]);
-    const planName = input.files[0].name.replace(/\.[^.]+$/, '');
-    formData.append('name', planName);
-
-    showToast('در حال آپلود...');
-    try {
-        const res = await fetch(`${API}/groups/${currentGroupId}/plans`, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (res.status === 401) {
-            window.location.href = '/login';
-            return;
-        }
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ detail: res.statusText }));
-            throw new Error(err.detail || 'Upload failed');
-        }
-
-        const data = await res.json();
-        showToast('پلان با موفقیت آپلود شد');
-        await loadGroupPlans(currentGroupId);
-        activePlanId = data.id;
-        mapImage = data.image_url;
-        renderPlanTabs();
-        setupLeafletMap(true);
-        renderMapCameraList();
-    } catch (e) {
-        showToast('خطا در آپلود پلان: ' + e.message, 'error');
-    }
-    input.value = '';
-}
-
-async function deletePlan(planId) {
-    if (!currentGroupId) return;
-    if (!await showConfirm('آیا از حذف این پлан مطمئن هستید؟')) return;
-
-    try {
-        const res = await apiFetch(`${API}/groups/${currentGroupId}/plans/${planId}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('Delete failed');
-        showToast('پлан حذف شد');
-        await loadGroupPlans(currentGroupId);
-        if (activePlanId === planId) {
-            activePlanId = mapPlans.length > 0 ? mapPlans[0].id : null;
-            mapImage = activePlanId ? mapPlans[0].image_url : '';
-        }
-        renderPlanTabs();
-        setupLeafletMap(true);
-        renderMapCameraList();
-    } catch (e) {
-        showToast('خطا در حذف پلان', 'error');
-    }
-}
-
-async function initOrRefreshMap() {
+export async function initOrRefreshMap() {
     if (settingsCache.length === 0) {
         try {
             const sRes = await fetch(`${API}/settings`);
@@ -3205,7 +2175,7 @@ async function initOrRefreshMap() {
     renderMapCameraList();
 }
 
-function setupLeafletMap(ignoreRestored = false) {
+export function setupLeafletMap(ignoreRestored = false) {
     let restoredCenter = null;
     let restoredZoom = null;
 
@@ -3360,7 +2330,7 @@ function setupLeafletMap(ignoreRestored = false) {
     });
 }
 
-function getFovPolygonPoints(centerLatLng, radius, angle, spread) {
+export function getFovPolygonPoints(centerLatLng, radius, angle, spread) {
     const centerY = centerLatLng.lat !== undefined ? centerLatLng.lat : centerLatLng[0];
     const centerX = centerLatLng.lng !== undefined ? centerLatLng.lng : centerLatLng[1];
 
@@ -3380,7 +2350,7 @@ function getFovPolygonPoints(centerLatLng, radius, angle, spread) {
     return points;
 }
 
-function getFovPolygonPointsGeo(centerLatLng, radiusMeters, angle, spread) {
+export function getFovPolygonPointsGeo(centerLatLng, radiusMeters, angle, spread) {
     const centerLat = centerLatLng.lat !== undefined ? centerLatLng.lat : centerLatLng[0];
     const centerLng = centerLatLng.lng !== undefined ? centerLatLng.lng : centerLatLng[1];
 
@@ -3417,7 +2387,7 @@ function getFovPolygonPointsGeo(centerLatLng, radiusMeters, angle, spread) {
     return points;
 }
 
-function calculateFovPoints(c, latlng) {
+export function calculateFovPoints(c, latlng) {
     const angle = c.fov_angle || 0;
     const radius = c.fov_radius || 50;
     const spread = c.fov_spread || 60;
@@ -3429,7 +2399,7 @@ function calculateFovPoints(c, latlng) {
     }
 }
 
-function getMarkerPopupContent(c) {
+export function getMarkerPopupContent(c) {
     const statusText = c.status === 'Online' ? 'متصل' : 'قطع';
     const isFovEnabled = c.fov_angle != null && c.fov_radius != null;
 
@@ -3497,79 +2467,7 @@ function getMarkerPopupContent(c) {
     `;
 }
 
-let fovSaveTimers = {};
-function saveFovDebounced(id, angle, radius, spread) {
-    if (fovSaveTimers[id]) {
-        clearTimeout(fovSaveTimers[id]);
-    }
-    fovSaveTimers[id] = setTimeout(async () => {
-        try {
-            await fetch(`${API}/cameras/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fov_angle: angle,
-                    fov_radius: radius,
-                    fov_spread: spread
-                })
-            });
-        } catch (e) {
-            console.error('Failed to auto-save FOV settings:', e);
-        }
-    }, 500);
-}
-
-async function toggleMarkerFov(id, enabled) {
-    const c = mapCamerasList.find(cam => cam.id === id);
-    if (!c) return;
-
-    const slidersBlock = document.getElementById(`popup-fov-sliders-${id}`);
-    const marker = mapMarkers.find(m => m.camera_id === id);
-
-    if (enabled) {
-        c.fov_angle = 0;
-        c.fov_radius = mapType === 'floor' ? 80 : 50;
-        c.fov_spread = 60;
-
-        if (slidersBlock) slidersBlock.style.display = 'block';
-
-        if (marker) {
-            if (marker.fovPolygon) {
-                map.removeLayer(marker.fovPolygon);
-            }
-            const pts = calculateFovPoints(c, marker.getLatLng());
-            marker.fovPolygon = L.polygon(pts, {
-                color: '#f43f5e',
-                fillColor: '#f43f5e',
-                fillOpacity: 0.3,
-                weight: 1
-            }).addTo(map);
-        }
-    } else {
-        c.fov_angle = null;
-        c.fov_radius = null;
-        c.fov_spread = null;
-
-        if (slidersBlock) slidersBlock.style.display = 'none';
-
-        if (marker && marker.fovPolygon) {
-            map.removeLayer(marker.fovPolygon);
-            marker.fovPolygon = null;
-        }
-    }
-
-    await apiFetch(`${API}/cameras/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            fov_angle: c.fov_angle,
-            fov_radius: c.fov_radius,
-            fov_spread: c.fov_spread
-        })
-    });
-}
-
-function updateMarkerFovVal(id, field, value) {
+export function updateMarkerFovVal(id, field, value) {
     const c = mapCamerasList.find(cam => cam.id === id);
     if (!c) return;
 
@@ -3598,54 +2496,7 @@ function updateMarkerFovVal(id, field, value) {
     saveFovDebounced(id, c.fov_angle, c.fov_radius, c.fov_spread);
 }
 
-async function removeCameraFromMap(id) {
-    if (!await showConfirm('آیا از حذف این دوربین از نقشه مطمئن هستید؟')) return;
-
-    const c = mapCamerasList.find(cam => cam.id === id);
-    if (!c) return;
-
-    c.x_pos = null;
-    c.y_pos = null;
-    c.plan_id = null;
-    c.latitude = null;
-    c.longitude = null;
-    c.fov_angle = null;
-    c.fov_radius = null;
-    c.fov_spread = null;
-
-    const markerIndex = mapMarkers.findIndex(m => m.camera_id === id);
-    if (markerIndex !== -1) {
-        const marker = mapMarkers[markerIndex];
-        if (marker.fovPolygon) {
-            map.removeLayer(marker.fovPolygon);
-        }
-        map.removeLayer(marker);
-        mapMarkers.splice(markerIndex, 1);
-    }
-
-    try {
-        await apiFetch(`${API}/cameras/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                x_pos: null,
-                y_pos: null,
-                plan_id: null,
-                latitude: null,
-                longitude: null,
-                fov_angle: null,
-                fov_radius: null,
-                fov_spread: null
-            })
-        });
-        showToast('دوربین از نقشه حذف شد');
-        renderMapCameraList();
-    } catch (e) {
-        showToast('خطا در حذف دوربین: ' + e.message, 'error');
-    }
-}
-
-function createMarkerForMap(c, latlng) {
+export function createMarkerForMap(c, latlng) {
     const statusClass = c.status === 'Online' ? 'online' : (c.status === 'Offline' ? 'offline' : 'unknown');
     const markerHtml = `
         <div class="cam-marker ${statusClass}" id="marker-cam-${c.id}">
@@ -3735,7 +2586,7 @@ function createMarkerForMap(c, latlng) {
     return marker;
 }
 
-function drawCameraMarkers(bounds = null, w = 1, h = 1) {
+export function drawCameraMarkers(bounds = null, w = 1, h = 1) {
     if (typeof clearActiveFovSelection === 'function') {
         clearActiveFovSelection();
     }
@@ -3785,7 +2636,7 @@ function drawCameraMarkers(bounds = null, w = 1, h = 1) {
     }
 }
 
-function updateMapMarkersFromWS(cams) {
+export function updateMapMarkersFromWS(cams) {
     if (!map || mapEditMode) return;
     mapCamerasList = cams;
 
@@ -3804,29 +2655,7 @@ function updateMapMarkersFromWS(cams) {
     renderMapCameraList();
 }
 
-async function setMapType(type) {
-    if (type === mapType) return;
-    mapType = type;
-
-    await apiFetch(`${API}/settings/MAP_TYPE`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'MAP_TYPE', value: type })
-    });
-
-    const s = settingsCache.find(sett => sett.key === 'MAP_TYPE');
-    if (s) s.value = type;
-
-    document.getElementById('upload-plan-section').style.display = mapType === 'floor' ? 'block' : 'none';
-    document.getElementById('btn-map-floor').classList.toggle('active', mapType === 'floor');
-    document.getElementById('btn-map-geo').classList.toggle('active', mapType === 'geo');
-
-    renderPlanTabs();
-    setupLeafletMap();
-    renderMapCameraList();
-}
-
-function toggleMapEditMode() {
+export function toggleMapEditMode() {
     mapEditMode = !mapEditMode;
     const btn = document.getElementById('btn-edit-positions');
     const guide = document.getElementById('map-edit-guide');
@@ -3850,102 +2679,7 @@ function toggleMapEditMode() {
     setupLeafletMap();
 }
 
-async function uploadMapImage(input) {
-    if (!input.files || !input.files[0]) return;
-
-    const formData = new FormData();
-    formData.append('file', input.files[0]);
-
-    showToast('در حال آپلود...');
-    try {
-        const res = await fetch(`${API}/map/upload`, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (res.status === 401) {
-            window.location.href = '/login';
-            return;
-        }
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ detail: res.statusText }));
-            throw new Error(err.detail || 'Upload failed');
-        }
-
-        const data = await res.json();
-        showToast('تصویر پلان با موفقیت آپلود شد');
-
-        const s = settingsCache.find(sett => sett.key === 'MAP_IMAGE');
-        if (s) s.value = data.url;
-
-        mapImage = data.url;
-        initOrRefreshMap();
-    } catch (e) {
-        showToast('خطا در آپلود پلان: ' + e.message, 'error');
-    }
-}
-
-async function fetchAndRenderHeatmap() {
-    const hoursLabels = document.getElementById('heatmap-hours-labels');
-    const gridCells = document.getElementById('heatmap-grid-cells');
-    if (!hoursLabels || !gridCells) return;
-
-    hoursLabels.innerHTML = '';
-    for (let h = 0; h < 24; h++) {
-        const hStr = h.toString().padStart(2, '0');
-        hoursLabels.innerHTML += `<div>${hStr}</div>`;
-    }
-
-    try {
-        const res = await apiFetch(`${API}/stats/heatmap`);
-        const data = await res.json();
-
-        const lookup = {};
-        data.forEach(item => {
-            lookup[`${item.day}-${item.hour}`] = item.value;
-        });
-
-        const dayOrder = [5, 6, 0, 1, 2, 3, 4];
-        const dayNames = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
-
-        gridCells.innerHTML = '';
-
-        dayOrder.forEach((pyDay, index) => {
-            const dayName = dayNames[index];
-            for (let h = 0; h < 24; h++) {
-                const value = lookup[`${pyDay}-${h}`] || 0;
-
-                let level = 0;
-                if (value > 0 && value <= 15) level = 1;
-                else if (value > 15 && value <= 60) level = 2;
-                else if (value > 60 && value <= 360) level = 3;
-                else if (value > 360) level = 4;
-
-                const timeRange = `${h.toString().padStart(2, '0')}:00 تا ${(h + 1).toString().padStart(2, '0')}:00`;
-                let tooltipText = `${dayName}، ساعت ${timeRange}<br>قطعی: بدون قطعی`;
-                if (value > 0) {
-                    if (value >= 60) {
-                        const hrs = (value / 60).toFixed(1);
-                        tooltipText = `${dayName}، ساعت ${timeRange}<br>قطعی: ${hrs} ساعت`;
-                    } else {
-                        tooltipText = `${dayName}، ساعت ${timeRange}<br>قطعی: ${value} دقیقه`;
-                    }
-                }
-
-                gridCells.innerHTML += `
-                    <div class="heatmap-cell level-${level}">
-                        <div class="heatmap-tooltip">${tooltipText}</div>
-                    </div>`;
-            }
-        });
-
-    } catch (e) {
-        console.error('Heatmap render error:', e);
-    }
-}
-
-function renderMapCameraList() {
+export function renderMapCameraList() {
     const container = document.getElementById('map-camera-list');
     if (!container) return;
 
@@ -4034,11 +2768,11 @@ function renderMapCameraList() {
     }).join('');
 }
 
-function filterMapCamerasList() {
+export function filterMapCamerasList() {
     renderMapCameraList();
 }
 
-function focusCameraOnMap(id) {
+export function focusCameraOnMap(id) {
     if (!map) return;
     const marker = mapMarkers.find(m => m.camera_id === id);
     if (marker) {
@@ -4051,83 +2785,7 @@ function focusCameraOnMap(id) {
     }
 }
 
-async function addCameraToCenter(id, hasFov) {
-    if (!map) return;
-    const c = mapCamerasList.find(cam => cam.id === id);
-    if (!c) return;
-
-    let payload = {};
-    let latlng = null;
-    const center = map.getCenter();
-
-    if (mapType === 'floor') {
-        const w = window.mapImgWidth || 800;
-        const h = window.mapImgHeight || 600;
-
-        const xPct = (center.lng / w) * 100;
-        const yPct = 100 - ((center.lat / h) * 100);
-
-        payload = {
-            x_pos: Math.max(0, Math.min(100, xPct)),
-            y_pos: Math.max(0, Math.min(100, yPct)),
-            plan_id: activePlanId
-        };
-        c.x_pos = payload.x_pos;
-        c.y_pos = payload.y_pos;
-        c.plan_id = activePlanId;
-        latlng = [center.lat, center.lng];
-    } else {
-        payload = {
-            latitude: center.lat,
-            longitude: center.lng
-        };
-        c.latitude = payload.latitude;
-        c.longitude = payload.longitude;
-        latlng = [center.lat, center.lng];
-    }
-
-    if (hasFov) {
-        payload.fov_angle = 0;
-        payload.fov_radius = mapType === 'floor' ? 80 : 50;
-        payload.fov_spread = 60;
-
-        c.fov_angle = payload.fov_angle;
-        c.fov_radius = payload.fov_radius;
-        c.fov_spread = payload.fov_spread;
-    } else {
-        payload.fov_angle = null;
-        payload.fov_radius = null;
-        payload.fov_spread = null;
-
-        c.fov_angle = null;
-        c.fov_radius = null;
-        c.fov_spread = null;
-    }
-
-    try {
-        await apiFetch(`${API}/cameras/${c.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        showToast(`دوربین "${c.name}" به مرکز نقشه اضافه شد`);
-
-        // Dynamically add marker without resetting the map
-        const marker = createMarkerForMap(c, latlng);
-
-        // Re-render the sidebar list to update buttons without modifying map position
-        renderMapCameraList();
-
-        // Select the marker to open the FOV sidebar immediately
-        selectMarkerForFov(marker, c);
-    } catch (e) {
-        showToast('خطا در ذخیره موقعیت: ' + e.message, 'error');
-    }
-}
-
-// --- Role-Based Access Control (RBAC) frontend logic ---
-
-function applyRoleUI() {
+export function applyRoleUI() {
     if (!window.currentUser) return;
     const role = window.currentUser.role;
     
@@ -4156,10 +2814,7 @@ function applyRoleUI() {
     }
 }
 
-// User CRUD management
-let usersCache = [];
-
-function populateInspectorGroupsList() {
+export function populateInspectorGroupsList() {
     const listCon = document.getElementById('inspector-groups-list');
     if (!listCon) return;
     if (!groupCache || groupCache.length === 0) {
@@ -4175,12 +2830,12 @@ function populateInspectorGroupsList() {
     updateInspectorSelectAllState();
 }
 
-function toggleAllInspectorGroups(checked) {
+export function toggleAllInspectorGroups(checked) {
     const checkboxes = document.querySelectorAll('.inspector-group-cb');
     checkboxes.forEach(cb => cb.checked = checked);
 }
 
-function updateInspectorSelectAllState() {
+export function updateInspectorSelectAllState() {
     const checkboxes = document.querySelectorAll('.inspector-group-cb');
     const selectAllCb = document.getElementById('inspector-select-all');
     if (!selectAllCb || checkboxes.length === 0) return;
@@ -4188,47 +2843,7 @@ function updateInspectorSelectAllState() {
     selectAllCb.checked = allChecked;
 }
 
-async function loadUsers() {
-    try {
-        const res = await apiFetch(`${API}/users`);
-        usersCache = await res.json();
-        renderUsersList();
-        
-        // Populate group options in User Form dropdown
-        const select = document.getElementById('userGroup');
-        if (select) {
-            select.innerHTML = '<option value="">بدون گروه</option>' + groupCache.map(g => 
-                `<option value="${g.id}">${g.name}</option>`
-            ).join('');
-        }
-        
-        populateInspectorGroupsList();
-        
-        // Handle User Role change to show/hide group select or inspector access container
-        const roleSelect = document.getElementById('userRole');
-        if (roleSelect && !roleSelect.dataset.hasListener) {
-            roleSelect.dataset.hasListener = 'true';
-            roleSelect.addEventListener('change', (e) => {
-                const groupSelect = document.getElementById('userGroup');
-                const inspectorCon = document.getElementById('inspector-groups-container');
-                if (e.target.value === 'it_manager' || e.target.value === 'inspector') {
-                    if (groupSelect) groupSelect.style.display = 'none';
-                    if (inspectorCon) inspectorCon.style.display = 'block';
-                } else if (e.target.value === 'admin') {
-                    if (groupSelect) groupSelect.style.display = 'none';
-                    if (inspectorCon) inspectorCon.style.display = 'none';
-                } else {
-                    if (groupSelect) groupSelect.style.display = '';
-                    if (inspectorCon) inspectorCon.style.display = 'none';
-                }
-            });
-        }
-    } catch (e) {
-        console.error('Error loading users:', e);
-    }
-}
-
-function renderUsersList() {
+export function renderUsersList() {
     const list = document.getElementById('user-list');
     if (!list) return;
     if (usersCache.length === 0) {
@@ -4270,100 +2885,7 @@ function renderUsersList() {
     }).join('');
 }
 
-async function addUser() {
-    const username = document.getElementById('userName').value.trim();
-    const password = document.getElementById('userPass').value;
-    const role = document.getElementById('userRole').value;
-    const grpVal = document.getElementById('userGroup').value;
-    
-    let accessible_group_ids = null;
-    let group_id = null;
-    if (role === 'inspector' || role === 'it_manager') {
-        const checkedCbs = Array.from(document.querySelectorAll('.inspector-group-cb:checked')).map(cb => cb.value);
-        const allCbs = document.querySelectorAll('.inspector-group-cb');
-        if (checkedCbs.length > 0 && checkedCbs.length < allCbs.length) {
-            accessible_group_ids = checkedCbs.join(',');
-            group_id = parseInt(checkedCbs[0]);
-        } else if (checkedCbs.length === allCbs.length) {
-            accessible_group_ids = null;
-            group_id = checkedCbs[0] ? parseInt(checkedCbs[0]) : null;
-        } else if (checkedCbs.length === 0) {
-            accessible_group_ids = '0';
-            group_id = null;
-        }
-    } else if (role !== 'admin' && grpVal) {
-        group_id = parseInt(grpVal);
-    }
-    
-    if (!username || !password) {
-        return showToast('نام کاربری و رمز عبور را وارد کنید', 'error');
-    }
-    
-    try {
-        await apiFetch(`${API}/users`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role, group_id, accessible_group_ids })
-        });
-        showToast('کاربر جدید با موفقیت اضافه شد');
-        document.getElementById('userName').value = '';
-        document.getElementById('userPass').value = '';
-        toggleAllInspectorGroups(false);
-        loadUsers();
-    } catch (e) {
-        showToast('خطا در افزودن کاربر: ' + e.message, 'error');
-    }
-}
-
-async function deleteUser(id) {
-    if (!await showConfirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
-    try {
-        await apiFetch(`${API}/users/${id}`, { method: 'DELETE' });
-        showToast('کاربر با موفقیت حذف شد');
-        loadUsers();
-    } catch (e) {
-        showToast('خطا در حذف کاربر: ' + e.message, 'error');
-    }
-}
-
-// Personal Alert Settings management
-async function loadMyAlerts() {
-    try {
-        const res = await apiFetch(`${API}/me/alerts`);
-        const data = await res.json();
-        
-        document.getElementById('myMailEnabled').checked = data.mail_enabled;
-        document.getElementById('myMailRecipients').value = data.mail_recipients || '';
-        document.getElementById('myTelegramEnabled').checked = data.telegram_enabled;
-        document.getElementById('myTelegramChatIds').value = data.telegram_chat_ids || '';
-    } catch (e) {
-        console.error('Error loading personal alert settings:', e);
-    }
-}
-
-async function saveMyAlerts() {
-    const payload = {
-        mail_enabled: document.getElementById('myMailEnabled').checked,
-        mail_recipients: document.getElementById('myMailRecipients').value.trim(),
-        telegram_enabled: document.getElementById('myTelegramEnabled').checked,
-        telegram_chat_ids: document.getElementById('myTelegramChatIds').value.trim()
-    };
-    
-    try {
-        await apiFetch(`${API}/me/alerts`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        showToast('تنظیمات اعلان شخصی با موفقیت ذخیره شد');
-    } catch (e) {
-        showToast('خطا در ذخیره تنظیمات: ' + e.message, 'error');
-    }
-}
-
-// --- Profile & Change Password Handlers ---
-
-function openProfileModal() {
+export function openProfileModal() {
     if (!window.currentUser) return;
     
     document.getElementById('p-username').textContent = window.currentUser.username;
@@ -4384,35 +2906,11 @@ function openProfileModal() {
     document.getElementById('profileModal').classList.add('open');
 }
 
-function closeProfileModal() {
+export function closeProfileModal() {
     document.getElementById('profileModal').classList.remove('open');
 }
 
-async function changeMyPassword() {
-    const newPass = document.getElementById('p-new-pass').value;
-    const confirmPass = document.getElementById('p-new-pass-confirm').value;
-    
-    if (!newPass) {
-        return showToast('رمز عبور جدید را وارد کنید', 'error');
-    }
-    if (newPass !== confirmPass) {
-        return showToast('رمز عبور جدید و تکرار آن مطابقت ندارند', 'error');
-    }
-    
-    try {
-        await apiFetch(`${API}/me/change-password`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ new_password: newPass })
-        });
-        showToast('رمز عبور با موفقیت تغییر یافت');
-        closeProfileModal();
-    } catch (e) {
-        showToast('خطا در تغییر رمز عبور: ' + e.message, 'error');
-    }
-}
-
-function update2FAUIState() {
+export function update2FAUIState() {
     const isEnabled = window.currentUser && window.currentUser.two_factor_enabled;
     const disabledSec = document.getElementById('p-2fa-disabled-section');
     const setupSec = document.getElementById('p-2fa-setup-section');
@@ -4432,102 +2930,20 @@ function update2FAUIState() {
     }
 }
 
-let activeQRCode = null;
-
-async function start2FASetup() {
-    try {
-        const res = await apiFetch(`${API}/auth/2fa/setup`, {
-            method: 'POST'
-        });
-        const data = await res.json();
-        
-        document.getElementById('p-2fa-disabled-section').style.display = 'none';
-        document.getElementById('p-2fa-setup-section').style.display = 'flex';
-        document.getElementById('p-2fa-manual-key').value = data.secret;
-        document.getElementById('p-2fa-verification-code').value = '';
-        
-        const qrContainer = document.getElementById('p-2fa-qrcode');
-        qrContainer.innerHTML = '';
-        
-        if (typeof QRCode !== 'undefined') {
-            activeQRCode = new QRCode(qrContainer, {
-                text: data.otpauth_url,
-                width: 160,
-                height: 160,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
-            });
-        } else {
-            qrContainer.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:20px 0;">خطا در بارگذاری کتابخانه QR Code. لطفاً دوباره تلاش کنید.</div>';
-        }
-    } catch (e) {
-        showToast('خطا در راه‌اندازی ورود دو مرحله‌ای: ' + e.message, 'error');
-    }
-}
-
-function cancel2FASetup() {
+export function cancel2FASetup() {
     const codeField = document.getElementById('p-2fa-verification-code');
     if (codeField) codeField.value = '';
     update2FAUIState();
 }
 
-async function verify2FAAndEnable() {
-    const code = document.getElementById('p-2fa-verification-code').value.trim();
-    if (code.length !== 6 || isNaN(code)) {
-        return showToast('لطفاً کد ۶ رقمی را به‌طور صحیح وارد کنید', 'error');
-    }
-    
-    try {
-        await apiFetch(`${API}/auth/2fa/verify-setup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code })
-        });
-        
-        showToast('ورود دو مرحله‌ای با موفقیت فعال شد');
-        window.currentUser.two_factor_enabled = true;
-        update2FAUIState();
-    } catch (e) {
-        showToast('خطا در تایید کد: ' + e.message, 'error');
-    }
-}
-
-function copy2FAKey() {
+export function copy2FAKey() {
     const keyInput = document.getElementById('p-2fa-manual-key');
     keyInput.select();
     navigator.clipboard.writeText(keyInput.value);
     showToast('کلید با موفقیت در حافظه کپی شد');
 }
 
-async function disable2FA() {
-    const password = document.getElementById('p-2fa-disable-password').value;
-    if (!password) {
-        return showToast('لطفاً برای غیرفعال‌سازی، رمز عبور خود را وارد کنید', 'error');
-    }
-    
-    try {
-        await apiFetch(`${API}/auth/2fa/disable`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password })
-        });
-        
-        showToast('ورود دو مرحله‌ای غیرفعال شد');
-        window.currentUser.two_factor_enabled = false;
-        update2FAUIState();
-    } catch (e) {
-        showToast('خطا در غیرفعال‌سازی: ' + e.message, 'error');
-    }
-}
-
-// --- Interactive FOV Editor & Dragging Handles ---
-
-let activeFovMarker = null;
-let activeFovCamera = null;
-let fovHandles = [];
-
-function selectMarkerForFov(marker, c) {
+export function selectMarkerForFov(marker, c) {
     clearActiveFovSelection();
     
     activeFovMarker = marker;
@@ -4559,20 +2975,20 @@ function selectMarkerForFov(marker, c) {
     }
 }
 
-function clearActiveFovSelection() {
+export function clearActiveFovSelection() {
     fovHandles.forEach(h => map.removeLayer(h));
     fovHandles = [];
     activeFovMarker = null;
     activeFovCamera = null;
 }
 
-function closeMapFovSection() {
+export function closeMapFovSection() {
     const panel = document.getElementById('map-fov-section');
     if (panel) panel.style.display = 'none';
     clearActiveFovSelection();
 }
 
-function spawnFovHandles() {
+export function spawnFovHandles() {
     fovHandles.forEach(h => map.removeLayer(h));
     fovHandles = [];
     
@@ -4606,7 +3022,7 @@ function spawnFovHandles() {
     rightHandle.on('dragend', () => saveFovFromHandles());
 }
 
-function getFlatAngle(center, pt) {
+export function getFlatAngle(center, pt) {
     const cy = center.lat !== undefined ? center.lat : center[0];
     const cx = center.lng !== undefined ? center.lng : center[1];
     const py = pt.lat !== undefined ? pt.lat : pt[0];
@@ -4621,7 +3037,7 @@ function getFlatAngle(center, pt) {
     return deg;
 }
 
-function getGeoAngle(center, pt) {
+export function getGeoAngle(center, pt) {
     const lat1 = (center.lat) * Math.PI / 180;
     const lng1 = (center.lng) * Math.PI / 180;
     const lat2 = (pt.lat) * Math.PI / 180;
@@ -4636,7 +3052,7 @@ function getGeoAngle(center, pt) {
     return brng;
 }
 
-function handleDrag(leftHandle, rightHandle) {
+export function handleDrag(leftHandle, rightHandle) {
     if (!activeFovMarker || !activeFovCamera) return;
     
     const c = activeFovCamera;
@@ -4689,75 +3105,14 @@ function handleDrag(leftHandle, rightHandle) {
     }
 }
 
-function saveFovFromHandles() {
+export function saveFovFromHandles() {
     if (!activeFovCamera) return;
     const c = activeFovCamera;
     saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
     spawnFovHandles();
 }
 
-async function toggleSidebarFov(enabled) {
-    if (!activeFovMarker || !activeFovCamera) return;
-    
-    const c = activeFovCamera;
-    const marker = activeFovMarker;
-    const slidersBlock = document.getElementById('sidebar-fov-sliders');
-    
-    if (enabled) {
-        slidersBlock.style.display = 'block';
-        c.fov_angle = 0;
-        c.fov_radius = mapType === 'floor' ? 80 : 50;
-        c.fov_spread = 60;
-        
-        document.getElementById('sidebar-fov-angle').value = c.fov_angle;
-        document.getElementById('lbl-sidebar-angle').textContent = `${c.fov_angle}°`;
-        document.getElementById('sidebar-fov-radius').value = c.fov_radius;
-        document.getElementById('lbl-sidebar-radius').textContent = c.fov_radius;
-        document.getElementById('sidebar-fov-spread').value = c.fov_spread;
-        document.getElementById('lbl-sidebar-spread').textContent = `${c.fov_spread}°`;
-        
-        if (marker.fovPolygon) {
-            map.removeLayer(marker.fovPolygon);
-        }
-        
-        const pts = calculateFovPoints(c, marker.getLatLng());
-        marker.fovPolygon = L.polygon(pts, {
-            color: '#ef4444',
-            fillColor: '#ef4444',
-            fillOpacity: 0.15,
-            weight: 1.5
-        }).addTo(map);
-        
-        spawnFovHandles();
-        saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
-    } else {
-        slidersBlock.style.display = 'none';
-        c.fov_angle = null;
-        c.fov_radius = null;
-        c.fov_spread = null;
-        
-        if (marker.fovPolygon) {
-            map.removeLayer(marker.fovPolygon);
-            marker.fovPolygon = null;
-        }
-        
-        fovHandles.forEach(h => map.removeLayer(h));
-        fovHandles = [];
-        
-        await apiFetch(`${API}/cameras/${c.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                fov_angle: null,
-                fov_radius: null,
-                fov_spread: null
-            })
-        });
-        showToast('محدوده دید دوربین غیرفعال شد');
-    }
-}
-
-function updateSidebarFovVal(field, value) {
+export function updateSidebarFovVal(field, value) {
     if (!activeFovMarker || !activeFovCamera) return;
     
     const c = activeFovCamera;
@@ -4784,21 +3139,7 @@ function updateSidebarFovVal(field, value) {
     saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
 }
 
-// --- SCHEDULED TASKS ---
-let scheduledTasksCache = [];
-
-async function loadScheduledTasks() {
-    try {
-        const res = await apiFetch(`${API}/scheduler/tasks`);
-        if (!res.ok) throw new Error("خطا در دریافت لیست تسک‌ها");
-        scheduledTasksCache = await res.json();
-        renderScheduledTasks();
-    } catch(e) {
-        showToast(e.message, 'error');
-    }
-}
-
-function displayPersianDateTime(isoStr) {
+export function displayPersianDateTime(isoStr) {
     if (!isoStr) return 'هرگز';
     try {
         const d = new Date(isoStr);
@@ -4808,7 +3149,7 @@ function displayPersianDateTime(isoStr) {
     }
 }
 
-function parseIntervalToUnit(seconds) {
+export function parseIntervalToUnit(seconds) {
     if (!seconds || seconds <= 0) return { val: 1, unit: 60 };
     if (seconds >= 86400 && seconds % 86400 === 0) {
         return { val: seconds / 86400, unit: 86400 };
@@ -4822,7 +3163,7 @@ function parseIntervalToUnit(seconds) {
     return { val: seconds, unit: 1 };
 }
 
-function formatInterval(seconds) {
+export function formatInterval(seconds) {
     if (!seconds || seconds <= 0) return '-';
     const units = [
         { label: 'روز', value: 86400 },
@@ -4843,7 +3184,7 @@ function formatInterval(seconds) {
     return parts.length ? parts.join(' و ') : '-';
 }
 
-function formatDuration(seconds) {
+export function formatDuration(seconds) {
     if (!seconds || seconds <= 0) return '-';
     if (seconds < 60) return `${Math.round(seconds)} ثانیه`;
     if (seconds < 3600) return `${Math.round(seconds / 60)} دقیقه`;
@@ -4852,56 +3193,7 @@ function formatDuration(seconds) {
     return m > 0 ? `${h} ساعت و ${m} دقیقه` : `${h} ساعت`;
 }
 
-const TASK_DETAILS = {
-    ping_cameras: [
-        'دریافت وضعیت Online/Offline همه دوربین‌ها از NVRها',
-        'ثبت رویداد قطعی برای دوربین‌های آفلاین و بستن رویدادهای بازیابی',
-        'به‌روزرسانی وضعیت NVR و دوربین‌ها در دیتابیس',
-        'ارسال هشدار تلگرام و ایمیل برای قطعی‌ها و بازیابی‌ها',
-        'ارسال گزارش خلاصه ساعتی قطعی‌ها'
-    ],
-    sync_nvr_configs: [
-        'دریافت تنظیمات ضبط (روشن/خاموش و نوع) از NVRها',
-        'به‌روزرسانی وضعیت ضبط و نوع آن برای هر دوربین',
-        'ثبت تغییرات وضعیت ضبط در تاریخچه رویدادها',
-        'همگام‌سازی خودکار نام دوربین‌ها'
-    ],
-    sync_nvr_stats: [
-        'جستجوی فایل‌های ویدئویی روی هارد NVR از ابتدا تاکنون',
-        'دریافت فراداده فایل‌های ۲۴ ساعت اخیر',
-        'محاسبه حجم کل داده‌های ضبط‌شده (GB)',
-        'محاسبه قدیمی‌ترین تاریخ ضبط و مجموع ساعات ضبط',
-        'محاسبه درصد پوشش ضبط در ۲۴ ساعت اخیر',
-        'به‌روزرسانی آمار ضبط هر دوربین در دیتابیس'
-    ],
-    sync_camera_names: [
-        'دریافت نام، IP و مدل دوربین‌ها از NVRها',
-        'به‌روزرسانی نام و IP دوربین‌ها در دیتابیس',
-        'تشخیص دوربین‌های جدید و افزودن خودکار به دیتابیس',
-        'تشخیص دوربین‌های حذف‌شده و پاک‌سازی خودکار',
-        'ثبت تغییرات ساختاری و ارسال هشدار'
-    ],
-    capture_camera_snapshots: [
-        'دریافت تصویر لحظه‌ای از sub-stream دوربین‌های آنلاین',
-        'ذخیره تصاویر در مسیر data/snapshots/camera_{id}.jpg',
-        'تهیه تصویر پیش‌نمایش برای نمایش در پنل وب'
-    ],
-    cleanup_database: [
-        'حذف خودکار لاگ‌های مانیتورینگ قدیمی‌تر از N روز',
-        'حذف رویدادهای قطعی بسته‌شده قدیمی',
-        'حذف نشست‌های کاربری منقضی‌شده',
-        'بهینه‌سازی حجم دیتابیس'
-    ],
-    analyze_outages: [
-        'بررسی قطعی‌های ۲۴ ساعت اخیر برای همه دوربین‌ها',
-        'محاسبه مجموع زمان قطعی هر دوربین',
-        'شناسایی دوربین‌های با قطعی بیش از آستانه تنظیم‌شده',
-        'ثبت رکورد قطعی نیازمند توضیح برای مدیران',
-        'تعیین مهلت توضیح برای قطعی‌های ثبت‌شده'
-    ]
-};
-
-function renderScheduledTasks() {
+export function renderScheduledTasks() {
     const container = document.getElementById('tasks-container');
     if (!container) return;
 
@@ -5007,91 +3299,13 @@ function renderScheduledTasks() {
     }).join('');
 }
 
-async function confirmRunTask(id, name) {
+export async function confirmRunTask(id, name) {
     if (await showConfirm(`آیا از اجرای دستی «${name}» اطمینان دارید؟`)) {
         runTask(id);
     }
 }
 
-async function runTask(id) {
-    try {
-        const res = await apiFetch(`${API}/scheduler/tasks/${id}/run`, { method: 'POST' });
-        if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.detail || "خطا در اجرای تسک");
-        }
-        showToast("درخواست اجرای تسک ارسال شد", "success");
-        loadScheduledTasks();
-    } catch(e) {
-        showToast(e.message, 'error');
-    }
-}
-
-async function stopTask(id) {
-    try {
-        const res = await apiFetch(`${API}/scheduler/tasks/${id}/stop`, { method: 'POST' });
-        if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.detail || "خطا در توقف تسک");
-        }
-        showToast("درخواست توقف تسک ارسال شد", "success");
-        loadScheduledTasks();
-    } catch(e) {
-        showToast(e.message, 'error');
-    }
-}
-
-async function saveTaskInterval(id) {
-    const valInput = document.getElementById(`interval-val-${id}`);
-    const unitSelect = document.getElementById(`interval-unit-${id}`);
-    if (!valInput || !unitSelect) return;
-    
-    const num = parseInt(valInput.value);
-    const unit = parseInt(unitSelect.value);
-    
-    if (isNaN(num) || num <= 0) {
-        showToast("مقدار دوره زمانی معتبر نیست", "error");
-        return;
-    }
-    
-    const interval = num * unit;
-
-    try {
-        const res = await apiFetch(`${API}/scheduler/tasks/${id}/interval`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ interval })
-        });
-        if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.detail || "خطا در ذخیره زمان‌بندی");
-        }
-        showToast("زمان‌بندی تسک با موفقیت به‌روزرسانی شد", "success");
-        loadScheduledTasks();
-    } catch(e) {
-        showToast(e.message, 'error');
-    }
-}
-
-async function toggleTask(id, enabled) {
-    try {
-        const res = await apiFetch(`${API}/scheduler/tasks/${id}/toggle`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_enabled: enabled })
-        });
-        if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.detail || "خطا در تغییر وضعیت تسک");
-        }
-        showToast(enabled ? "تسک فعال شد" : "تسک غیرفعال شد", "success");
-        loadScheduledTasks();
-    } catch(e) {
-        showToast(e.message, 'error');
-    }
-}
-
-function handleTaskStatusUpdate(task) {
+export function handleTaskStatusUpdate(task) {
     const idx = scheduledTasksCache.findIndex(t => t.id === task.id);
     if (idx !== -1) {
         scheduledTasksCache[idx] = task;
@@ -5108,27 +3322,7 @@ function handleTaskStatusUpdate(task) {
     }
 }
 
-// ===== GLOBAL SEARCH AND DROPDOWN =====
-async function warmUpSearchCache() {
-    try {
-        if (!nvrCache || nvrCache.length === 0) {
-            const nRes = await apiFetch(`${API}/nvrs`);
-            nvrCache = await nRes.json();
-        }
-        if (!groupCache || groupCache.length === 0) {
-            const gRes = await apiFetch(`${API}/groups`);
-            groupCache = await gRes.json();
-        }
-        if (!dashCamerasCache || dashCamerasCache.length === 0) {
-            const res = await apiFetch(`${API}/cameras`);
-            dashCamerasCache = await res.json();
-        }
-    } catch (e) {
-        console.error('Failed to warm up search cache:', e);
-    }
-}
-
-function toggleGlobalSearch(event) {
+export function toggleGlobalSearch(event) {
     if (event) event.stopPropagation();
     const dropdown = document.getElementById('global-search-dropdown');
     if (!dropdown) return;
@@ -5147,15 +3341,7 @@ function toggleGlobalSearch(event) {
     }
 }
 
-document.addEventListener('click', (e) => {
-    const container = document.querySelector('.global-search-container');
-    const dropdown = document.getElementById('global-search-dropdown');
-    if (container && dropdown && !container.contains(e.target)) {
-        dropdown.classList.add('hidden');
-    }
-});
-
-function onGlobalSearch(query) {
+export function onGlobalSearch(query) {
     const resultsContainer = document.getElementById('global-search-results');
     if (!resultsContainer) return;
 
@@ -5209,46 +3395,7 @@ function onGlobalSearch(query) {
     }).join('');
 }
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-            .then(reg => console.log('Service Worker registered', reg))
-            .catch(err => console.error('Service Worker registration failed', err));
-    });
-}
-
-// Outage Explanations UI logic
-let outagesCache = [];
-let outagesSelectedIds = [];
-let currentOutagePage = 1;
-const outagesPerPage = 15;
-let currentSuggestedCause = null;
-let currentSuggestedDetail = null;
-let isBulkExplanation = false;
-
-async function loadOutageExplanations() {
-    try {
-        const res = await apiFetch(`${API}/outage-explanations`);
-        outagesCache = await res.json();
-        
-        outagesSelectedIds = [];
-        currentOutagePage = 1;
-        updateOutagesBulkBar();
-
-        const selectAllChk = document.getElementById('outage-select-all');
-        if (selectAllChk) selectAllChk.checked = false;
-
-        // Populate the group filter dynamically
-        populateOutageGroupFilter();
-        
-        renderOutagesList();
-    } catch (e) {
-        console.error('Error loading outages:', e);
-        showToast('خطا در بارگذاری لیست رفع ابهام قطعی‌ها: ' + e.message, 'error');
-    }
-}
-
-function populateOutageGroupFilter() {
+export function populateOutageGroupFilter() {
     const sel = document.getElementById('outage-filter-group');
     if (!sel) return;
     
@@ -5269,11 +3416,11 @@ function populateOutageGroupFilter() {
     });
 }
 
-function filterOutages() {
+export function filterOutages() {
     renderOutagesList();
 }
 
-function renderOutagesList() {
+export function renderOutagesList() {
     const list = document.getElementById('outage-explanations-list');
     if (!list) return;
     
@@ -5396,7 +3543,7 @@ function renderOutagesList() {
     }).join('');
 }
 
-function renderOutagesPageButtons(totalPages) {
+export function renderOutagesPageButtons(totalPages) {
     const container = document.getElementById('outages-page-numbers');
     if (!container) return;
     container.innerHTML = '';
@@ -5425,12 +3572,12 @@ function renderOutagesPageButtons(totalPages) {
     }
 }
 
-function changeOutagesPage(direction) {
+export function changeOutagesPage(direction) {
     currentOutagePage += direction;
     renderOutagesList();
 }
 
-function onOutageRowCheckboxChange(id, checked) {
+export function onOutageRowCheckboxChange(id, checked) {
     if (checked) {
         if (!outagesSelectedIds.includes(id)) {
             outagesSelectedIds.push(id);
@@ -5441,7 +3588,7 @@ function onOutageRowCheckboxChange(id, checked) {
     updateOutagesBulkBar();
 }
 
-function toggleSelectAllOutages() {
+export function toggleSelectAllOutages() {
     const selectAllChk = document.getElementById('outage-select-all');
     if (!selectAllChk) return;
 
@@ -5461,7 +3608,7 @@ function toggleSelectAllOutages() {
     updateOutagesBulkBar();
 }
 
-function updateOutagesBulkBar() {
+export function updateOutagesBulkBar() {
     const bar = document.getElementById('outages-bulk-bar');
     const cnt = document.getElementById('outages-selected-count');
     if (!bar) return;
@@ -5474,7 +3621,7 @@ function updateOutagesBulkBar() {
     }
 }
 
-async function openExplanationModal(id) {
+export async function openExplanationModal(id) {
     isBulkExplanation = false;
     const o = outagesCache.find(x => x.id === id);
     if (!o) return;
@@ -5525,7 +3672,7 @@ async function openExplanationModal(id) {
     }
 }
 
-async function openBulkExplanationModal() {
+export async function openBulkExplanationModal() {
     if (outagesSelectedIds.length === 0) {
         showToast('هیچ موردی انتخاب نشده است', 'error');
         return;
@@ -5561,7 +3708,7 @@ async function openBulkExplanationModal() {
     }
 }
 
-function applySystemSuggestion() {
+export function applySystemSuggestion() {
     if (currentSuggestedCause) {
         const sel = document.getElementById('exp-type');
         if (sel) {
@@ -5588,7 +3735,7 @@ function applySystemSuggestion() {
     showToast('پیشنهاد هوشمند سیستم با موفقیت اعمال شد');
 }
 
-function closeExplanationModal() {
+export function closeExplanationModal() {
     const modal = document.getElementById('explanationModal');
     if (modal) {
         modal.classList.remove('open');
@@ -5596,47 +3743,7 @@ function closeExplanationModal() {
     }
 }
 
-async function submitExplanation() {
-    const explanation_type = document.getElementById('exp-type').value;
-    const explanation_detail = document.getElementById('exp-detail').value.trim();
-    
-    try {
-        if (isBulkExplanation) {
-            if (outagesSelectedIds.length === 0) {
-                showToast('هیچ موردی برای ثبت انتخاب نشده است', 'error');
-                return;
-            }
-            await apiFetch(`${API}/outage-explanations/bulk`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ids: outagesSelectedIds,
-                    explanation_type,
-                    explanation_detail
-                })
-            });
-            showToast('رفع ابهام دسته‌جمعی قطعی‌ها با موفقیت انجام شد');
-        } else {
-            const id = parseInt(document.getElementById('exp-outage-id').value);
-            await apiFetch(`${API}/outage-explanations/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ explanation_type, explanation_detail })
-            });
-            showToast('رفع ابهام قطعی با موفقیت انجام شد');
-        }
-        closeExplanationModal();
-        loadOutageExplanations();
-    } catch (e) {
-        showToast('خطا در ثبت رفع ابهام قطعی: ' + e.message, 'error');
-    }
-}
-
-// ===== DASHBOARD CUSTOMIZATION & DRAG-AND-DROP =====
-const SIZES = ['size-full', 'size-half', 'size-third'];
-const SIZE_LABELS = { 'size-full': '100%', 'size-half': '50%', 'size-third': '33%' };
-
-function cycleWidgetSize(widgetId) {
+export function cycleWidgetSize(widgetId) {
     const el = document.getElementById(widgetId);
     if (!el) return;
 
@@ -5662,49 +3769,12 @@ function cycleWidgetSize(widgetId) {
     }
 }
 
-const DEFAULT_WIDGET_ORDER = [
-    'widget-cam-stats',
-    'widget-nvr-stats',
-    'widget-nvr-health',
-    'widget-nvr-health-summary',
-    'widget-factory-summary',
-    'widget-off-recording',
-    'widget-camera-changes',
-    'widget-offline-section',
-    'widget-all-ok',
-    'widget-nvr-container',
-    'widget-important-cams',
-    'widget-chart-status',
-    'widget-chart-causes',
-    'widget-ping-summary'
-];
-
-const WIDGET_METADATA = {
-    'widget-cam-stats': { title: 'وضعیت دوربین‌ها', desc: 'نمایش تعداد کل، متصل و قطع دوربین‌ها' },
-    'widget-nvr-stats': { title: 'وضعیت NVRها', desc: 'نمایش تعداد کل، متصل و قطع دستگاه‌های NVR' },
-    'widget-nvr-health': { title: 'وضعیت سلامت NVRها', desc: 'نمایش اطلاعات سخت‌افزاری پردازنده، حافظه، دیسک‌ها و کارکرد NVRها' },
-    'widget-nvr-health-summary': { title: 'خلاصه وضعیت سلامت NVRها', desc: 'نمایش گزارش خلاصه سلامت و هشدارهای سخت‌افزاری تجهیزات ضبط' },
-    'widget-factory-summary': { title: 'خلاصه کارخانه‌ها', desc: 'نمایش آمار کلی کارخانجات' },
-    'widget-off-recording': { title: 'دوربین‌های ضبط خاموش', desc: 'لیست دوربین‌هایی که ضبط آن‌ها غیرفعال است به همراه جزئیات' },
-    'widget-camera-changes': { title: 'تغییرات اخیر دوربین‌ها', desc: 'نمایش لیست دوربین‌های حذف یا اضافه شده در ۲۴ ساعت و هفته/ماه اخیر' },
-    'widget-offline-section': { title: 'دوربین‌های قطع شده', desc: 'لیست سریع دوربین‌های دارای قطعی' },
-    'widget-all-ok': { title: 'سلامت شبکه', desc: 'نمایش وضعیت اتصالات در صورت عدم قطعی' },
-    'widget-nvr-container': { title: 'گروه‌بندی کارخانه‌ها و NVRها', desc: 'نمایش کامل دوربین‌ها به تفکیک کارخانه و NVR با فیلتر' },
-    'widget-important-cams': { title: 'دوربین‌های مهم', desc: 'نمایش دوربین‌های با سطح اهمیت «مهم»' },
-    'widget-chart-status': { title: 'نمودار وضعیت فعلی', desc: 'نمودار دوناتی درصد اتصالات و قطعی‌های فعلی' },
-    'widget-chart-causes': { title: 'نمودار علل قطعی', desc: 'نمودار میله‌ای تحلیل بیشترین علل قطعی تجهیزات' },
-    'widget-ping-summary': { title: 'پایداری و پینگ شبکه', desc: 'نمایش درصد پایداری SLA و میانگین پینگ اتصالات' }
-};
-
-let isDashEditMode = false;
-let draggedWidgetId = null;
-
-function initDashboardCustomization() {
+export function initDashboardCustomization() {
     loadDashboardLayout();
     initDragAndDropListeners();
 }
 
-function toggleDashEditMode(forceState) {
+export function toggleDashEditMode(forceState) {
     isDashEditMode = typeof forceState === 'boolean' ? forceState : !isDashEditMode;
     const dashSection = document.getElementById('dash');
     const btnEdit = document.getElementById('btn-edit-dash');
@@ -5729,14 +3799,14 @@ function toggleDashEditMode(forceState) {
     }
 }
 
-function enableDraggableWidgets(enable) {
+export function enableDraggableWidgets(enable) {
     const widgets = document.querySelectorAll('.dash-widget');
     widgets.forEach(w => {
         w.setAttribute('draggable', enable ? 'true' : 'false');
     });
 }
 
-function removeWidget(widgetId) {
+export function removeWidget(widgetId) {
     const el = document.getElementById(widgetId);
     if (el) {
         el.classList.add('widget-hidden');
@@ -5748,7 +3818,7 @@ function removeWidget(widgetId) {
     }
 }
 
-function addWidget(widgetId) {
+export function addWidget(widgetId) {
     const el = document.getElementById(widgetId);
     if (el) {
         el.classList.remove('widget-hidden');
@@ -5770,7 +3840,7 @@ function addWidget(widgetId) {
     }
 }
 
-function resetDashboardLayout() {
+export function resetDashboardLayout() {
     localStorage.removeItem('hikstatus_dashboard_layout');
     const container = document.getElementById('dash-widgets-container');
     
@@ -5789,7 +3859,7 @@ function resetDashboardLayout() {
     if (typeof showToast === 'function') showToast('چینش داشبورد به حالت اولیه بازنشانی شد');
 }
 
-function saveDashboardLayout() {
+export function saveDashboardLayout() {
     const container = document.getElementById('dash-widgets-container');
     if (!container) return;
     
@@ -5810,7 +3880,7 @@ function saveDashboardLayout() {
     localStorage.setItem('hikstatus_dashboard_layout', JSON.stringify(layout));
 }
 
-function loadDashboardLayout() {
+export function loadDashboardLayout() {
     const container = document.getElementById('dash-widgets-container');
     if (!container) return;
     
@@ -5841,7 +3911,7 @@ function loadDashboardLayout() {
     }
 }
 
-function initDragAndDropListeners() {
+export function initDragAndDropListeners() {
     const container = document.getElementById('dash-widgets-container');
     if (!container) return;
     
@@ -5883,7 +3953,7 @@ function initDragAndDropListeners() {
     });
 }
 
-function openAddWidgetModal() {
+export function openAddWidgetModal() {
     updateAddWidgetModalContent();
     const modal = document.getElementById('modal-add-widget');
     if (modal) {
@@ -5894,7 +3964,7 @@ function openAddWidgetModal() {
     }
 }
 
-function closeAddWidgetModal() {
+export function closeAddWidgetModal() {
     const modal = document.getElementById('modal-add-widget');
     if (modal) {
         modal.classList.remove('open');
@@ -5904,7 +3974,7 @@ function closeAddWidgetModal() {
     }
 }
 
-function updateAddWidgetModalContent() {
+export function updateAddWidgetModalContent() {
     const listEl = document.getElementById('add-widget-list');
     if (!listEl) return;
     
@@ -5941,12 +4011,12 @@ function updateAddWidgetModalContent() {
     }).join('');
 }
 
-function toPersianNumbers(str) {
+export function toPersianNumbers(str) {
     const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
     return String(str).replace(/[0-9]/g, (w) => persianDigits[+w]);
 }
 
-function formatTimeAgo(dateStr) {
+export function formatTimeAgo(dateStr) {
     if (!dateStr) return 'هرگز';
     const now = new Date();
     const lastRun = new Date(dateStr);
@@ -5965,7 +4035,7 @@ function formatTimeAgo(dateStr) {
     return toPersianNumbers(`${diffHours} ساعت و ${remMins} دقیقه پیش`);
 }
 
-function formatHddInfo(hddJsonStr) {
+export function formatHddInfo(hddJsonStr) {
     if (!hddJsonStr) return '💿 اطلاعات هارد: نامشخص';
     try {
         const hdds = JSON.parse(hddJsonStr);
@@ -5992,7 +4062,7 @@ function formatHddInfo(hddJsonStr) {
     }
 }
 
-function renderNvrHealthWidget() {
+export function renderNvrHealthWidget() {
     const listEl = document.getElementById('nvr-health-list');
     if (!listEl) return;
 
@@ -6058,7 +4128,7 @@ function renderNvrHealthWidget() {
     listEl.innerHTML = html;
 }
 
-function renderNvrHealthSummaryWidget() {
+export function renderNvrHealthSummaryWidget() {
     const contentEl = document.getElementById('nvr-health-summary-content');
     if (!contentEl) return;
 
@@ -6138,7 +4208,7 @@ function renderNvrHealthSummaryWidget() {
     `;
 }
 
-function renderImportantCamerasWidget() {
+export function renderImportantCamerasWidget() {
     const grid = document.getElementById('important-cams-grid');
     const countBadge = document.getElementById('important-cams-count');
     if (!grid) return;
@@ -6159,7 +4229,7 @@ function renderImportantCamerasWidget() {
     grid.innerHTML = importantCams.map(c => createCard(c)).join('');
 }
 
-async function renderOffCamerasWidget() {
+export async function renderOffCamerasWidget() {
     const listEl = document.getElementById('off-recording-list');
     if (!listEl) return;
     
@@ -6187,12 +4257,7 @@ async function renderOffCamerasWidget() {
     }
 }
 
-let changesFilterPeriod = '24h';
-let changesFilterAction = 'all';
-let changesCache = null;
-let offRecordingCache = null;
-
-function setChangesFilter(type, value) {
+export function setChangesFilter(type, value) {
     if (value === 'off_recording') {
         changesFilterAction = 'off_recording';
         document.querySelectorAll('[data-cf-period]').forEach(b => b.classList.remove('active'));
@@ -6211,7 +4276,7 @@ function setChangesFilter(type, value) {
     renderFilteredCameraChanges();
 }
 
-function renderFilteredCameraChanges() {
+export function renderFilteredCameraChanges() {
     const listEl = document.getElementById('changes-list');
     if (!listEl) return;
 
@@ -6267,17 +4332,7 @@ function renderFilteredCameraChanges() {
     }).join('');
 }
 
-async function prefetchOffRecording() {
-    try {
-        const res = await apiFetch(`${API}/cameras/off`);
-        offRecordingCache = await res.json();
-        if (changesFilterAction === 'off_recording') renderFilteredCameraChanges();
-    } catch (e) {
-        console.error('Error prefetching off recording:', e);
-    }
-}
-
-async function renderCameraChangesWidget() {
+export async function renderCameraChangesWidget() {
     const listEl = document.getElementById('changes-list');
     if (!listEl) return;
     
@@ -6294,11 +4349,7 @@ async function renderCameraChangesWidget() {
     }
 }
 
-let dashChartStatusInstance = null;
-let dashChartCausesInstance = null;
-let lastCausesFetchTime = 0;
-
-function renderDashboardCharts() {
+export function renderDashboardCharts() {
     if (typeof Chart === 'undefined') return;
 
     // Status Chart
@@ -6367,9 +4418,7 @@ function renderDashboardCharts() {
     }
 }
 
-// ===== EDIT GROUP AND USER MODALS =====
-
-function openEditGroupModal(id) {
+export function openEditGroupModal(id) {
     const group = groupCache.find(g => g.id === id);
     if (!group) return showToast('کارخانه پیدا نشد', 'error');
     
@@ -6380,37 +4429,11 @@ function openEditGroupModal(id) {
     document.getElementById('editGroupModal').classList.add('open');
 }
 
-function closeEditGroupModal() {
+export function closeEditGroupModal() {
     document.getElementById('editGroupModal').classList.remove('open');
 }
 
-async function saveGroupEdit() {
-    const id = document.getElementById('editGroupId').value;
-    const name = document.getElementById('editGroupName').value.trim();
-    const description = document.getElementById('editGroupDesc').value.trim();
-    
-    if (!name) return showToast('نام کارخانه الزامی است', 'error');
-    
-    try {
-        await apiFetch(`${API}/groups/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description })
-        });
-        showToast('کارخانه با موفقیت ویرایش شد');
-        closeEditGroupModal();
-        
-        // Refresh groups cache and reload settings
-        const gRes = await apiFetch(`${API}/groups`);
-        groupCache = await gRes.json();
-        renderGroupsList();
-        loadSettings('sec-groups'); // keeps the groups tab active
-    } catch (e) {
-        showToast('خطا در ویرایش کارخانه: ' + e.message, 'error');
-    }
-}
-
-function populateEditInspectorGroupsList() {
+export function populateEditInspectorGroupsList() {
     const listCon = document.getElementById('edit-inspector-groups-list');
     if (!listCon) return;
     if (!groupCache || groupCache.length === 0) {
@@ -6426,12 +4449,12 @@ function populateEditInspectorGroupsList() {
     updateEditInspectorSelectAllState();
 }
 
-function toggleAllEditInspectorGroups(checked) {
+export function toggleAllEditInspectorGroups(checked) {
     const checkboxes = document.querySelectorAll('.edit-inspector-group-cb');
     checkboxes.forEach(cb => cb.checked = checked);
 }
 
-function updateEditInspectorSelectAllState() {
+export function updateEditInspectorSelectAllState() {
     const checkboxes = document.querySelectorAll('.edit-inspector-group-cb');
     const selectAllCb = document.getElementById('edit-inspector-select-all');
     if (!selectAllCb || checkboxes.length === 0) return;
@@ -6439,7 +4462,7 @@ function updateEditInspectorSelectAllState() {
     selectAllCb.checked = allChecked;
 }
 
-function openEditUserModal(id) {
+export function openEditUserModal(id) {
     const user = usersCache.find(u => u.id === id);
     if (!user) return showToast('کاربر پیدا نشد', 'error');
 
@@ -6477,11 +4500,11 @@ function openEditUserModal(id) {
     document.getElementById('editUserModal').classList.add('open');
 }
 
-function closeEditUserModal() {
+export function closeEditUserModal() {
     document.getElementById('editUserModal').classList.remove('open');
 }
 
-function onEditUserRoleChange() {
+export function onEditUserRoleChange() {
     const role = document.getElementById('editUserRole').value;
     const groupCon = document.getElementById('edit-user-group-container');
     const inspectorCon = document.getElementById('edit-inspector-groups-container');
@@ -6494,55 +4517,5 @@ function onEditUserRoleChange() {
     } else {
         if (groupCon) groupCon.style.display = 'block';
         if (inspectorCon) inspectorCon.style.display = 'none';
-    }
-}
-
-async function saveUserEdit() {
-    const id = document.getElementById('editUserId').value;
-    const password = document.getElementById('editUserPass').value;
-    const role = document.getElementById('editUserRole').value;
-    const grpVal = document.getElementById('editUserGroup').value;
-    const isActive = document.getElementById('editUserActive').checked;
-    
-    let accessible_group_ids = null;
-    let group_id = null;
-    if (role === 'inspector' || role === 'it_manager') {
-        const checkedCbs = Array.from(document.querySelectorAll('.edit-inspector-group-cb:checked')).map(cb => cb.value);
-        const allCbs = document.querySelectorAll('.edit-inspector-group-cb');
-        if (checkedCbs.length > 0 && checkedCbs.length < allCbs.length) {
-            accessible_group_ids = checkedCbs.join(',');
-            group_id = parseInt(checkedCbs[0]);
-        } else if (checkedCbs.length === allCbs.length) {
-            accessible_group_ids = null;
-            group_id = checkedCbs[0] ? parseInt(checkedCbs[0]) : null;
-        } else if (checkedCbs.length === 0) {
-            accessible_group_ids = '0';
-            group_id = null;
-        }
-    } else if (role !== 'admin' && grpVal) {
-        group_id = parseInt(grpVal);
-    }
-
-    const payload = {
-        role,
-        group_id,
-        accessible_group_ids,
-        is_active: isActive
-    };
-    if (password) {
-        payload.password = password;
-    }
-
-    try {
-        await apiFetch(`${API}/users/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        showToast('کاربر با موفقیت ویرایش شد');
-        closeEditUserModal();
-        loadUsers();
-    } catch (e) {
-        showToast('خطا در ویرایش کاربر: ' + e.message, 'error');
     }
 }
