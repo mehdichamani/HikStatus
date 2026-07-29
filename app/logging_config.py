@@ -63,7 +63,7 @@ def log_event(
     Centralized logging function. Log to terminal/files via loguru
     and persist structured audit log to database if session is provided.
     """
-    from database import Log
+    from app.database import Log
 
     # 1. Terminal / File logging (loguru)
     msg = f"[{category}:{action}] {details}"

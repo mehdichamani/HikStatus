@@ -6,14 +6,14 @@ from datetime import datetime, timedelta
 import unittest.mock as mock
 
 import main
+from app import database
 from main import get_session, require_auth, require_control, require_admin
-from database import (
+from app.database import (
     Camera, DowntimeEvent, OutageExplanation, OutageCause, User,
     NVRGroup, NVR, Settings, UserSession, MapPlan, ScheduledTask, hash_password
 )
-import database
-import monitor
-import scheduler
+from app.services import monitor
+from app.services import scheduler
 
 # پایگاه‌داده تست موقت در دایرکتوری داده
 test_sqlite_url = "sqlite:///data/test_endpoints_temp.db"

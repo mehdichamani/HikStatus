@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 import time
 from typing import Optional
 from sqlmodel import Session, select
-from database import engine, ScheduledTask, Log
-from logging_config import logger, log_event
-from monitor import task_ping_cameras, task_sync_nvr_configs, task_sync_nvr_stats, task_sync_nvr_health, task_cleanup_database, task_capture_camera_snapshots, task_analyze_outages, broadcast
+from app.database import engine, ScheduledTask, Log
+from app.logging_config import logger, log_event
+from app.services.monitor import task_ping_cameras, task_sync_nvr_configs, task_sync_nvr_stats, task_sync_nvr_health, task_cleanup_database, task_capture_camera_snapshots, task_analyze_outages, broadcast
 
 TASK_FUNCTIONS = {
     "ping_cameras": task_ping_cameras,
@@ -156,7 +156,7 @@ class TaskScheduler:
                     db_task.last_error = error_msg
                     # Schedule next run based on interval
                     if db_task.id == "analyze_outages":
-                        from database import Settings
+                        from app.database import Settings
                         days_str = "5,6,0,1,2,3"
                         time_str = "07:30"
                         s_days = session.get(Settings, "OUTAGE_ANALYSIS_DAYS")

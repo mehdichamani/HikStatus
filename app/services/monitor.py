@@ -8,9 +8,9 @@ from datetime import datetime, timedelta
 
 from requests.auth import HTTPDigestAuth
 from sqlmodel import Session, select
-from database import engine, NVR, NVRGroup, Camera, CameraChangeEvent, Log, Settings, DowntimeEvent, UserSession, OutageExplanation
-from alerts import send_email_batch, send_telegram_batch, send_change_alert, is_notification_enabled
-from logging_config import logger, log_event
+from app.database import engine, NVR, NVRGroup, Camera, CameraChangeEvent, Log, Settings, DowntimeEvent, UserSession, OutageExplanation
+from app.services.alerts import send_email_batch, send_telegram_batch, send_change_alert, is_notification_enabled
+from app.logging_config import logger, log_event
 
 
 _XML_STREAM_THRESHOLD = 1_000_000  # 1MB
@@ -52,7 +52,7 @@ def get_setting(session, key, default):
     return s.value if s else default
 
 def sync_camera_names_from_nvr(ip, user, password, session=None):
-    from database import decrypt_password
+    from app.database import decrypt_password
     password = decrypt_password(password)
     parts = ip.split(':')
     host = parts[0]
@@ -1215,7 +1215,7 @@ async def task_capture_camera_snapshots():
         logger.info(f"Capturing snapshots for {len(cameras)} cameras in parallel...")
         await asyncio.gather(*[capture_one(cam) for cam in cameras])
 async def task_analyze_outages(override_now: Optional[datetime] = None):
-    from database import Settings, DowntimeEvent, Camera, NVR, OutageExplanation
+    from app.database import Settings, DowntimeEvent, Camera, NVR, OutageExplanation
     from sqlmodel import select
     from datetime import datetime, timedelta
     from collections import defaultdict
@@ -1345,7 +1345,7 @@ async def start_monitor_loop():
     logger.info("Monitor loop started (via scheduler)...")
     with Session(engine) as session:
         log_event(session, category="System", action="SERVICE_STARTED", details="راه‌اندازی سرویس مانیتورینگ (توسط زمان‌بند)", level="INFO")
-    from scheduler import scheduler
+    from app.services.scheduler import scheduler
     try:
         await scheduler.start()
     except asyncio.CancelledError:

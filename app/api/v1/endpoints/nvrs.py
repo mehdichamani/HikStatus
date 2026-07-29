@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlmodel import Session, select
 import re
 
-from database import NVR, Camera, DowntimeEvent, NVRGroup, get_session, encrypt_password, decrypt_password, CameraChangeEvent
-from logging_config import log_event
+from app.database import NVR, Camera, DowntimeEvent, NVRGroup, get_session, encrypt_password, decrypt_password, CameraChangeEvent
+from app.logging_config import log_event
 
 router = APIRouter()
 

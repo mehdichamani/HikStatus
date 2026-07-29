@@ -5,8 +5,8 @@ from sqlmodel import Session, select
 from typing import Optional
 from urllib.parse import quote
 
-from database import Camera, NVR, get_session, decrypt_password
-from rate_limiter import max_connections
+from app.database import Camera, NVR, get_session, decrypt_password
+from app.rate_limiter import max_connections
 from app.services.hikvision_service import fetch_camera_snapshot, gen_frames_ffmpeg
 
 router = APIRouter()
@@ -309,7 +309,7 @@ def get_off_cameras_endpoint_v1(
     except TypeError:
         user = auth_fn()
 
-    from camera_stats import get_off_cameras
+    from app.services.camera_stats import get_off_cameras
     accessible_groups = main.get_user_accessible_groups(user, session)
     return get_off_cameras(session, accessible_groups)
 
@@ -326,6 +326,6 @@ def get_camera_changes_endpoint_v1(
     except TypeError:
         user = auth_fn()
 
-    from camera_stats import get_camera_changes
+    from app.services.camera_stats import get_camera_changes
     accessible_groups = main.get_user_accessible_groups(user, session)
     return get_camera_changes(session, accessible_groups)
