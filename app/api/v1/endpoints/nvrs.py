@@ -47,9 +47,15 @@ def create_nvr(
     session: Session = Depends(get_session)
 ):
     import main
+    auth_fn = main.app.dependency_overrides.get(main.require_auth, main.require_auth)
     admin_fn = main.app.dependency_overrides.get(main.require_admin, main.require_admin)
     try:
-        user = admin_fn(request, response, session)
+        user = auth_fn(request, response, session)
+    except TypeError:
+        user = auth_fn()
+
+    try:
+        user = admin_fn(user)
     except TypeError:
         user = admin_fn()
 
@@ -88,9 +94,15 @@ def delete_nvr(
     session: Session = Depends(get_session)
 ):
     import main
+    auth_fn = main.app.dependency_overrides.get(main.require_auth, main.require_auth)
     admin_fn = main.app.dependency_overrides.get(main.require_admin, main.require_admin)
     try:
-        user = admin_fn(request, response, session)
+        user = auth_fn(request, response, session)
+    except TypeError:
+        user = auth_fn()
+
+    try:
+        user = admin_fn(user)
     except TypeError:
         user = admin_fn()
 
@@ -129,9 +141,15 @@ def update_nvr(
     session: Session = Depends(get_session)
 ):
     import main
+    auth_fn = main.app.dependency_overrides.get(main.require_auth, main.require_auth)
     admin_fn = main.app.dependency_overrides.get(main.require_admin, main.require_admin)
     try:
-        user = admin_fn(request, response, session)
+        user = auth_fn(request, response, session)
+    except TypeError:
+        user = auth_fn()
+
+    try:
+        user = admin_fn(user)
     except TypeError:
         user = admin_fn()
 
