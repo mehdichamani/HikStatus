@@ -17,7 +17,7 @@ export async function apiFetch(url, options = {}) {
     } catch (e) {
         console.error('API Error:', e);
         if (e instanceof TypeError || e.message === 'Failed to fetch' || e.name === 'TypeError') {
-            setConnectionStatus(false);
+            window.setConnectionStatus(false);
         }
         throw e;
     }
@@ -25,26 +25,26 @@ export async function apiFetch(url, options = {}) {
 
 export async function fetchDash() {
     try {
-        const nRes = await apiFetch(`${API}/nvrs`);
+        const nRes = await window.apiFetch(`${API}/nvrs`);
         window.nvrCache = await nRes.json();
     } catch (e) {
         console.error('Error loading NVRs:', e);
     }
     try {
-        const gRes = await apiFetch(`${API}/groups`);
+        const gRes = await window.apiFetch(`${API}/groups`);
         window.groupCache = await gRes.json();
     } catch (e) {
         console.error('Error loading Groups:', e);
     }
     try {
-        const tRes = await apiFetch(`${API}/scheduler/tasks`);
+        const tRes = await window.apiFetch(`${API}/scheduler/tasks`);
         if (tRes.ok) {
             window.scheduledTasksCache = await tRes.json();
         }
     } catch (e) {
         console.error('Error loading Tasks:', e);
     }
-    const res = await apiFetch(`${API}/cameras`);
+    const res = await window.apiFetch(`${API}/cameras`);
     const cams = await res.json();
 
     window.updateDashFromWS(cams);
@@ -66,10 +66,10 @@ export async function loadSettings(activeTabOverride = null) {
     // 3. Parallelize fetches to load data instantly
     let settingsPromise = Promise.resolve([]);
     if (role === 'admin') {
-        settingsPromise = apiFetch(`${API}/settings`).then(res => res.json());
+        settingsPromise = window.apiFetch(`${API}/settings`).then(res => res.json());
     }
-    const groupsPromise = apiFetch(`${API}/groups`).then(res => res.json()).catch(() => []);
-    const nvrsPromise = apiFetch(`${API}/nvrs`).then(res => res.json()).catch(() => []);
+    const groupsPromise = window.apiFetch(`${API}/groups`).then(res => res.json()).catch(() => []);
+    const nvrsPromise = window.apiFetch(`${API}/nvrs`).then(res => res.json()).catch(() => []);
 
     const [settings, groups, nvrs] = await Promise.all([settingsPromise, groupsPromise, nvrsPromise]);
     window.settingsCache = settings;
@@ -121,7 +121,7 @@ export async function loadSettings(activeTabOverride = null) {
                         </svg>
                     </button>
                     <h3>تنظیمات ${grp}</h3>
-                    ${hasTestBtn ? `<button class="btn btn-ghost" style="padding:4px 12px; font-size:11px; margin-right: auto;" onclick="testConn('${engKey.toLowerCase()}')">تست اتصال</button>` : ''}
+                    ${hasTestBtn ? `<button class="btn btn-ghost" style="padding:4px 12px; font-size:11px; margin-right: auto;" onclick="window.testConn('${engKey.toLowerCase()}')">تست اتصال</button>` : ''}
                 </div>`;
 
             // 1. Add Master toggle if it exists
@@ -197,7 +197,7 @@ export async function loadSettings(activeTabOverride = null) {
                     <label class="form-label" style="font-weight: bold; font-size: 14px;">مدیریت علت‌های قطعی (رفع ابهام)</label>
                     <div style="display: flex; gap: 8px; margin-top: 10px; margin-bottom: 15px;">
                         <input id="new-cause-name" class="form-input" placeholder="علت جدید (مثال: قطع فیبر نوری)" style="flex: 1;">
-                        <button class="btn btn-primary" onclick="addOutageCause()" style="padding: 8px 16px;">افزودن علت</button>
+                        <button class="btn btn-primary" onclick="window.addOutageCause()" style="padding: 8px 16px;">افزودن علت</button>
                     </div>
                     <div id="causes-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
                         <!-- Dynamically populated -->
@@ -206,7 +206,7 @@ export async function loadSettings(activeTabOverride = null) {
             }
 
             html += `<div class="settings-action-row">
-                    <button class="btn btn-primary" onclick="apply()">ذخیره و اعمال تنظیمات</button>
+                    <button class="btn btn-primary" onclick="window.apply()">ذخیره و اعمال تنظیمات</button>
                 </div>
             </div>`;
             con.innerHTML += html;
@@ -233,11 +233,11 @@ export async function loadSettings(activeTabOverride = null) {
 
     // Re-run active tab rendering if an override is active
     if (activeTabOverride) {
-        switchSettingsTab(activeTabOverride);
+        window.switchSettingsTab(activeTabOverride);
     }
 
     if (window.currentUser && window.currentUser.role === 'admin') {
-        loadOutageCauses();
+        window.loadOutageCauses();
     }
 }
 
@@ -249,7 +249,7 @@ export async function saveAll(silent = false) {
             let val = el.value;
             if (el.type === 'checkbox') val = el.checked ? 'true' : 'false';
             if (val !== s.value) {
-                await apiFetch(`${API}/settings/${s.key}`, {
+                await window.apiFetch(`${API}/settings/${s.key}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ key: s.key, value: val })
@@ -266,8 +266,8 @@ export async function saveAll(silent = false) {
 
 export async function apply() {
     try {
-        await saveAll(true);
-        await apiFetch(`${API}/monitor/restart`, { method: 'POST' });
+        await window.saveAll(true);
+        await window.apiFetch(`${API}/monitor/restart`, { method: 'POST' });
         window.showToast('تنظیمات با موفقیت ذخیره شد و مانیتورینگ ریستارت گردید', 'success');
 
         // Find currently visible tab by checking which card is displayed
@@ -292,12 +292,12 @@ export async function loadOutageCauses() {
     if (!list) return;
 
     try {
-        const res = await apiFetch(`/api/v1/outage-causes`);
+        const res = await window.apiFetch(`/api/v1/outage-causes`);
         const causes = await res.json();
 
         list.innerHTML = causes.map(c => {
             const statusText = c.is_active ? '' : ' (غیرفعال شده)';
-            const actionBtn = `<button class="btn btn-ghost" onclick="deleteOutageCause(${c.id})" style="color: var(--danger); padding: 2px 8px; font-size: 11px;">حذف</button>`;
+            const actionBtn = `<button class="btn btn-ghost" onclick="window.deleteOutageCause(${c.id})" style="color: var(--danger); padding: 2px 8px; font-size: 11px;">حذف</button>`;
             return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
                 <span style="font-size: 13px; ${c.is_active ? '' : 'color: var(--text-muted); text-decoration: line-through;'}">${c.name}${statusText}</span>
                 ${c.is_active ? actionBtn : ''}
@@ -314,7 +314,7 @@ export async function addOutageCause() {
     if (!name) return window.showToast('نام علت را وارد کنید', 'error');
 
     try {
-        const res = await apiFetch(`/api/v1/outage-causes`, {
+        const res = await window.apiFetch(`/api/v1/outage-causes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name })
@@ -325,7 +325,7 @@ export async function addOutageCause() {
         }
         window.showToast('علت جدید با موفقیت اضافه شد');
         input.value = '';
-        loadOutageCauses();
+        window.loadOutageCauses();
     } catch (e) {
         window.showToast(e.message, 'error');
     }
@@ -334,10 +334,10 @@ export async function addOutageCause() {
 export async function deleteOutageCause(id) {
     if (!await window.showConfirm('آیا از حذف/غیرفعال‌سازی این علت قطعی اطمینان دارید؟')) return;
     try {
-        const res = await apiFetch(`/api/v1/outage-causes/${id}`, { method: 'DELETE' });
+        const res = await window.apiFetch(`/api/v1/outage-causes/${id}`, { method: 'DELETE' });
         const data = await res.json();
         window.showToast(data.message);
-        loadOutageCauses();
+        window.loadOutageCauses();
     } catch (e) {
         window.showToast(e.message, 'error');
     }
@@ -345,7 +345,7 @@ export async function deleteOutageCause(id) {
 
 export async function testConn(type) {
     try {
-        await apiFetch(`/api/v1/test/${type}`, { method: 'POST' });
+        await window.apiFetch(`/api/v1/test/${type}`, { method: 'POST' });
         window.showToast('تست موفق');
     } catch (e) {
         window.showToast('تست ناموفق: ' + e.message, 'error');
@@ -366,7 +366,7 @@ export async function addNVR() {
 
     if (!ip || !u) return window.showToast('IP و نام کاربری الزامی است', 'error');
 
-    await apiFetch(`${API}/nvrs`, {
+    await window.apiFetch(`${API}/nvrs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name || null, ip, user: u, password: p || null, enabled: true, rtsp_port: rtspPort, group_id: groupId })
@@ -382,12 +382,12 @@ export async function addNVR() {
 
 export async function toggleNVRenabled(ip, enabled) {
     try {
-        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
+        await window.apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled })
         });
-        const nRes = await apiFetch(`${API}/nvrs`);
+        const nRes = await window.apiFetch(`${API}/nvrs`);
         window.nvrCache = await nRes.json();
         document.getElementById('nvr-list').innerHTML = window.nvrCache.map(n => window.renderNVRRow(n)).join('');
         window.showToast(enabled ? 'NVR فعال شد' : 'NVR غیرفعال شد');
@@ -402,7 +402,7 @@ export async function addGroup() {
     if (!name) return window.showToast('نام کارخانه الزامی است', 'error');
 
     try {
-        await apiFetch(`${API}/groups`, {
+        await window.apiFetch(`${API}/groups`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, description: desc || null })
@@ -412,7 +412,7 @@ export async function addGroup() {
         window.showToast('کارخانه با موفقیت اضافه شد');
 
         // Refresh groups
-        const gRes = await apiFetch(`${API}/groups`);
+        const gRes = await window.apiFetch(`${API}/groups`);
         window.groupCache = await gRes.json();
         window.renderGroupsList();
     } catch (e) {
@@ -423,11 +423,11 @@ export async function addGroup() {
 export async function deleteGroup(id) {
     if (!await window.showConfirm('آیا از حذف این کارخانه اطمینان دارید؟ NVRهای این کارخانه بدون گروه خواهند شد.')) return;
     try {
-        await apiFetch(`${API}/groups/${id}`, { method: 'DELETE' });
+        await window.apiFetch(`${API}/groups/${id}`, { method: 'DELETE' });
         window.showToast('کارخانه حذف شد');
 
         // Refresh groups and reload settings (to refresh NVR dropdowns)
-        const gRes = await apiFetch(`${API}/groups`);
+        const gRes = await window.apiFetch(`${API}/groups`);
         window.groupCache = await gRes.json();
         await window.loadSettings();
     } catch (e) {
@@ -437,7 +437,7 @@ export async function deleteGroup(id) {
 
 export async function updateNVRGroup(ip, groupId) {
     try {
-        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
+        await window.apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ group_id: groupId ? parseInt(groupId) : null })
@@ -445,7 +445,7 @@ export async function updateNVRGroup(ip, groupId) {
         window.showToast('کارخانه NVR به‌روزرسانی شد');
 
         // Update local nvrCache
-        const nRes = await apiFetch(`${API}/nvrs`);
+        const nRes = await window.apiFetch(`${API}/nvrs`);
         window.nvrCache = await nRes.json();
     } catch (e) {
         window.showToast('خطا در به‌روزرسانی کارخانه NVR: ' + e.message, 'error');
@@ -454,7 +454,7 @@ export async function updateNVRGroup(ip, groupId) {
 
 export async function applyNVRDelete(ip) {
     try {
-        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, { method: 'DELETE' });
+        await window.apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, { method: 'DELETE' });
         window.pendingNVRDeletes.delete(ip);
         window.showToast('NVR با موفقیت حذف شد');
         await window.loadSettings();
@@ -501,7 +501,7 @@ export async function saveNVRRow(ip) {
     }
 
     try {
-        await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
+        await window.apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -509,7 +509,7 @@ export async function saveNVRRow(ip) {
         window.showToast('NVR با موفقیت به‌روزرسانی شد');
 
         // Refresh local cache and UI
-        const nRes = await apiFetch(`${API}/nvrs`);
+        const nRes = await window.apiFetch(`${API}/nvrs`);
         window.nvrCache = await nRes.json();
 
         await window.loadSettings();
@@ -521,7 +521,7 @@ export async function saveNVRRow(ip) {
 export async function purgeDatabase() {
     if (!await window.showConfirm('توجه: تمامی اطلاعات دیتابیس (دوربین‌ها، NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات) به طور کامل پاک خواهند شد. آیا مطمئن هستید؟')) return;
     try {
-        await apiFetch(`${API}/data/purge`, { method: 'POST' });
+        await window.apiFetch(`${API}/data/purge`, { method: 'POST' });
         window.showToast('پاکسازی کامل دیتابیس با موفقیت انجام شد');
         setTimeout(() => location.reload(), 1000);
     } catch (e) {
@@ -607,7 +607,7 @@ export function resetLogs() {
     document.getElementById('log-list').innerHTML = '';
     logOff = 0;
     allLoaded = false;
-    fetchLogs();
+    window.fetchLogs();
 }
 
 export async function fetchLogs() {
@@ -620,13 +620,13 @@ export async function fetchLogs() {
     if (logLevelFilter && logLevelFilter !== 'all') url += `&level=${encodeURIComponent(logLevelFilter)}`;
     if (logSearchVal) url += `&q=${encodeURIComponent(logSearchVal)}`;
 
-    const res = await apiFetch(url);
+    const res = await window.apiFetch(url);
     const logs = await res.json();
 
     if (logs.length < 30) allLoaded = true;
 
     document.getElementById('log-list').insertAdjacentHTML('beforeend', logs.map(l => {
-        let detail = translateLogDetails(l.details);
+        let detail = window.translateLogDetails(l.details);
         if (detail.includes('mins')) detail = `<span class="downtime-tag">${detail.match(/\d+m/)}</span> ` + detail;
 
         const level = (l.level || 'INFO').toUpperCase();
@@ -661,15 +661,15 @@ export async function fetchLogs() {
 }
 
 export async function genReport() {
-    toggleReportSection(false);
+    window.toggleReportSection(false);
 
     const startVal = document.getElementById('startDt').value;
     const endVal = document.getElementById('endDt').value;
-    if (!startVal || !endVal) return showToast('محدوده زمانی را انتخاب کنید', 'error');
+    if (!startVal || !endVal) return window.showToast('محدوده زمانی را انتخاب کنید', 'error');
 
-    const startDate = parsePersianDateTime(startVal);
-    const endDate = parsePersianDateTime(endVal);
-    if (!startDate || !endDate) return showToast('قالب تاریخ نامعتبر است', 'error');
+    const startDate = window.parsePersianDateTime(startVal);
+    const endDate = window.parsePersianDateTime(endVal);
+    if (!startDate || !endDate) return window.showToast('قالب تاریخ نامعتبر است', 'error');
 
     const s = startDate.getTime() / 1000;
     const e = endDate.getTime() / 1000;
@@ -686,11 +686,11 @@ export async function genReport() {
     document.getElementById('rep-auth-list').innerHTML = loaderHtml;
     document.getElementById('rep-task-list').innerHTML = loaderHtml;
 
-    const res = await apiFetch(`${API}/reports/generate?start=${s}&end=${e}`);
+    const res = await window.apiFetch(`${API}/reports/generate?start=${s}&end=${e}`);
     const data = await res.json();
 
     // Load and render charts
-    loadAndRenderCharts(s, e);
+    window.loadAndRenderCharts(s, e);
 
     // 1. Camera Downtimes
     const cameras = data.cameras || [];
@@ -724,7 +724,7 @@ export async function genReport() {
                 <div class="report-item-header" style="margin-bottom:0;">
                     <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
                         <span class="badge ${statusClass}">${statusText}</span>
-                        <span>${translateLogDetails(i.details)}</span>
+                        <span>${window.translateLogDetails(i.details)}</span>
                     </span>
                     <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
                 </div>
@@ -742,7 +742,7 @@ export async function genReport() {
                 <div class="report-item-header" style="margin-bottom:0;">
                     <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
                         <span class="badge warning">خطای رمز عبور</span>
-                        <span>${translateLogDetails(i.details)}</span>
+                        <span>${window.translateLogDetails(i.details)}</span>
                     </span>
                     <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
                 </div>
@@ -762,7 +762,7 @@ export async function genReport() {
                 <div class="report-item-header" style="margin-bottom:0;">
                     <span class="report-item-name" style="display:flex; align-items:center; gap:8px;">
                         <span class="badge ${statusClass}">${statusText}</span>
-                        <span>${translateLogDetails(i.details)}</span>
+                        <span>${window.translateLogDetails(i.details)}</span>
                     </span>
                     <span class="report-item-value" style="font-size:12px; color:var(--text-muted);">${i.shamsi_date}</span>
                 </div>
@@ -778,14 +778,14 @@ export async function loadAndRenderCharts(s, e) {
     }
 
     try {
-        const res = await apiFetch(`${API}/reports/charts?start=${s}&end=${e}`);
+        const res = await window.apiFetch(`${API}/reports/charts?start=${s}&end=${e}`);
         const data = await res.json();
 
-        renderTrendChart(data.trend_chart);
-        renderCausesChart(data.causes_chart);
-        renderGroupsChart(data.group_chart);
-        renderTopCamerasChart(data.top_cameras_chart);
-        renderStatusChart(data.status_chart);
+        window.renderTrendChart(data.trend_chart);
+        window.renderCausesChart(data.causes_chart);
+        window.renderGroupsChart(data.group_chart);
+        window.renderTopCamerasChart(data.top_cameras_chart);
+        window.renderStatusChart(data.status_chart);
     } catch (err) {
         console.error('Error loading charts:', err);
     }
@@ -793,14 +793,14 @@ export async function loadAndRenderCharts(s, e) {
 
 export async function logout() {
     try {
-        await apiFetch(`${API}/auth/logout`, { method: 'POST' });
+        await window.apiFetch(`${API}/auth/logout`, { method: 'POST' });
     } catch (e) { }
     window.location.href = '/login';
 }
 
 export async function loadGroupsCache() {
     try {
-        const res = await apiFetch(`${API}/groups`);
+        const res = await window.apiFetch(`${API}/groups`);
         groupsCache = await res.json();
     } catch (e) {
         groupsCache = [];
@@ -809,7 +809,7 @@ export async function loadGroupsCache() {
 
 export async function loadGroupPlans(groupId) {
     try {
-        const res = await apiFetch(`${API}/groups/${groupId}/plans`);
+        const res = await window.apiFetch(`${API}/groups/${groupId}/plans`);
         mapPlans = await res.json();
         if (mapPlans.length > 0 && !activePlanId) {
             activePlanId = mapPlans[0].id;
@@ -833,7 +833,7 @@ export async function uploadGroupPlan(input) {
     const planName = input.files[0].name.replace(/\.[^.]+$/, '');
     formData.append('name', planName);
 
-    showToast('در حال آپلود...');
+    window.showToast('در حال آپلود...');
     try {
         const res = await fetch(`${API}/groups/${currentGroupId}/plans`, {
             method: 'POST',
@@ -850,37 +850,37 @@ export async function uploadGroupPlan(input) {
         }
 
         const data = await res.json();
-        showToast('پلان با موفقیت آپلود شد');
-        await loadGroupPlans(currentGroupId);
+        window.showToast('پلان با موفقیت آپلود شد');
+        await window.loadGroupPlans(currentGroupId);
         activePlanId = data.id;
         mapImage = data.image_url;
-        renderPlanTabs();
-        setupLeafletMap(true);
-        renderMapCameraList();
+        window.renderPlanTabs();
+        window.setupLeafletMap(true);
+        window.renderMapCameraList();
     } catch (e) {
-        showToast('خطا در آپلود پلان: ' + e.message, 'error');
+        window.showToast('خطا در آپلود پلان: ' + e.message, 'error');
     }
     input.value = '';
 }
 
 export async function deletePlan(planId) {
     if (!currentGroupId) return;
-    if (!await showConfirm('آیا از حذف این پлан مطمئن هستید؟')) return;
+    if (!await window.showConfirm('آیا از حذف این پлан مطمئن هستید؟')) return;
 
     try {
-        const res = await apiFetch(`${API}/groups/${currentGroupId}/plans/${planId}`, { method: 'DELETE' });
+        const res = await window.apiFetch(`${API}/groups/${currentGroupId}/plans/${planId}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Delete failed');
-        showToast('پлан حذف شد');
-        await loadGroupPlans(currentGroupId);
+        window.showToast('پлан حذف شد');
+        await window.loadGroupPlans(currentGroupId);
         if (activePlanId === planId) {
             activePlanId = mapPlans.length > 0 ? mapPlans[0].id : null;
             mapImage = activePlanId ? mapPlans[0].image_url : '';
         }
-        renderPlanTabs();
-        setupLeafletMap(true);
-        renderMapCameraList();
+        window.renderPlanTabs();
+        window.setupLeafletMap(true);
+        window.renderMapCameraList();
     } catch (e) {
-        showToast('خطا در حذف پلان', 'error');
+        window.showToast('خطا در حذف پلان', 'error');
     }
 }
 
@@ -923,7 +923,7 @@ export async function toggleMarkerFov(id, enabled) {
             if (marker.fovPolygon) {
                 map.removeLayer(marker.fovPolygon);
             }
-            const pts = calculateFovPoints(c, marker.getLatLng());
+            const pts = window.calculateFovPoints(c, marker.getLatLng());
             marker.fovPolygon = L.polygon(pts, {
                 color: '#f43f5e',
                 fillColor: '#f43f5e',
@@ -944,7 +944,7 @@ export async function toggleMarkerFov(id, enabled) {
         }
     }
 
-    await apiFetch(`${API}/cameras/${id}`, {
+    await window.apiFetch(`${API}/cameras/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -956,7 +956,7 @@ export async function toggleMarkerFov(id, enabled) {
 }
 
 export async function removeCameraFromMap(id) {
-    if (!await showConfirm('آیا از حذف این دوربین از نقشه مطمئن هستید؟')) return;
+    if (!await window.showConfirm('آیا از حذف این دوربین از نقشه مطمئن هستید؟')) return;
 
     const c = mapCamerasList.find(cam => cam.id === id);
     if (!c) return;
@@ -981,7 +981,7 @@ export async function removeCameraFromMap(id) {
     }
 
     try {
-        await apiFetch(`${API}/cameras/${id}`, {
+        await window.apiFetch(`${API}/cameras/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -995,10 +995,10 @@ export async function removeCameraFromMap(id) {
                 fov_spread: null
             })
         });
-        showToast('دوربین از نقشه حذف شد');
-        renderMapCameraList();
+        window.showToast('دوربین از نقشه حذف شد');
+        window.renderMapCameraList();
     } catch (e) {
-        showToast('خطا در حذف دوربین: ' + e.message, 'error');
+        window.showToast('خطا در حذف دوربین: ' + e.message, 'error');
     }
 }
 
@@ -1006,7 +1006,7 @@ export async function setMapType(type) {
     if (type === mapType) return;
     mapType = type;
 
-    await apiFetch(`${API}/settings/MAP_TYPE`, {
+    await window.apiFetch(`${API}/settings/MAP_TYPE`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'MAP_TYPE', value: type })
@@ -1019,9 +1019,9 @@ export async function setMapType(type) {
     document.getElementById('btn-map-floor').classList.toggle('active', mapType === 'floor');
     document.getElementById('btn-map-geo').classList.toggle('active', mapType === 'geo');
 
-    renderPlanTabs();
-    setupLeafletMap();
-    renderMapCameraList();
+    window.renderPlanTabs();
+    window.setupLeafletMap();
+    window.renderMapCameraList();
 }
 
 export async function uploadMapImage(input) {
@@ -1030,7 +1030,7 @@ export async function uploadMapImage(input) {
     const formData = new FormData();
     formData.append('file', input.files[0]);
 
-    showToast('در حال آپلود...');
+    window.showToast('در حال آپلود...');
     try {
         const res = await fetch(`${API}/map/upload`, {
             method: 'POST',
@@ -1048,15 +1048,15 @@ export async function uploadMapImage(input) {
         }
 
         const data = await res.json();
-        showToast('تصویر پلان با موفقیت آپلود شد');
+        window.showToast('تصویر پلان با موفقیت آپلود شد');
 
         const s = settingsCache.find(sett => sett.key === 'MAP_IMAGE');
         if (s) s.value = data.url;
 
         mapImage = data.url;
-        initOrRefreshMap();
+        window.initOrRefreshMap();
     } catch (e) {
-        showToast('خطا در آپلود پلان: ' + e.message, 'error');
+        window.showToast('خطا در آپلود پلان: ' + e.message, 'error');
     }
 }
 
@@ -1072,7 +1072,7 @@ export async function fetchAndRenderHeatmap() {
     }
 
     try {
-        const res = await apiFetch(`${API}/stats/heatmap`);
+        const res = await window.apiFetch(`${API}/stats/heatmap`);
         const data = await res.json();
 
         const lookup = {};
@@ -1173,7 +1173,7 @@ export async function addCameraToCenter(id, hasFov) {
     }
 
     try {
-        await apiFetch(`${API}/cameras/${c.id}`, {
+        await window.apiFetch(`${API}/cameras/${c.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1195,9 +1195,9 @@ export async function addCameraToCenter(id, hasFov) {
 
 export async function loadUsers() {
     try {
-        const res = await apiFetch(`${API}/users`);
+        const res = await window.apiFetch(`${API}/users`);
         usersCache = await res.json();
-        renderUsersList();
+        window.renderUsersList();
 
         // Populate group options in User Form dropdown
         const select = document.getElementById('userGroup');
@@ -1207,7 +1207,7 @@ export async function loadUsers() {
             ).join('');
         }
 
-        populateInspectorGroupsList();
+        window.populateInspectorGroupsList();
 
         // Handle User Role change to show/hide group select or inspector access container
         const roleSelect = document.getElementById('userRole');
@@ -1259,39 +1259,39 @@ export async function addUser() {
     }
 
     if (!username || !password) {
-        return showToast('نام کاربری و رمز عبور را وارد کنید', 'error');
+        return window.showToast('نام کاربری و رمز عبور را وارد کنید', 'error');
     }
 
     try {
-        await apiFetch(`${API}/users`, {
+        await window.apiFetch(`${API}/users`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password, role, group_id, accessible_group_ids })
         });
-        showToast('کاربر جدید با موفقیت اضافه شد');
+        window.showToast('کاربر جدید با موفقیت اضافه شد');
         document.getElementById('userName').value = '';
         document.getElementById('userPass').value = '';
-        toggleAllInspectorGroups(false);
-        loadUsers();
+        window.toggleAllInspectorGroups(false);
+        window.loadUsers();
     } catch (e) {
-        showToast('خطا در افزودن کاربر: ' + e.message, 'error');
+        window.showToast('خطا در افزودن کاربر: ' + e.message, 'error');
     }
 }
 
 export async function deleteUser(id) {
-    if (!await showConfirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
+    if (!await window.showConfirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
     try {
-        await apiFetch(`${API}/users/${id}`, { method: 'DELETE' });
-        showToast('کاربر با موفقیت حذف شد');
-        loadUsers();
+        await window.apiFetch(`${API}/users/${id}`, { method: 'DELETE' });
+        window.showToast('کاربر با موفقیت حذف شد');
+        window.loadUsers();
     } catch (e) {
-        showToast('خطا در حذف کاربر: ' + e.message, 'error');
+        window.showToast('خطا در حذف کاربر: ' + e.message, 'error');
     }
 }
 
 export async function loadMyAlerts() {
     try {
-        const res = await apiFetch(`${API}/me/alerts`);
+        const res = await window.apiFetch(`${API}/me/alerts`);
         const data = await res.json();
 
         document.getElementById('myMailEnabled').checked = data.mail_enabled;
@@ -1312,14 +1312,14 @@ export async function saveMyAlerts() {
     };
 
     try {
-        await apiFetch(`${API}/me/alerts`, {
+        await window.apiFetch(`${API}/me/alerts`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        showToast('تنظیمات اعلان شخصی با موفقیت ذخیره شد');
+        window.showToast('تنظیمات اعلان شخصی با موفقیت ذخیره شد');
     } catch (e) {
-        showToast('خطا در ذخیره تنظیمات: ' + e.message, 'error');
+        window.showToast('خطا در ذخیره تنظیمات: ' + e.message, 'error');
     }
 }
 
@@ -1328,28 +1328,28 @@ export async function changeMyPassword() {
     const confirmPass = document.getElementById('p-new-pass-confirm').value;
 
     if (!newPass) {
-        return showToast('رمز عبور جدید را وارد کنید', 'error');
+        return window.showToast('رمز عبور جدید را وارد کنید', 'error');
     }
     if (newPass !== confirmPass) {
-        return showToast('رمز عبور جدید و تکرار آن مطابقت ندارند', 'error');
+        return window.showToast('رمز عبور جدید و تکرار آن مطابقت ندارند', 'error');
     }
 
     try {
-        await apiFetch(`${API}/me/change-password`, {
+        await window.apiFetch(`${API}/me/change-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ new_password: newPass })
         });
-        showToast('رمز عبور با موفقیت تغییر یافت');
-        closeProfileModal();
+        window.showToast('رمز عبور با موفقیت تغییر یافت');
+        window.closeProfileModal();
     } catch (e) {
-        showToast('خطا در تغییر رمز عبور: ' + e.message, 'error');
+        window.showToast('خطا در تغییر رمز عبور: ' + e.message, 'error');
     }
 }
 
 export async function start2FASetup() {
     try {
-        const res = await apiFetch(`${API}/auth/2fa/setup`, {
+        const res = await window.apiFetch(`${API}/auth/2fa/setup`, {
             method: 'POST'
         });
         const data = await res.json();
@@ -1375,49 +1375,49 @@ export async function start2FASetup() {
             qrContainer.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:20px 0;">خطا در بارگذاری کتابخانه QR Code. لطفاً دوباره تلاش کنید.</div>';
         }
     } catch (e) {
-        showToast('خطا در راه‌اندازی ورود دو مرحله‌ای: ' + e.message, 'error');
+        window.showToast('خطا در راه‌اندازی ورود دو مرحله‌ای: ' + e.message, 'error');
     }
 }
 
 export async function verify2FAAndEnable() {
     const code = document.getElementById('p-2fa-verification-code').value.trim();
     if (code.length !== 6 || isNaN(code)) {
-        return showToast('لطفاً کد ۶ رقمی را به‌طور صحیح وارد کنید', 'error');
+        return window.showToast('لطفاً کد ۶ رقمی را به‌طور صحیح وارد کنید', 'error');
     }
 
     try {
-        await apiFetch(`${API}/auth/2fa/verify-setup`, {
+        await window.apiFetch(`${API}/auth/2fa/verify-setup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code })
         });
 
-        showToast('ورود دو مرحله‌ای با موفقیت فعال شد');
+        window.showToast('ورود دو مرحله‌ای با موفقیت فعال شد');
         window.currentUser.two_factor_enabled = true;
-        update2FAUIState();
+        window.update2FAUIState();
     } catch (e) {
-        showToast('خطا در تایید کد: ' + e.message, 'error');
+        window.showToast('خطا در تایید کد: ' + e.message, 'error');
     }
 }
 
 export async function disable2FA() {
     const password = document.getElementById('p-2fa-disable-password').value;
     if (!password) {
-        return showToast('لطفاً برای غیرفعال‌سازی، رمز عبور خود را وارد کنید', 'error');
+        return window.showToast('لطفاً برای غیرفعال‌سازی، رمز عبور خود را وارد کنید', 'error');
     }
 
     try {
-        await apiFetch(`${API}/auth/2fa/disable`, {
+        await window.apiFetch(`${API}/auth/2fa/disable`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password })
         });
 
-        showToast('ورود دو مرحله‌ای غیرفعال شد');
+        window.showToast('ورود دو مرحله‌ای غیرفعال شد');
         window.currentUser.two_factor_enabled = false;
-        update2FAUIState();
+        window.update2FAUIState();
     } catch (e) {
-        showToast('خطا در غیرفعال‌سازی: ' + e.message, 'error');
+        window.showToast('خطا در غیرفعال‌سازی: ' + e.message, 'error');
     }
 }
 
@@ -1445,7 +1445,7 @@ export async function toggleSidebarFov(enabled) {
             map.removeLayer(marker.fovPolygon);
         }
 
-        const pts = calculateFovPoints(c, marker.getLatLng());
+        const pts = window.calculateFovPoints(c, marker.getLatLng());
         marker.fovPolygon = L.polygon(pts, {
             color: '#ef4444',
             fillColor: '#ef4444',
@@ -1453,8 +1453,8 @@ export async function toggleSidebarFov(enabled) {
             weight: 1.5
         }).addTo(map);
 
-        spawnFovHandles();
-        saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
+        window.spawnFovHandles();
+        window.saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
     } else {
         slidersBlock.style.display = 'none';
         c.fov_angle = null;
@@ -1469,7 +1469,7 @@ export async function toggleSidebarFov(enabled) {
         fovHandles.forEach(h => map.removeLayer(h));
         fovHandles = [];
 
-        await apiFetch(`${API}/cameras/${c.id}`, {
+        await window.apiFetch(`${API}/cameras/${c.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1478,46 +1478,46 @@ export async function toggleSidebarFov(enabled) {
                 fov_spread: null
             })
         });
-        showToast('محدوده دید دوربین غیرفعال شد');
+        window.showToast('محدوده دید دوربین غیرفعال شد');
     }
 }
 
 export async function loadScheduledTasks() {
     try {
-        const res = await apiFetch(`${API}/scheduler/tasks`);
+        const res = await window.apiFetch(`${API}/scheduler/tasks`);
         if (!res.ok) throw new Error("خطا در دریافت لیست تسک‌ها");
         scheduledTasksCache = await res.json();
-        renderScheduledTasks();
+        window.renderScheduledTasks();
     } catch(e) {
-        showToast(e.message, 'error');
+        window.showToast(e.message, 'error');
     }
 }
 
 export async function runTask(id) {
     try {
-        const res = await apiFetch(`${API}/scheduler/tasks/${id}/run`, { method: 'POST' });
+        const res = await window.apiFetch(`${API}/scheduler/tasks/${id}/run`, { method: 'POST' });
         if (!res.ok) {
             const data = await res.json();
             throw new Error(data.detail || "خطا در اجرای تسک");
         }
-        showToast("درخواست اجرای تسک ارسال شد", "success");
-        loadScheduledTasks();
+        window.showToast("درخواست اجرای تسک ارسال شد", "success");
+        window.loadScheduledTasks();
     } catch(e) {
-        showToast(e.message, 'error');
+        window.showToast(e.message, 'error');
     }
 }
 
 export async function stopTask(id) {
     try {
-        const res = await apiFetch(`${API}/scheduler/tasks/${id}/stop`, { method: 'POST' });
+        const res = await window.apiFetch(`${API}/scheduler/tasks/${id}/stop`, { method: 'POST' });
         if (!res.ok) {
             const data = await res.json();
             throw new Error(data.detail || "خطا در توقف تسک");
         }
-        showToast("درخواست توقف تسک ارسال شد", "success");
-        loadScheduledTasks();
+        window.showToast("درخواست توقف تسک ارسال شد", "success");
+        window.loadScheduledTasks();
     } catch(e) {
-        showToast(e.message, 'error');
+        window.showToast(e.message, 'error');
     }
 }
 
@@ -1530,14 +1530,14 @@ export async function saveTaskInterval(id) {
     const unit = parseInt(unitSelect.value);
 
     if (isNaN(num) || num <= 0) {
-        showToast("مقدار دوره زمانی معتبر نیست", "error");
+        window.showToast("مقدار دوره زمانی معتبر نیست", "error");
         return;
     }
 
     const interval = num * unit;
 
     try {
-        const res = await apiFetch(`${API}/scheduler/tasks/${id}/interval`, {
+        const res = await window.apiFetch(`${API}/scheduler/tasks/${id}/interval`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ interval })
@@ -1546,16 +1546,16 @@ export async function saveTaskInterval(id) {
             const data = await res.json();
             throw new Error(data.detail || "خطا در ذخیره زمان‌بندی");
         }
-        showToast("زمان‌بندی تسک با موفقیت به‌روزرسانی شد", "success");
-        loadScheduledTasks();
+        window.showToast("زمان‌بندی تسک با موفقیت به‌روزرسانی شد", "success");
+        window.loadScheduledTasks();
     } catch(e) {
-        showToast(e.message, 'error');
+        window.showToast(e.message, 'error');
     }
 }
 
 export async function toggleTask(id, enabled) {
     try {
-        const res = await apiFetch(`${API}/scheduler/tasks/${id}/toggle`, {
+        const res = await window.apiFetch(`${API}/scheduler/tasks/${id}/toggle`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ is_enabled: enabled })
@@ -1564,25 +1564,25 @@ export async function toggleTask(id, enabled) {
             const data = await res.json();
             throw new Error(data.detail || "خطا در تغییر وضعیت تسک");
         }
-        showToast(enabled ? "تسک فعال شد" : "تسک غیرفعال شد", "success");
-        loadScheduledTasks();
+        window.showToast(enabled ? "تسک فعال شد" : "تسک غیرفعال شد", "success");
+        window.loadScheduledTasks();
     } catch(e) {
-        showToast(e.message, 'error');
+        window.showToast(e.message, 'error');
     }
 }
 
 export async function warmUpSearchCache() {
     try {
         if (!nvrCache || nvrCache.length === 0) {
-            const nRes = await apiFetch(`${API}/nvrs`);
+            const nRes = await window.apiFetch(`${API}/nvrs`);
             nvrCache = await nRes.json();
         }
         if (!groupCache || groupCache.length === 0) {
-            const gRes = await apiFetch(`${API}/groups`);
+            const gRes = await window.apiFetch(`${API}/groups`);
             groupCache = await gRes.json();
         }
         if (!dashCamerasCache || dashCamerasCache.length === 0) {
-            const res = await apiFetch(`${API}/cameras`);
+            const res = await window.apiFetch(`${API}/cameras`);
             dashCamerasCache = await res.json();
         }
     } catch (e) {
@@ -1592,23 +1592,23 @@ export async function warmUpSearchCache() {
 
 export async function loadOutageExplanations() {
     try {
-        const res = await apiFetch(`${API}/outage-explanations`);
+        const res = await window.apiFetch(`${API}/outage-explanations`);
         outagesCache = await res.json();
 
         outagesSelectedIds = [];
         currentOutagePage = 1;
-        updateOutagesBulkBar();
+        window.updateOutagesBulkBar();
 
         const selectAllChk = document.getElementById('outage-select-all');
         if (selectAllChk) selectAllChk.checked = false;
 
         // Populate the group filter dynamically
-        populateOutageGroupFilter();
+        window.populateOutageGroupFilter();
 
-        renderOutagesList();
+        window.renderOutagesList();
     } catch (e) {
         console.error('Error loading outages:', e);
-        showToast('خطا در بارگذاری لیست رفع ابهام قطعی‌ها: ' + e.message, 'error');
+        window.showToast('خطا در بارگذاری لیست رفع ابهام قطعی‌ها: ' + e.message, 'error');
     }
 }
 
@@ -1619,10 +1619,10 @@ export async function submitExplanation() {
     try {
         if (isBulkExplanation) {
             if (outagesSelectedIds.length === 0) {
-                showToast('هیچ موردی برای ثبت انتخاب نشده است', 'error');
+                window.showToast('هیچ موردی برای ثبت انتخاب نشده است', 'error');
                 return;
             }
-            await apiFetch(`${API}/outage-explanations/bulk`, {
+            await window.apiFetch(`${API}/outage-explanations/bulk`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1631,28 +1631,28 @@ export async function submitExplanation() {
                     explanation_detail
                 })
             });
-            showToast('رفع ابهام دسته‌جمعی قطعی‌ها با موفقیت انجام شد');
+            window.showToast('رفع ابهام دسته‌جمعی قطعی‌ها با موفقیت انجام شد');
         } else {
             const id = parseInt(document.getElementById('exp-outage-id').value);
-            await apiFetch(`${API}/outage-explanations/${id}`, {
+            await window.apiFetch(`${API}/outage-explanations/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ explanation_type, explanation_detail })
             });
-            showToast('رفع ابهام قطعی با موفقیت انجام شد');
+            window.showToast('رفع ابهام قطعی با موفقیت انجام شد');
         }
-        closeExplanationModal();
-        loadOutageExplanations();
+        window.closeExplanationModal();
+        window.loadOutageExplanations();
     } catch (e) {
-        showToast('خطا در ثبت رفع ابهام قطعی: ' + e.message, 'error');
+        window.showToast('خطا در ثبت رفع ابهام قطعی: ' + e.message, 'error');
     }
 }
 
 export async function prefetchOffRecording() {
     try {
-        const res = await apiFetch(`${API}/cameras/off`);
+        const res = await window.apiFetch(`${API}/cameras/off`);
         offRecordingCache = await res.json();
-        if (changesFilterAction === 'off_recording') renderFilteredCameraChanges();
+        if (changesFilterAction === 'off_recording') window.renderFilteredCameraChanges();
     } catch (e) {
         console.error('Error prefetching off recording:', e);
     }
@@ -1663,24 +1663,24 @@ export async function saveGroupEdit() {
     const name = document.getElementById('editGroupName').value.trim();
     const description = document.getElementById('editGroupDesc').value.trim();
 
-    if (!name) return showToast('نام کارخانه الزامی است', 'error');
+    if (!name) return window.showToast('نام کارخانه الزامی است', 'error');
 
     try {
-        await apiFetch(`${API}/groups/${id}`, {
+        await window.apiFetch(`${API}/groups/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, description })
         });
-        showToast('کارخانه با موفقیت ویرایش شد');
-        closeEditGroupModal();
+        window.showToast('کارخانه با موفقیت ویرایش شد');
+        window.closeEditGroupModal();
 
         // Refresh groups cache and reload settings
-        const gRes = await apiFetch(`${API}/groups`);
+        const gRes = await window.apiFetch(`${API}/groups`);
         groupCache = await gRes.json();
-        renderGroupsList();
-        loadSettings('sec-groups'); // keeps the groups tab active
+        window.renderGroupsList();
+        window.loadSettings('sec-groups'); // keeps the groups tab active
     } catch (e) {
-        showToast('خطا در ویرایش کارخانه: ' + e.message, 'error');
+        window.showToast('خطا در ویرایش کارخانه: ' + e.message, 'error');
     }
 }
 
@@ -1721,15 +1721,15 @@ export async function saveUserEdit() {
     }
 
     try {
-        await apiFetch(`${API}/users/${id}`, {
+        await window.apiFetch(`${API}/users/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        showToast('کاربر با موفقیت ویرایش شد');
-        closeEditUserModal();
-        loadUsers();
+        window.showToast('کاربر با موفقیت ویرایش شد');
+        window.closeEditUserModal();
+        window.loadUsers();
     } catch (e) {
-        showToast('خطا در ویرایش کاربر: ' + e.message, 'error');
+        window.showToast('خطا در ویرایش کاربر: ' + e.message, 'error');
     }
 }
