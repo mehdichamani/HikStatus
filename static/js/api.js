@@ -26,20 +26,20 @@ export async function apiFetch(url, options = {}) {
 export async function fetchDash() {
     try {
         const nRes = await apiFetch(`${API}/nvrs`);
-        nvrCache = await nRes.json();
+        window.nvrCache = await nRes.json();
     } catch (e) {
         console.error('Error loading NVRs:', e);
     }
     try {
         const gRes = await apiFetch(`${API}/groups`);
-        groupCache = await gRes.json();
+        window.groupCache = await gRes.json();
     } catch (e) {
         console.error('Error loading Groups:', e);
     }
     try {
         const tRes = await apiFetch(`${API}/scheduler/tasks`);
         if (tRes.ok) {
-            scheduledTasksCache = await tRes.json();
+            window.scheduledTasksCache = await tRes.json();
         }
     } catch (e) {
         console.error('Error loading Tasks:', e);
@@ -47,20 +47,20 @@ export async function fetchDash() {
     const res = await apiFetch(`${API}/cameras`);
     const cams = await res.json();
 
-    updateDashFromWS(cams);
+    window.updateDashFromWS(cams);
 }
 
 export async function loadSettings(activeTabOverride = null) {
     const role = window.currentUser ? window.currentUser.role : 'group_view';
 
     // 1. Immediately render the settings list menu
-    renderSettingsMenu(role);
+    window.renderSettingsMenu(role);
 
     // 2. Determine display based on activeTabOverride
     if (activeTabOverride) {
-        switchSettingsTab(activeTabOverride);
+        window.switchSettingsTab(activeTabOverride);
     } else {
-        goBackToSettingsMenu();
+        window.goBackToSettingsMenu();
     }
 
     // 3. Parallelize fetches to load data instantly
@@ -72,9 +72,9 @@ export async function loadSettings(activeTabOverride = null) {
     const nvrsPromise = apiFetch(`${API}/nvrs`).then(res => res.json()).catch(() => []);
 
     const [settings, groups, nvrs] = await Promise.all([settingsPromise, groupsPromise, nvrsPromise]);
-    settingsCache = settings;
-    groupCache = groups;
-    nvrCache = nvrs;
+    window.settingsCache = settings;
+    window.groupCache = groups;
+    window.nvrCache = nvrs;
 
     const nvrForm = document.querySelector('#sec-nvr .nvr-form');
     if (nvrForm) {
@@ -92,7 +92,7 @@ export async function loadSettings(activeTabOverride = null) {
         };
 
         // Find the actual keys in the settings database so we don't request wrong keys
-        const actualKeys = settingsCache.map(s => s.key);
+        const actualKeys = window.settingsCache.map(s => s.key);
         const emailKeys = ['MAIL_ENABLED', 'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASS', 'MAIL_RECIPIENTS', 'MAIL_FIRST_ALERT_DELAY_MINUTES', 'MAIL_LOW_IMPORTANCE_DELAY_MINUTES', 'MAIL_ALERT_FREQUENCY_MINUTES', 'MAIL_MUTE_AFTER_N_ALERTS'].filter(k => actualKeys.includes(k));
         const telegramKeys = ['TELEGRAM_ENABLED', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_IDS', 'TELEGRAM_PROXY', 'TELEGRAM_FIRST_ALERT_DELAY_MINUTES', 'TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES', 'TELEGRAM_ALERT_FREQUENCY_MINUTES', 'TELEGRAM_MUTE_AFTER_N_ALERTS'].filter(k => actualKeys.includes(k));
         const outageKeys = ['OUTAGE_MIN_HOURS_TO_EXPLAIN', 'OUTAGE_MIN_HOUTS_TO_EXPLAIN', 'OUTAGE_EXPLANATION_DEADLINE_HOURS', 'OUTAGE_ANALYSIS_DAYS', 'OUTAGE_ANALYSIS_TIME'].filter(k => actualKeys.includes(k));
@@ -115,7 +115,7 @@ export async function loadSettings(activeTabOverride = null) {
 
             let html = `<div class="card" id="grp-${engKey}" style="display: none;">
                 <div class="settings-card-header">
-                    <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات">
+                    <button class="settings-back-btn" onclick="window.goBackToSettingsMenu()" title="بازگشت به تنظیمات">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
@@ -127,9 +127,9 @@ export async function loadSettings(activeTabOverride = null) {
             // 1. Add Master toggle if it exists
             const enabledKey = keys.find(k => k.endsWith('ENABLED'));
             if (enabledKey) {
-                const item = settingsCache.find(s => s.key === enabledKey);
+                const item = window.settingsCache.find(s => s.key === enabledKey);
                 if (item) {
-                    const label = settingLabels[enabledKey] || enabledKey;
+                    const label = window.settingLabels[enabledKey] || enabledKey;
                     html += `<div class="settings-toggle-header">
                         <span class="toggle-label">${label}</span>
                         <label class="toggle">
@@ -146,9 +146,9 @@ export async function loadSettings(activeTabOverride = null) {
             keys.forEach(k => {
                 if (k.endsWith('ENABLED')) return; // already handled
 
-                const item = settingsCache.find(s => s.key === k);
+                const item = window.settingsCache.find(s => s.key === k);
                 if (!item) return;
-                const label = settingLabels[k] || k;
+                const label = window.settingLabels[k] || k;
 
                 if (k === 'OUTAGE_ANALYSIS_DAYS') {
                     const daysVal = item.value || '';
@@ -165,7 +165,7 @@ export async function loadSettings(activeTabOverride = null) {
 
                     let daysCheckboxes = weekDaysConfig.map(day => {
                         return `<label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; user-select: none;">
-                            <input type="checkbox" class="day-select-chk" value="${day.val}" ${selectedDays.includes(day.val) ? 'checked' : ''} onchange="updateOutageDaysValue()">
+                            <input type="checkbox" class="day-select-chk" value="${day.val}" ${selectedDays.includes(day.val) ? 'checked' : ''} onchange="window.updateOutageDaysValue()">
                             <span>${day.name}</span>
                         </label>`;
                     }).join('');
@@ -211,21 +211,21 @@ export async function loadSettings(activeTabOverride = null) {
             </div>`;
             con.innerHTML += html;
         }
-        renderNotificationManagement();
+        window.renderNotificationManagement();
     }
 
-    pendingNVRDeletes = new Set();
-    document.getElementById('nvr-list').innerHTML = nvrCache.map(n =>
-        renderNVRRow(n)
+    window.pendingNVRDeletes = new Set();
+    document.getElementById('nvr-list').innerHTML = window.nvrCache.map(n =>
+        window.renderNVRRow(n)
     ).join('');
 
     // Populate group options in Add NVR form dropdown
     const nvrGroupSelect = document.getElementById('nvrGroup');
     if (nvrGroupSelect) {
-        if (!groupCache || !Array.isArray(groupCache)) {
+        if (!window.groupCache || !Array.isArray(window.groupCache)) {
             nvrGroupSelect.innerHTML = '<option value="">بدون کارخانه (بدون گروه)</option>';
         } else {
-            nvrGroupSelect.innerHTML = '<option value="">بدون کارخانه (بدون گروه)</option>' + groupCache.map(g =>
+            nvrGroupSelect.innerHTML = '<option value="">بدون کارخانه (بدون گروه)</option>' + window.groupCache.map(g =>
                 `<option value="${g.id}">${g.name}</option>`
             ).join('');
         }
@@ -243,7 +243,7 @@ export async function loadSettings(activeTabOverride = null) {
 
 export async function saveAll(silent = false) {
     let changed = 0;
-    for (const s of settingsCache) {
+    for (const s of window.settingsCache) {
         const el = document.getElementById(s.key);
         if (el) {
             let val = el.value;
@@ -259,7 +259,7 @@ export async function saveAll(silent = false) {
         }
     }
     if (!silent) {
-        showToast('تنظیمات با موفقیت ذخیره شد', 'success');
+        window.showToast('تنظیمات با موفقیت ذخیره شد', 'success');
     }
     return changed;
 }
@@ -268,7 +268,7 @@ export async function apply() {
     try {
         await saveAll(true);
         await apiFetch(`${API}/monitor/restart`, { method: 'POST' });
-        showToast('تنظیمات با موفقیت ذخیره شد و مانیتورینگ ریستارت گردید', 'success');
+        window.showToast('تنظیمات با موفقیت ذخیره شد و مانیتورینگ ریستارت گردید', 'success');
 
         // Find currently visible tab by checking which card is displayed
         const tabs = ['sec-nvr', 'sec-groups', 'sec-users', 'sec-my-alerts', 'grp-Notifications', 'grp-Email', 'grp-Telegram', 'grp-Outages', 'grp-Browser', 'grp-Limits', 'sec-system', 'sec-tasks', 'sec-about', 'sec-logs'];
@@ -281,9 +281,9 @@ export async function apply() {
             }
         }
         // Reload settings and restore the same tab
-        await loadSettings(activeTab);
+        await window.loadSettings(activeTab);
     } catch (e) {
-        showToast('خطا در ذخیره و اعمال تغییرات: ' + e.message, 'error');
+        window.showToast('خطا در ذخیره و اعمال تغییرات: ' + e.message, 'error');
     }
 }
 
@@ -311,7 +311,7 @@ export async function loadOutageCauses() {
 export async function addOutageCause() {
     const input = document.getElementById('new-cause-name');
     const name = input.value.trim();
-    if (!name) return showToast('نام علت را وارد کنید', 'error');
+    if (!name) return window.showToast('نام علت را وارد کنید', 'error');
 
     try {
         const res = await apiFetch(`/api/v1/outage-causes`, {
@@ -323,38 +323,38 @@ export async function addOutageCause() {
             const err = await res.json();
             throw new Error(err.detail || 'خطا در ثبت علت');
         }
-        showToast('علت جدید با موفقیت اضافه شد');
+        window.showToast('علت جدید با موفقیت اضافه شد');
         input.value = '';
         loadOutageCauses();
     } catch (e) {
-        showToast(e.message, 'error');
+        window.showToast(e.message, 'error');
     }
 }
 
 export async function deleteOutageCause(id) {
-    if (!await showConfirm('آیا از حذف/غیرفعال‌سازی این علت قطعی اطمینان دارید؟')) return;
+    if (!await window.showConfirm('آیا از حذف/غیرفعال‌سازی این علت قطعی اطمینان دارید؟')) return;
     try {
         const res = await apiFetch(`/api/v1/outage-causes/${id}`, { method: 'DELETE' });
         const data = await res.json();
-        showToast(data.message);
+        window.showToast(data.message);
         loadOutageCauses();
     } catch (e) {
-        showToast(e.message, 'error');
+        window.showToast(e.message, 'error');
     }
 }
 
 export async function testConn(type) {
     try {
         await apiFetch(`/api/v1/test/${type}`, { method: 'POST' });
-        showToast('تست موفق');
+        window.showToast('تست موفق');
     } catch (e) {
-        showToast('تست ناموفق: ' + e.message, 'error');
+        window.showToast('تست ناموفق: ' + e.message, 'error');
     }
 }
 
 export async function addNVR() {
-    if (!validateNVRInputs()) {
-        return showToast('لطفاً مقادیر ورودی را به درستی وارد کنید', 'error');
+    if (!window.validateNVRInputs()) {
+        return window.showToast('لطفاً مقادیر ورودی را به درستی وارد کنید', 'error');
     }
     const name = document.getElementById('nvrName').value.trim();
     const ip = document.getElementById('nvrIp').value.trim();
@@ -364,7 +364,7 @@ export async function addNVR() {
     const groupEl = document.getElementById('nvrGroup');
     const groupId = groupEl && groupEl.value ? parseInt(groupEl.value) : null;
 
-    if (!ip || !u) return showToast('IP و نام کاربری الزامی است', 'error');
+    if (!ip || !u) return window.showToast('IP و نام کاربری الزامی است', 'error');
 
     await apiFetch(`${API}/nvrs`, {
         method: 'POST',
@@ -377,7 +377,7 @@ export async function addNVR() {
     document.getElementById('nvrPass').value = '';
     document.getElementById('nvrRtspPort').value = '554';
     if (groupEl) groupEl.value = '';
-    loadSettings();
+    await window.loadSettings();
 }
 
 export async function toggleNVRenabled(ip, enabled) {
@@ -388,18 +388,18 @@ export async function toggleNVRenabled(ip, enabled) {
             body: JSON.stringify({ enabled })
         });
         const nRes = await apiFetch(`${API}/nvrs`);
-        nvrCache = await nRes.json();
-        document.getElementById('nvr-list').innerHTML = nvrCache.map(n => renderNVRRow(n)).join('');
-        showToast(enabled ? 'NVR فعال شد' : 'NVR غیرفعال شد');
+        window.nvrCache = await nRes.json();
+        document.getElementById('nvr-list').innerHTML = window.nvrCache.map(n => window.renderNVRRow(n)).join('');
+        window.showToast(enabled ? 'NVR فعال شد' : 'NVR غیرفعال شد');
     } catch (e) {
-        showToast('خطا در تغییر وضعیت NVR: ' + e.message, 'error');
+        window.showToast('خطا در تغییر وضعیت NVR: ' + e.message, 'error');
     }
 }
 
 export async function addGroup() {
     const name = document.getElementById('groupName').value.trim();
     const desc = document.getElementById('groupDesc').value.trim();
-    if (!name) return showToast('نام کارخانه الزامی است', 'error');
+    if (!name) return window.showToast('نام کارخانه الزامی است', 'error');
 
     try {
         await apiFetch(`${API}/groups`, {
@@ -409,29 +409,29 @@ export async function addGroup() {
         });
         document.getElementById('groupName').value = '';
         document.getElementById('groupDesc').value = '';
-        showToast('کارخانه با موفقیت اضافه شد');
+        window.showToast('کارخانه با موفقیت اضافه شد');
 
         // Refresh groups
         const gRes = await apiFetch(`${API}/groups`);
-        groupCache = await gRes.json();
-        renderGroupsList();
+        window.groupCache = await gRes.json();
+        window.renderGroupsList();
     } catch (e) {
-        showToast('خطا در افزودن کارخانه: ' + e.message, 'error');
+        window.showToast('خطا در افزودن کارخانه: ' + e.message, 'error');
     }
 }
 
 export async function deleteGroup(id) {
-    if (!await showConfirm('آیا از حذف این کارخانه اطمینان دارید؟ NVRهای این کارخانه بدون گروه خواهند شد.')) return;
+    if (!await window.showConfirm('آیا از حذف این کارخانه اطمینان دارید؟ NVRهای این کارخانه بدون گروه خواهند شد.')) return;
     try {
         await apiFetch(`${API}/groups/${id}`, { method: 'DELETE' });
-        showToast('کارخانه حذف شد');
+        window.showToast('کارخانه حذف شد');
 
         // Refresh groups and reload settings (to refresh NVR dropdowns)
         const gRes = await apiFetch(`${API}/groups`);
-        groupCache = await gRes.json();
-        loadSettings();
+        window.groupCache = await gRes.json();
+        await window.loadSettings();
     } catch (e) {
-        showToast('خطا در حذف کارخانه: ' + e.message, 'error');
+        window.showToast('خطا در حذف کارخانه: ' + e.message, 'error');
     }
 }
 
@@ -442,24 +442,24 @@ export async function updateNVRGroup(ip, groupId) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ group_id: groupId ? parseInt(groupId) : null })
         });
-        showToast('کارخانه NVR به‌روزرسانی شد');
+        window.showToast('کارخانه NVR به‌روزرسانی شد');
 
         // Update local nvrCache
         const nRes = await apiFetch(`${API}/nvrs`);
-        nvrCache = await nRes.json();
+        window.nvrCache = await nRes.json();
     } catch (e) {
-        showToast('خطا در به‌روزرسانی کارخانه NVR: ' + e.message, 'error');
+        window.showToast('خطا در به‌روزرسانی کارخانه NVR: ' + e.message, 'error');
     }
 }
 
 export async function applyNVRDelete(ip) {
     try {
         await apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, { method: 'DELETE' });
-        pendingNVRDeletes.delete(ip);
-        showToast('NVR با موفقیت حذف شد');
-        loadSettings();
+        window.pendingNVRDeletes.delete(ip);
+        window.showToast('NVR با موفقیت حذف شد');
+        await window.loadSettings();
     } catch (e) {
-        showToast('خطا در حذف NVR: ' + e.message, 'error');
+        window.showToast('خطا در حذف NVR: ' + e.message, 'error');
     }
 }
 
@@ -472,21 +472,21 @@ export async function saveNVRRow(ip) {
     const rtspPortEl = document.getElementById(`edit-nvr-rtsp-port-${escaped}`);
 
     if (!ipEl || !ipEl.value.trim()) {
-        return showToast('آدرس IP یا میزبان الزامی است', 'error');
+        return window.showToast('آدرس IP یا میزبان الزامی است', 'error');
     }
     const newIp = ipEl.value.trim();
     const ipPattern = /^[a-zA-Z0-9_\-\.]+(:[0-9]+)?$/;
     if (!ipPattern.test(newIp)) {
-        return showToast('قالب آدرس IP یا میزبان نامعتبر است.', 'error');
+        return window.showToast('قالب آدرس IP یا میزبان نامعتبر است.', 'error');
     }
 
     if (!userEl.value.trim()) {
-        return showToast('نام کاربری الزامی است', 'error');
+        return window.showToast('نام کاربری الزامی است', 'error');
     }
 
     const portVal = parseInt(rtspPortEl.value.trim());
     if (isNaN(portVal) || portVal < 1 || portVal > 65535) {
-        return showToast('پورت باید عددی بین ۱ تا ۶۵۵۳۵ باشد.', 'error');
+        return window.showToast('پورت باید عددی بین ۱ تا ۶۵۵۳۵ باشد.', 'error');
     }
 
     const payload = {
@@ -506,26 +506,26 @@ export async function saveNVRRow(ip) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        showToast('NVR با موفقیت به‌روزرسانی شد');
+        window.showToast('NVR با موفقیت به‌روزرسانی شد');
 
         // Refresh local cache and UI
         const nRes = await apiFetch(`${API}/nvrs`);
-        nvrCache = await nRes.json();
+        window.nvrCache = await nRes.json();
 
-        loadSettings();
+        await window.loadSettings();
     } catch (e) {
-        showToast('خطا در به‌روزرسانی NVR: ' + e.message, 'error');
+        window.showToast('خطا در به‌روزرسانی NVR: ' + e.message, 'error');
     }
 }
 
 export async function purgeDatabase() {
-    if (!await showConfirm('توجه: تمامی اطلاعات دیتابیس (دوربین‌ها، NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات) به طور کامل پاک خواهند شد. آیا مطمئن هستید؟')) return;
+    if (!await window.showConfirm('توجه: تمامی اطلاعات دیتابیس (دوربین‌ها، NVRها، لاگ‌ها، دسته‌بندی‌ها و تنظیمات) به طور کامل پاک خواهند شد. آیا مطمئن هستید؟')) return;
     try {
         await apiFetch(`${API}/data/purge`, { method: 'POST' });
-        showToast('پاکسازی کامل دیتابیس با موفقیت انجام شد');
+        window.showToast('پاکسازی کامل دیتابیس با موفقیت انجام شد');
         setTimeout(() => location.reload(), 1000);
     } catch (e) {
-        showToast('خطا: ' + e.message, 'error');
+        window.showToast('خطا: ' + e.message, 'error');
     }
 }
 
@@ -535,10 +535,10 @@ export async function restoreDatabase(input) {
     // Reset input so selecting same file again triggers onchange
     input.value = '';
     if (!file.name.endsWith('.db')) {
-        showToast('فایل باید با پسوند .db باشد', 'error');
+        window.showToast('فایل باید با پسوند .db باشد', 'error');
         return;
     }
-    if (!await showConfirm(`آیا مطمئنید؟ پایگاه داده فعلی با فایل "${file.name}" جایگزین خواهد شد و مانیتور راه‌اندازی مجدد می‌شود.`)) return;
+    if (!await window.showConfirm(`آیا مطمئنید؟ پایگاه داده فعلی با فایل "${file.name}" جایگزین خواهد شد و مانیتور راه‌اندازی مجدد می‌شود.`)) return;
     const statusEl = document.getElementById('restore-status');
     if (statusEl) statusEl.textContent = 'در حال آپلود...';
     try {
@@ -554,11 +554,11 @@ export async function restoreDatabase(input) {
             throw new Error(err.detail || 'خطا در بازیابی');
         }
         if (statusEl) statusEl.textContent = '';
-        showToast('بازیابی با موفقیت انجام شد. در حال بارگذاری مجدد...');
+        window.showToast('بازیابی با موفقیت انجام شد. در حال بارگذاری مجدد...');
         setTimeout(() => location.reload(), 1500);
     } catch (e) {
         if (statusEl) statusEl.textContent = '';
-        showToast('خطا: ' + e.message, 'error');
+        window.showToast('خطا: ' + e.message, 'error');
     }
 }
 
@@ -567,10 +567,10 @@ export async function importJsonConfig(input) {
     if (!file) return;
     input.value = '';
     if (!file.name.endsWith('.json')) {
-        showToast('فایل باید با پسوند .json باشد', 'error');
+        window.showToast('فایل باید با پسوند .json باشد', 'error');
         return;
     }
-    if (!await showConfirm(`توجه: با بارگذاری این فایل، تمامی تنظیمات فعلی، لیست NVRها، گروه‌ها و کاربران کاملاً حذف شده و با اطلاعات فایل "${file.name}" جایگزین خواهند شد. آیا ادامه می‌دهید؟`)) return;
+    if (!await window.showConfirm(`توجه: با بارگذاری این فایل، تمامی تنظیمات فعلی، لیست NVRها، گروه‌ها و کاربران کاملاً حذف شده و با اطلاعات فایل "${file.name}" جایگزین خواهند شد. آیا ادامه می‌دهید؟`)) return;
     const statusEl = document.getElementById('import-json-status');
     if (statusEl) statusEl.textContent = 'در حال بارگذاری...';
     try {
@@ -595,11 +595,11 @@ export async function importJsonConfig(input) {
             throw new Error(err.detail || 'خطا در بارگذاری تنظیمات');
         }
         if (statusEl) statusEl.textContent = '';
-        showToast('پیکربندی JSON با موفقیت بارگذاری شد. در حال بازنشانی مانیتور...');
+        window.showToast('پیکربندی JSON با موفقیت بارگذاری شد. در حال بازنشانی مانیتور...');
         setTimeout(() => location.reload(), 1500);
     } catch (e) {
         if (statusEl) statusEl.textContent = '';
-        showToast('خطا: ' + e.message, 'error');
+        window.showToast('خطا: ' + e.message, 'error');
     }
 }
 
@@ -1120,15 +1120,15 @@ export async function fetchAndRenderHeatmap() {
 }
 
 export async function addCameraToCenter(id, hasFov) {
-    if (!map) return;
-    const c = mapCamerasList.find(cam => cam.id === id);
+    if (!window.map) return;
+    const c = window.mapCamerasList.find(cam => cam.id === id);
     if (!c) return;
 
     let payload = {};
     let latlng = null;
-    const center = map.getCenter();
+    const center = window.map.getCenter();
 
-    if (mapType === 'floor') {
+    if (window.mapType === 'floor') {
         const w = window.mapImgWidth || 800;
         const h = window.mapImgHeight || 600;
 
@@ -1138,11 +1138,11 @@ export async function addCameraToCenter(id, hasFov) {
         payload = {
             x_pos: Math.max(0, Math.min(100, xPct)),
             y_pos: Math.max(0, Math.min(100, yPct)),
-            plan_id: activePlanId
+            plan_id: window.activePlanId
         };
         c.x_pos = payload.x_pos;
         c.y_pos = payload.y_pos;
-        c.plan_id = activePlanId;
+        c.plan_id = window.activePlanId;
         latlng = [center.lat, center.lng];
     } else {
         payload = {
@@ -1156,7 +1156,7 @@ export async function addCameraToCenter(id, hasFov) {
 
     if (hasFov) {
         payload.fov_angle = 0;
-        payload.fov_radius = mapType === 'floor' ? 80 : 50;
+        payload.fov_radius = window.mapType === 'floor' ? 80 : 50;
         payload.fov_spread = 60;
 
         c.fov_angle = payload.fov_angle;
@@ -1178,18 +1178,18 @@ export async function addCameraToCenter(id, hasFov) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        showToast(`دوربین "${c.name}" به مرکز نقشه اضافه شد`);
+        window.showToast(`دوربین "${c.name}" به مرکز نقشه اضافه شد`);
 
         // Dynamically add marker without resetting the map
-        const marker = createMarkerForMap(c, latlng);
+        const marker = window.createMarkerForMap(c, latlng);
 
         // Re-render the sidebar list to update buttons without modifying map position
-        renderMapCameraList();
+        window.renderMapCameraList();
 
         // Select the marker to open the FOV sidebar immediately
-        selectMarkerForFov(marker, c);
+        window.selectMarkerForFov(marker, c);
     } catch (e) {
-        showToast('خطا در ذخیره موقعیت: ' + e.message, 'error');
+        window.showToast('خطا در ذخیره موقعیت: ' + e.message, 'error');
     }
 }
 
