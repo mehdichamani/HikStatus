@@ -2,12 +2,16 @@
 
 import * as Api from './api.js';
 import * as Ui from './ui.js';
+import * as CameraView from './modules/camera_view.js';
 
 // ثبت تمامی توابع در شیء سراسری window جهت حفظ سازگاری کامل با فرانت‌اند و کدهای درون‌برنامه‌ای
 for (const [name, func] of Object.entries(Api)) {
     window[name] = func;
 }
 for (const [name, func] of Object.entries(Ui)) {
+    window[name] = func;
+}
+for (const [name, func] of Object.entries(CameraView)) {
     window[name] = func;
 }
 

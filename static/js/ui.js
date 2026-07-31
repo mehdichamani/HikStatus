@@ -1,10 +1,5 @@
 // ماژول مدیریت رابط کاربری (UI) و رندر کردن عناصر DOM
 
-export function saveCollapsedState() {
-    localStorage.setItem('collapsedFactories', JSON.stringify([...collapsedFactories]));
-    localStorage.setItem('collapsedNvrs', JSON.stringify([...collapsedNvrs]));
-}
-
 export async function nav(id, activeTabOverride = null) {
     document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
     document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(e => e.classList.remove('active'));
@@ -23,21 +18,21 @@ export async function nav(id, activeTabOverride = null) {
         }
     }
 
-    if (id === 'dash') fetchDash();
-    if (id === 'map') initOrRefreshMap();
+    if (id === 'dash') window.fetchDash();
+    if (id === 'map') window.initOrRefreshMap();
     if (id === 'reports') {
         if (!document.getElementById('startDt').value) {
-            setPreset(24);
+            window.setPreset(24);
         }
-        genReport();
-        fetchAndRenderHeatmap();
+        window.genReport();
+        window.fetchAndRenderHeatmap();
     }
-    if (id === 'settings') await loadSettings(activeTabOverride);
-    if (id === 'outages') loadOutageExplanations();
+    if (id === 'settings') await window.loadSettings(activeTabOverride);
+    if (id === 'outages') window.loadOutageExplanations();
 }
 
 export function showAboutUs() {
-    nav('settings', 'sec-about');
+    window.nav('settings', 'sec-about');
 }
 
 export function closeModal() {
@@ -46,18 +41,6 @@ export function closeModal() {
     if (img) img.src = '';
     const container = document.getElementById('m-snap-container');
     if (container) container.style.display = 'none';
-}
-
-export function getNvrNum(ip) { return ip.split('.').pop(); }
-
-export function getNvrDisplayName(ip) {
-    const nvrObj = nvrCache.find(n => n.ip === ip);
-    return nvrObj && nvrObj.name ? nvrObj.name : `NVR ${getNvrNum(ip)}`;
-}
-
-export function setDashCamRecordingFilter(val) {
-    dashCamRecordingFilter = val;
-    renderDash();
 }
 
 export function renderDash() {
@@ -93,7 +76,7 @@ export function renderDash() {
         document.getElementById('offline-section').classList.remove('hidden');
         document.getElementById('all-ok').classList.add('hidden');
         document.getElementById('offline-count').textContent = off.length;
-        document.getElementById('offline-grid').innerHTML = off.map(c => createCard(c)).join('');
+        document.getElementById('offline-grid').innerHTML = off.map(c => window.createCard(c)).join('');
     } else {
         document.getElementById('offline-section').classList.add('hidden');
         // Only show "All OK" if there are no offline cameras in the entire unfiltered cache, and we are not filtering
@@ -125,7 +108,7 @@ export function renderDash() {
     const unassignedNvrIps = [];
 
     // Iterate all known NVRs
-    nvrCache.filter(n => n.enabled !== false).sort((a, b) => parseInt(getNvrNum(a.ip)) - parseInt(getNvrNum(b.ip))).forEach(nvrObj => {
+    nvrCache.filter(n => n.enabled !== false).sort((a, b) => parseInt(window.getNvrNum(a.ip)) - parseInt(window.getNvrNum(b.ip))).forEach(nvrObj => {
         const ip = nvrObj.ip;
         const groupId = nvrObj.group_id;
 
@@ -151,7 +134,7 @@ export function renderDash() {
 
         const isFactoryCollapsed = collapsedFactories.has(String(g.id));
         let factoryHtml = `<div class="factory-section ${isFactoryCollapsed ? '' : 'open'}" id="factory-${g.id}">
-            <div class="factory-header" onclick="toggleFactory(${g.id})">
+            <div class="factory-header" onclick="window.toggleFactory(${g.id})">
                 <div class="factory-header-left">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/></svg>
                     <span class="factory-name">${g.name}</span>
@@ -172,13 +155,13 @@ export function renderDash() {
             const isAuthError = nvrObj && nvrObj.status === 'AuthError';
             const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
-            const cards = sorted.map(c => createCard(c)).join('');
+            const cards = sorted.map(c => window.createCard(c)).join('');
             const isNvrCollapsed = collapsedNvrs.has(ip);
             factoryHtml += `
                 <div class="nvr-block ${isNvrCollapsed ? '' : 'open'} ${isNvrOffline ? 'offline' : ''}">
-                    <div class="nvr-header" onclick="toggleNvr(this)">
+                    <div class="nvr-header" onclick="window.toggleNvr(this)">
                         <div class="nvr-header-left">
-                            <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
+                            <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${window.getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
                             ${isAuthError ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>خطای رمز عبور</span>` : (isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : '')}
                         </div>
@@ -199,7 +182,7 @@ export function renderDash() {
 
         const isUnassignedCollapsed = collapsedFactories.has('unassigned');
         let unassignedHtml = `<div class="factory-section ${isUnassignedCollapsed ? '' : 'open'}" id="factory-unassigned">
-            <div class="factory-header" onclick="toggleFactory('unassigned')">
+            <div class="factory-header" onclick="window.toggleFactory('unassigned')">
                 <div class="factory-header-left">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-secondary);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     <span class="factory-name" style="color: var(--text-secondary);">سایر NVRها (بدون دسته‌بندی کارخانه‌ای)</span>
@@ -219,13 +202,13 @@ export function renderDash() {
             const isAuthError = nvrObj && nvrObj.status === 'AuthError';
             const list = groups[ip] || [];
             const sorted = list.sort((a, b) => parseInt(a.channel_id) - parseInt(b.channel_id));
-            const cards = sorted.map(c => createCard(c)).join('');
+            const cards = sorted.map(c => window.createCard(c)).join('');
             const isNvrCollapsed = collapsedNvrs.has(ip);
             unassignedHtml += `
                 <div class="nvr-block ${isNvrCollapsed ? '' : 'open'} ${isNvrOffline ? 'offline' : ''}">
-                    <div class="nvr-header" onclick="toggleNvr(this)">
+                    <div class="nvr-header" onclick="window.toggleNvr(this)">
                         <div class="nvr-header-left">
-                            <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${getNvrDisplayName(ip)}</span>
+                            <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${window.getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
                             ${isAuthError ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>خطای رمز عبور</span>` : (isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : '')}
                         </div>
@@ -238,87 +221,6 @@ export function renderDash() {
         unassignedHtml += `</div></div>`;
         con.innerHTML += unassignedHtml;
     }
-}
-
-export function setDashCamFilter(filter) {
-    dashCamFilter = filter;
-    document.querySelectorAll('.chip[id^="filter-cam-"]').forEach(b => {
-        b.classList.remove('active');
-    });
-    if (filter === 'all') document.getElementById('filter-cam-all').classList.add('active');
-    else if (filter === 'online') document.getElementById('filter-cam-online').classList.add('active');
-    else if (filter === 'offline') document.getElementById('filter-cam-offline').classList.add('active');
-    renderDash();
-}
-
-export function toggleNvr(header) {
-    const block = header.parentElement;
-    const grid = header.nextElementSibling;
-    block.classList.toggle('open');
-    grid.style.display = block.classList.contains('open') ? 'grid' : 'none';
-
-    const ipEl = header.querySelector('.nvr-ip');
-    if (ipEl) {
-        const ip = ipEl.textContent.trim();
-        if (block.classList.contains('open')) {
-            collapsedNvrs.delete(ip);
-        } else {
-            collapsedNvrs.add(ip);
-        }
-        saveCollapsedState();
-    }
-}
-
-export function toggleFactory(id) {
-    const el = document.getElementById('factory-' + id);
-    if (el) {
-        el.classList.toggle('open');
-        const strId = String(id);
-        if (el.classList.contains('open')) {
-            collapsedFactories.delete(strId);
-        } else {
-            collapsedFactories.add(strId);
-        }
-        saveCollapsedState();
-    }
-}
-
-export function expandAllFactories() {
-    document.querySelectorAll('.factory-section').forEach(sec => {
-        sec.classList.add('open');
-        const id = sec.id.replace('factory-', '');
-        collapsedFactories.delete(String(id));
-    });
-    document.querySelectorAll('.nvr-block').forEach(blk => {
-        blk.classList.add('open');
-        const grid = blk.querySelector('.nvr-grid');
-        if (grid) grid.style.display = 'grid';
-
-        const ipEl = blk.querySelector('.nvr-ip');
-        if (ipEl) {
-            collapsedNvrs.delete(ipEl.textContent.trim());
-        }
-    });
-    saveCollapsedState();
-}
-
-export function collapseAllFactories() {
-    document.querySelectorAll('.factory-section').forEach(sec => {
-        sec.classList.remove('open');
-        const id = sec.id.replace('factory-', '');
-        collapsedFactories.add(String(id));
-    });
-    document.querySelectorAll('.nvr-block').forEach(blk => {
-        blk.classList.remove('open');
-        const grid = blk.querySelector('.nvr-grid');
-        if (grid) grid.style.display = 'none';
-
-        const ipEl = blk.querySelector('.nvr-ip');
-        if (ipEl) {
-            collapsedNvrs.add(ipEl.textContent.trim());
-        }
-    });
-    saveCollapsedState();
 }
 
 export function toggleReportBlock(header) {
@@ -339,29 +241,6 @@ export function escapeHTML(str) {
             '"': '&quot;'
         }[tag] || tag)
     );
-}
-
-export function createCard(c) {
-    const stClass = c.status === 'Online' ? 'status-online' : 'status-offline';
-    const meta = encodeURIComponent(JSON.stringify(c));
-    const star = c.importance === 3 ? '<span class="cam-card-star">★</span>' : '';
-    const ipShort = c.ip ? c.ip.split('.').pop() : '';
-    const isRecording = c.recording_scheduled === true;
-    const recDotClass = isRecording ? 'cam-record-dot recording' : 'cam-record-dot not-recording';
-
-    return `<div class="cam-card ${stClass}" onclick="showCam('${meta}')">
-        <div class="cam-card-inner">
-            <div class="cam-status-dots">
-                <span class="cam-status-dot"></span>
-                <span class="${recDotClass}" title="${isRecording ? 'در حال ضبط' : 'ضبط غیرفعال'}"></span>
-            </div>
-            <div class="cam-card-info">
-                <div class="cam-card-name">${escapeHTML(c.name)}</div>
-                <div class="cam-card-meta">CH ${escapeHTML(String(c.channel_id))}</div>
-            </div>
-            ${star}
-        </div>
-    </div>`;
 }
 
 export function formatShamsiDate(dateInput) {
@@ -394,113 +273,17 @@ export function formatShamsiDate(dateInput) {
     }
 }
 
-export async function showCam(data) {
-    const c = JSON.parse(decodeURIComponent(data));
-    currentCamId = c.id;
-    currentImp = c.importance;
-
-    // Load cached snapshot
-    const snapContainer = document.getElementById('m-snap-container');
-    const snapImg = document.getElementById('m-snap-img');
-    const snapLoader = document.getElementById('m-snap-loader');
-    
-    snapContainer.style.display = 'block';
-    snapLoader.style.display = 'none';
-    snapImg.style.display = 'block';
-    snapImg.src = `/static/snapshots/camera_${c.id}.jpg?t=${new Date().getTime()}`;
-    snapImg.onerror = () => {
-        snapContainer.style.display = 'none';
-    };
-
-    // Find factory name
-    const nvrObj = nvrCache.find(n => n.ip === c.nvr_ip);
-    const groupObj = nvrObj && nvrObj.group_id ? groupCache.find(g => g.id === nvrObj.group_id) : null;
-    const groupName = groupObj && groupObj.name ? groupObj.name : 'سایر کارخانه‌ها';
-
-    document.getElementById('m-name').textContent = c.name;
-    document.getElementById('m-factory').textContent = groupName;
-    document.getElementById('m-nvr').textContent = `${getNvrDisplayName(c.nvr_ip)} (${c.nvr_ip})`;
-    document.getElementById('m-cam-ip').textContent = c.ip || 'نامشخص';
-    document.getElementById('m-cam-ch').textContent = c.channel_id ? `کانال ${c.channel_id}` : 'نامشخص';
-    
-    const impEl = document.getElementById('m-imp');
-    impEl.textContent = ['کم', 'عادی', 'مهم'][c.importance - 1];
-    impEl.className = 'badge';
-    if (c.importance === 1) impEl.classList.add('badge-info');
-    else if (c.importance === 2) impEl.classList.add('badge-warning');
-    else if (c.importance === 3) impEl.classList.add('badge-danger');
-    
-    // Populate specs & recording stats
-    document.getElementById('m-model').textContent = c.model || 'نامشخص';
-    
-    const recConfigEl = document.getElementById('m-rec-config');
-    recConfigEl.className = 'badge';
-    if (c.recording_scheduled === true) {
-        const typeStr = c.recording_schedule_type ? ` - ${c.recording_schedule_type}` : '';
-        recConfigEl.textContent = `فعال${typeStr}`;
-        recConfigEl.classList.add('badge-success');
-    } else if (c.recording_scheduled === false) {
-        recConfigEl.textContent = 'غیرفعال';
-        recConfigEl.classList.add('badge-danger');
-    } else {
-        recConfigEl.textContent = 'نامشخص';
-    }
-    
-    let rec24hText = 'نامشخص';
-    if (c.recording_hours_24h !== null) {
-        const totalSeconds = Math.round(c.recording_hours_24h * 3600);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        rec24hText = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-    }
-    document.getElementById('m-rec-24h').textContent = rec24hText;
-    
-    if (c.oldest_record) {
-        document.getElementById('m-oldest').textContent = formatShamsiDate(c.oldest_record);
-    } else {
-        document.getElementById('m-oldest').textContent = 'نامشخص';
-    }
-    
-    document.getElementById('m-size').textContent = c.total_record_size_gb !== null ? `${c.total_record_size_gb} GB` : 'نامشخص';
-    
-    if (c.total_record_duration_hours !== null) {
-        const hrs = c.total_record_duration_hours;
-        if (hrs >= 24) {
-            document.getElementById('m-duration').textContent = `${(hrs / 24).toFixed(1)} روز (${hrs} ساعت)`;
-        } else {
-            document.getElementById('m-duration').textContent = `${hrs} ساعت`;
-        }
-    } else {
-        document.getElementById('m-duration').textContent = 'نامشخص';
-    }
-    
-    document.getElementById('camModal').classList.add('open');
-    const impBtn = document.getElementById('m-imp-btn');
-    if (impBtn) {
-        impBtn.style.display = (window.currentUser && window.currentUser.role === 'group_view') ? 'none' : '';
-    }
-
-    const res = await apiFetch(`${API}/stats/${c.id}`);
-    const s = await res.json();
-    document.getElementById('m-d1').textContent = s.down_1h + ' دقیقه';
-    document.getElementById('m-d24').textContent = s.down_24h + ' دقیقه';
-}
-
-export function playLiveStream() {
-    window.open(`/api/v1/cameras/${currentCamId}/live`, '_blank');
-}
-
 export async function cycleImpModal() {
     let n = currentImp + 1;
     if (n > 3) n = 1;
-    await apiFetch(`${API}/cameras/${currentCamId}`, {
+    await window.apiFetch(`${API}/cameras/${currentCamId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ importance: n })
     });
     currentImp = n;
     document.getElementById('m-imp').textContent = ['کم', 'عادی', 'مهم'][n - 1];
-    fetchDash();
+    window.fetchDash();
 }
 
 export function notificationKey(eventType, channel = null) {
@@ -514,9 +297,9 @@ export function renderNotificationManagement() {
     const values = Object.fromEntries(settingsCache.map(s => [s.key, s.value]));
     const isChecked = key => values[key] !== 'false' ? 'checked' : '';
     const rows = notificationEventCatalog.map(([eventType, title, desc]) => {
-        const masterKey = notificationKey(eventType);
+        const masterKey = window.notificationKey(eventType);
         const channels = [['email', 'ایمیل'], ['telegram', 'تلگرام'], ['browser', 'مرورگر']].map(([channel, label]) => {
-            const key = notificationKey(eventType, channel);
+            const key = window.notificationKey(eventType, channel);
             return `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
                 <input type="checkbox" id="${key}" ${isChecked(key)}>
                 <span>${label}</span>
@@ -525,20 +308,20 @@ export function renderNotificationManagement() {
         return `<div style="padding:14px 0;border-bottom:1px solid var(--border);">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
                 <div><strong style="font-size:13px;">${title}</strong><p style="margin:5px 0 0;font-size:12px;color:var(--text-secondary);">${desc}</p></div>
-                <label class="toggle" title="فعال‌سازی همه کانال‌های این رویداد"><input type="checkbox" id="${masterKey}" ${isChecked(masterKey)} onchange="syncNotificationChannels('${eventType}')"><span class="toggle-slider"></span></label>
+                <label class="toggle" title="فعال‌سازی همه کانال‌های این رویداد"><input type="checkbox" id="${masterKey}" ${isChecked(masterKey)} onchange="window.syncNotificationChannels('${eventType}')"><span class="toggle-slider"></span></label>
             </div>
             <div id="notification-channels-${eventType}" style="display:flex;gap:18px;margin-top:11px;padding-right:2px;">${channels}</div>
         </div>`;
     }).join('');
     con.insertAdjacentHTML('afterbegin', `<div class="card" id="grp-Notifications" style="display:none;">
-        <div class="settings-card-header"><button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></button><h3>مدیریت مرکزی اعلان‌ها</h3></div>
-        <div style="padding:0 20px 20px;"><p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin:0;padding:16px 0 8px;">خاموش‌کردن هر مورد فقط ارسال اعلان را متوقف می‌کند؛ رویدادها و لاگ‌های سیستم همچنان ثبت می‌شوند.</p>${rows}<div class="settings-action-row"><button class="btn btn-primary" onclick="saveNotificationSettings()">ذخیره تنظیمات اعلان‌ها</button></div></div>
+        <div class="settings-card-header"><button class="settings-back-btn" onclick="window.goBackToSettingsMenu()" title="بازگشت به تنظیمات"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></button><h3>مدیریت مرکزی اعلان‌ها</h3></div>
+        <div style="padding:0 20px 20px;"><p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin:0;padding:16px 0 8px;">خاموش‌کردن هر مورد فقط ارسال اعلان را متوقف می‌کند؛ رویدادها و لاگ‌های سیستم همچنان ثبت می‌شوند.</p>${rows}<div class="settings-action-row"><button class="btn btn-primary" onclick="window.saveNotificationSettings()">ذخیره تنظیمات اعلان‌ها</button></div></div>
     </div>`);
-    notificationEventCatalog.forEach(([eventType]) => syncNotificationChannels(eventType));
+    notificationEventCatalog.forEach(([eventType]) => window.syncNotificationChannels(eventType));
 }
 
 export function syncNotificationChannels(eventType) {
-    const master = document.getElementById(notificationKey(eventType));
+    const master = document.getElementById(window.notificationKey(eventType));
     const channels = document.getElementById(`notification-channels-${eventType}`);
     if (!master || !channels) return;
     channels.style.opacity = master.checked ? '1' : '.45';
@@ -547,18 +330,18 @@ export function syncNotificationChannels(eventType) {
 
 export async function saveNotificationSettings() {
     try {
-        const keys = notificationEventCatalog.flatMap(([eventType]) => [notificationKey(eventType), ...['email', 'telegram', 'browser'].map(channel => notificationKey(eventType, channel))]);
+        const keys = notificationEventCatalog.flatMap(([eventType]) => [window.notificationKey(eventType), ...['email', 'telegram', 'browser'].map(channel => window.notificationKey(eventType, channel))]);
         for (const key of keys) {
             const el = document.getElementById(key);
             const setting = settingsCache.find(s => s.key === key);
             if (el && setting && (el.checked ? 'true' : 'false') !== setting.value) {
-                await apiFetch(`${API}/settings/${key}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value: el.checked ? 'true' : 'false' }) });
+                await window.apiFetch(`${API}/settings/${key}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value: el.checked ? 'true' : 'false' }) });
                 setting.value = el.checked ? 'true' : 'false';
             }
         }
-        showToast('تنظیمات مرکزی اعلان‌ها ذخیره شد', 'success');
+        window.showToast('تنظیمات مرکزی اعلان‌ها ذخیره شد', 'success');
     } catch (e) {
-        showToast('خطا در ذخیره تنظیمات اعلان‌ها: ' + e.message, 'error');
+        window.showToast('خطا در ذخیره تنظیمات اعلان‌ها: ' + e.message, 'error');
     }
 }
 
@@ -580,22 +363,22 @@ export function switchSettingsTab(tabId) {
     });
 
     if (tabId === 'sec-logs') {
-        resetLogs();
+        window.resetLogs();
     }
     if (tabId === 'grp-Browser') {
-        updateBrowserAlertsUI();
+        window.updateBrowserAlertsUI();
     }
     if (tabId === 'sec-groups') {
-        renderGroupsList();
+        window.renderGroupsList();
     }
     if (tabId === 'sec-users') {
-        loadUsers();
+        window.loadUsers();
     }
     if (tabId === 'sec-my-alerts') {
-        loadMyAlerts();
+        window.loadMyAlerts();
     }
     if (tabId === 'sec-tasks') {
-        loadScheduledTasks();
+        window.loadScheduledTasks();
     }
 }
 
@@ -711,7 +494,7 @@ export function renderSettingsMenu(role) {
     for (const [id, item] of Object.entries(allItems)) {
         if (item.roles.includes(role)) {
             html += `
-                <div class="settings-menu-item" onclick="switchSettingsTab('${id}')">
+                <div class="settings-menu-item" onclick="window.switchSettingsTab('${id}')">
                     <div class="settings-menu-item-left">
                         <div class="settings-menu-item-icon">
                             ${item.icon}
@@ -744,236 +527,6 @@ export function updateOutageDaysValue() {
     const hiddenInput = document.getElementById('OUTAGE_ANALYSIS_DAYS');
     if (hiddenInput) {
         hiddenInput.value = selected.join(',');
-    }
-}
-
-export function validateNVRInputs() {
-    const ipInput = document.getElementById('nvrIp');
-    const portInput = document.getElementById('nvrRtspPort');
-    const msgLabel = document.getElementById('nvr-validation-msg');
-    const addBtn = document.getElementById('btn-add-nvr');
-
-    let ipValid = true;
-    let portValid = true;
-    let errMsg = '';
-
-    const ipValue = ipInput ? ipInput.value.trim() : '';
-    const portValue = portInput ? portInput.value.trim() : '';
-
-    if (!ipValue) {
-        ipValid = false;
-    } else {
-        // ریجکس منعطف جهت پذیرش همزمان آدرس‌های IP و نام‌های دامنه یا میزبان (مانند DDNSها)
-        const ipPattern = /^[a-zA-Z0-9_\-\.]+(:[0-9]+)?$/;
-        if (!ipPattern.test(ipValue)) {
-            ipValid = false;
-            errMsg += 'قالب آدرس IP یا میزبان نامعتبر است. ';
-        }
-    }
-
-    if (portValue) {
-        const portVal = parseInt(portValue);
-        if (isNaN(portVal) || portVal < 1 || portVal > 65535) {
-            portValid = false;
-            errMsg += 'پورت باید عددی بین ۱ تا ۶۵۵۳۵ باشد.';
-        }
-    }
-
-    if (msgLabel) msgLabel.textContent = errMsg;
-
-    if (ipValid && portValid) {
-        if (ipInput) ipInput.style.borderColor = '';
-        if (portInput) portInput.style.borderColor = '';
-        if (addBtn) addBtn.disabled = false;
-        if (addBtn) addBtn.style.opacity = '1';
-        return true;
-    } else {
-        if (ipInput) {
-            if (!ipValid && ipValue) ipInput.style.borderColor = 'var(--danger)';
-            else ipInput.style.borderColor = '';
-        }
-
-        if (portInput) {
-            if (!portValid) portInput.style.borderColor = 'var(--danger)';
-            else portInput.style.borderColor = '';
-        }
-
-        if (addBtn) addBtn.disabled = true;
-        if (addBtn) addBtn.style.opacity = '0.5';
-        return false;
-    }
-}
-
-export function renderNVRRow(n, deleted = false) {
-    const escaped = n.ip.replace(/[^\w]/g, '_');
-    if (deleted) {
-        return `<div class="list-item list-item-deleted" id="nvr-row-${escaped}" data-ip="${n.ip}">
-            <div class="list-item-info" style="text-decoration: line-through; opacity: 0.55;">
-                ${n.name ? `<strong style="margin-left: 8px;">${n.name}</strong>` : ''}
-                <span class="list-item-ip">${n.ip}</span>
-                <span class="list-item-user">(${n.user})</span>
-            </div>
-            <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
-                <button class="btn" style="padding: 4px 10px; font-size: 12px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);" onclick="undoNVRDelete('${n.ip}')">
-                    بازگشت
-                </button>
-                <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="applyNVRDelete('${n.ip}')">
-                    حذف
-                </button>
-            </div>
-        </div>`;
-    }
-
-    const role = window.currentUser ? window.currentUser.role : 'group_view';
-    const canEdit = role === 'admin';
-
-    let groupSelectOrLabel = '';
-    if (role === 'admin') {
-        let options = `<option value="">بدون کارخانه (بدون گروه)</option>`;
-        groupCache.forEach(g => {
-            const selected = n.group_id === g.id ? 'selected' : '';
-            options += `<option value="${g.id}" ${selected}>${g.name}</option>`;
-        });
-        groupSelectOrLabel = `<select class="form-input form-input-sm" style="margin-right: 12px; width: 160px; padding: 2px 8px; font-size:12px; height:28px" onchange="updateNVRGroup('${n.ip}', this.value)">${options}</select>`;
-    } else {
-        const group = groupCache.find(g => g.id === n.group_id);
-        const groupName = group ? group.name : 'بدون کارخانه';
-        groupSelectOrLabel = `<span style="margin-right: 12px; font-size: 12px; opacity: 0.8; color: var(--text-primary);">کارخانه: ${groupName}</span>`;
-    }
-
-    let actionBtns = '';
-    if (canEdit || role === 'admin') {
-        actionBtns += `<div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">`;
-        if (canEdit) {
-            actionBtns += `
-                <button class="btn-icon" onclick="startEditNVR('${n.ip}')" style="width:28px; height:28px" title="ویرایش">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"/></svg>
-                </button>
-            `;
-        }
-        if (role === 'admin') {
-            actionBtns += `
-                <button class="btn-icon" onclick="delNVR('${n.ip}')" style="width:28px; height:28px" title="حذف">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-            `;
-        }
-        actionBtns += `</div>`;
-    }
-
-    const disabledStyle = n.enabled === false ? 'opacity: 0.5;' : '';
-    const enabledBadge = n.enabled === false
-        ? `<span class="badge" style="font-size: 11px; margin-right: 6px; background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 2px 6px; border-radius: 4px;">غیرفعال</span>`
-        : '';
-
-    return `<div class="list-item" id="nvr-row-${escaped}" data-ip="${n.ip}" style="${disabledStyle}; flex-direction: column; align-items: stretch; gap: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div class="list-item-info">
-                ${n.name ? `<strong style="margin-left: 8px; color: var(--text-primary);">${n.name}</strong>` : ''}
-                <span class="list-item-ip">${n.ip}</span>
-                <span class="list-item-user">(${n.user})</span>
-                <span class="badge" style="font-size: 11px; margin-right: 6px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 2px 6px; border-radius: 4px;">RTSP: ${n.rtsp_port || 554}</span>
-                ${enabledBadge}
-                ${groupSelectOrLabel}
-            </div>
-            <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
-                <label class="toggle" style="transform: scale(0.85); transform-origin: right; margin: 0;">
-                    <input type="checkbox" ${n.enabled !== false ? 'checked' : ''} onchange="toggleNVRenabled('${n.ip}', this.checked)">
-                    <span class="toggle-slider"></span>
-                </label>
-                ${actionBtns}
-            </div>
-        </div>
-    </div>`;
-}
-
-export function renderGroupsList() {
-    const list = document.getElementById('group-list');
-    if (!list) return;
-    if (!groupCache || !Array.isArray(groupCache)) {
-        list.innerHTML = '<div style="padding: 15px; text-align: center; color: var(--text-muted); font-size: 13px;">در حال بارگذاری کارخانه‌ها...</div>';
-        return;
-    }
-    list.innerHTML = groupCache.map(g => `
-        <div class="list-item" id="group-row-${g.id}">
-            <div class="list-item-info">
-                <strong style="margin-left: 8px; color: var(--text-primary);">${g.name}</strong>
-                <span class="list-item-user">${g.description || ''}</span>
-            </div>
-            <div style="display: flex; gap: 6px; align-items: center;">
-                <button class="btn-icon" onclick="openEditGroupModal(${g.id})" style="width:28px; height:28px" title="ویرایش" aria-label="ویرایش">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                </button>
-                <button class="btn-icon" onclick="deleteGroup(${g.id})" style="width:28px; height:28px" title="حذف" aria-label="حذف">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
-
-export function delNVR(ip) {
-    pendingNVRDeletes.add(ip);
-    const nvr = nvrCache.find(n => n.ip === ip);
-    if (!nvr) return;
-    const escaped = ip.replace(/[^\w]/g, '_');
-    const row = document.getElementById(`nvr-row-${escaped}`);
-    if (row) row.outerHTML = renderNVRRow(nvr, true);
-}
-
-export function undoNVRDelete(ip) {
-    pendingNVRDeletes.delete(ip);
-    const nvr = nvrCache.find(n => n.ip === ip);
-    if (!nvr) return;
-    const escaped = ip.replace(/[^\w]/g, '_');
-    const row = document.getElementById(`nvr-row-${escaped}`);
-    if (row) row.outerHTML = renderNVRRow(nvr, false);
-}
-
-export function startEditNVR(ip) {
-    const n = nvrCache.find(n => n.ip === ip);
-    if (!n) return;
-    const escaped = ip.replace(/[^\w]/g, '_');
-    const row = document.getElementById(`nvr-row-${escaped}`);
-    if (!row) return;
-
-    row.innerHTML = `
-        <div class="edit-nvr-form">
-            <div class="form-group-compact">
-                <label class="compact-label">آدرس IP یا میزبان</label>
-                <input class="form-input form-input-ltr" id="edit-nvr-ip-${escaped}" value="${n.ip}" placeholder="آدرس IP یا میزبان">
-            </div>
-            <div class="form-group-compact">
-                <label class="compact-label">نام دلخواه</label>
-                <input class="form-input" id="edit-nvr-name-${escaped}" value="${n.name || ''}" placeholder="نام دلخواه">
-            </div>
-            <div class="form-group-compact">
-                <label class="compact-label">نام کاربری</label>
-                <input class="form-input form-input-ltr" id="edit-nvr-user-${escaped}" value="${n.user || ''}" placeholder="نام کاربری">
-            </div>
-            <div class="form-group-compact">
-                <label class="compact-label">رمز عبور جدید</label>
-                <input class="form-input form-input-ltr" id="edit-nvr-pass-${escaped}" type="password" placeholder="رمز عبور جدید">
-            </div>
-            <div class="form-group-compact">
-                <label class="compact-label">پورت RTSP</label>
-                <input class="form-input form-input-ltr" id="edit-nvr-rtsp-port-${escaped}" type="number" value="${n.rtsp_port || 554}" placeholder="پورت RTSP">
-            </div>
-            <div style="display: flex; gap: 6px; align-items: flex-end;">
-                <button class="btn btn-primary" onclick="saveNVRRow('${n.ip}')" style="flex: 1; height: 38px;">ذخیره</button>
-                <button class="btn" style="flex: 1; height: 38px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);" onclick="cancelEditNVR('${n.ip}')">انصراف</button>
-            </div>
-        </div>
-    `;
-}
-
-export function cancelEditNVR(ip) {
-    const n = nvrCache.find(n => n.ip === ip);
-    if (!n) return;
-    const escaped = ip.replace(/[^\w]/g, '_');
-    const row = document.getElementById(`nvr-row-${escaped}`);
-    if (row) {
-        row.outerHTML = renderNVRRow(n, false);
     }
 }
 
@@ -1031,20 +584,20 @@ export function delayLogSearch() {
     clearTimeout(logTimer);
     logTimer = setTimeout(() => {
         logSearchVal = document.getElementById('logSearch').value;
-        resetLogs();
+        window.resetLogs();
     }, 500);
 }
 
 export function setLogLevelFilter(val) {
     logLevelFilter = val;
-    resetLogs();
+    window.resetLogs();
 }
 
 export function setFilter(btn, val) {
     document.querySelectorAll('.filter-chips .chip').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     logFilter = val;
-    resetLogs();
+    window.resetLogs();
 }
 
 export function translateLogDetails(text) {
@@ -1088,12 +641,12 @@ export function jalCalCore(jy) {
         jm = BREAKS[i];
         jump = jm - jp;
         if (jy < jm) break;
-        leapJ = leapJ + div(jump, 33) * 8 + div(mod(jump, 33), 4);
+        leapJ = leapJ + div(jump, 33) * 8 + div(window.mod(jump, 33), 4);
         jp = jm;
     }
     const n = jy - jp;
-    leapJ = leapJ + div(n, 33) * 8 + div(mod(n, 33) + 3, 4);
-    if (mod(jump, 33) === 4 && jump - n === 4) leapJ += 1;
+    leapJ = leapJ + div(n, 33) * 8 + div(window.mod(n, 33) + 3, 4);
+    if (window.mod(jump, 33) === 4 && jump - n === 4) leapJ += 1;
     const leapG = div(gy, 4) - div((div(gy, 100) + 1) * 3, 4) - 150;
     const march = 20 + leapJ - leapG;
     return {
@@ -1105,7 +658,7 @@ export function jalCalCore(jy) {
 }
 
 export function g2d(gy, gm, gd) {
-    let d = div((gy + div(gm - 8, 6) + 100100) * 1461, 4) + div(153 * mod(gm + 9, 12) + 2, 5) + gd - 34840408;
+    let d = div((gy + div(gm - 8, 6) + 100100) * 1461, 4) + div(153 * window.mod(gm + 9, 12) + 2, 5) + gd - 34840408;
     d = d - div(div(gy + 100100 + div(gm - 8, 6), 100) * 3, 4) + 752;
     return d;
 }
@@ -1113,9 +666,9 @@ export function g2d(gy, gm, gd) {
 export function d2g(jdn) {
     let j = 4 * jdn + 139361631;
     j = j + div(div(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908;
-    const i = div(mod(j, 1461), 4) * 5 + 308;
-    const gd = div(mod(i, 153), 5) + 1;
-    const gm = mod(div(i, 153), 12) + 1;
+    const i = div(window.mod(j, 1461), 4) * 5 + 308;
+    const gd = div(window.mod(i, 153), 5) + 1;
+    const gm = window.mod(div(i, 153), 12) + 1;
     const gy = div(j, 1461) - 100100 + div(8 - gm, 6);
     return {
         gy,
@@ -1125,7 +678,7 @@ export function d2g(jdn) {
 }
 
 export function jalCalShort(jy) {
-    const { gy, march } = jalCalCore(jy);
+    const { gy, march } = window.jalCalCore(jy);
     return {
         gy,
         march
@@ -1133,12 +686,12 @@ export function jalCalShort(jy) {
 }
 
 export function j2d(jy, jm, jd) {
-    const r = jalCalShort(jy);
-    return g2d(r.gy, 3, r.march) + (jm - 1) * 31 - div(jm, 7) * (jm - 7) + jd - 1;
+    const r = window.jalCalShort(jy);
+    return window.g2d(r.gy, 3, r.march) + (jm - 1) * 31 - div(jm, 7) * (jm - 7) + jd - 1;
 }
 
 export function jalaliToGregorian(jy, jm, jd) {
-    const g = d2g(j2d(jy, jm, jd));
+    const g = window.d2g(window.j2d(jy, jm, jd));
     return [g.gy, g.gm, g.gd];
 }
 
@@ -1173,15 +726,15 @@ export function parsePersianDateTime(val) {
     const jd = parseInt(match[3]);
     const hour = match[4] ? parseInt(match[4]) : 0;
     const minute = match[5] ? parseInt(match[5]) : 0;
-    const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd);
+    const [gy, gm, gd] = window.jalaliToGregorian(jy, jm, jd);
     return new Date(gy, gm - 1, gd, hour, minute, 0);
 }
 
 export function setPreset(h) {
     const end = new Date();
     const start = new Date(end.getTime() - (h * 60 * 60 * 1000));
-    document.getElementById('startDt').value = formatPersianDateTime(start);
-    document.getElementById('endDt').value = formatPersianDateTime(end);
+    document.getElementById('startDt').value = window.formatPersianDateTime(start);
+    document.getElementById('endDt').value = window.formatPersianDateTime(end);
 }
 
 export function toggleReportSection(forceHeatmap = null) {
@@ -1231,8 +784,8 @@ export function renderTrendChart(chartData) {
         chartTrendInstance.destroy();
     }
     
-    const textColor = getChartColor('--text', '#f1f5f9');
-    const gridColor = getChartColor('--border', '#2a2a36');
+    const textColor = window.getChartColor('--text', '#f1f5f9');
+    const gridColor = window.getChartColor('--border', '#2a2a36');
     
     chartTrendInstance = new Chart(ctx, {
         type: 'line',
@@ -1295,7 +848,7 @@ export function renderCausesChart(chartData) {
                 interaction: { mode: 'index' },
                 animation: { duration: 1000, easing: 'easeOutQuart' },
                 plugins: {
-                    legend: { labels: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } } }
+                    legend: { labels: { color: window.getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } } }
                 }
             }
         });
@@ -1310,7 +863,7 @@ export function renderCausesChart(chartData) {
                 data: chartData.data,
                 backgroundColor: ['#f43f5e', '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#eab308'],
                 borderWidth: 1,
-                borderColor: getChartColor('--surface', '#12121a')
+                borderColor: window.getChartColor('--surface', '#12121a')
             }]
         },
         options: {
@@ -1321,7 +874,7 @@ export function renderCausesChart(chartData) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
+                    labels: { color: window.getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
                 }
             }
         }
@@ -1359,12 +912,12 @@ export function renderGroupsChart(chartData) {
             },
             scales: {
                 x: {
-                    grid: { color: getChartColor('--border', '#2a2a36') },
-                    ticks: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
+                    grid: { color: window.getChartColor('--border', '#2a2a36') },
+                    ticks: { color: window.getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
                 },
                 y: {
-                    grid: { color: getChartColor('--border', '#2a2a36') },
-                    ticks: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } },
+                    grid: { color: window.getChartColor('--border', '#2a2a36') },
+                    ticks: { color: window.getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } },
                     beginAtZero: true
                 }
             }
@@ -1404,13 +957,13 @@ export function renderTopCamerasChart(chartData) {
             },
             scales: {
                 x: {
-                    grid: { color: getChartColor('--border', '#2a2a36') },
-                    ticks: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } },
+                    grid: { color: window.getChartColor('--border', '#2a2a36') },
+                    ticks: { color: window.getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } },
                     beginAtZero: true
                 },
                 y: {
-                    grid: { color: getChartColor('--border', '#2a2a36') },
-                    ticks: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
+                    grid: { color: window.getChartColor('--border', '#2a2a36') },
+                    ticks: { color: window.getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
                 }
             }
         }
@@ -1433,7 +986,7 @@ export function renderStatusChart(chartData) {
                 data: chartData.data,
                 backgroundColor: ['#22c55e', '#ef4444'],
                 borderWidth: 1,
-                borderColor: getChartColor('--surface', '#12121a')
+                borderColor: window.getChartColor('--surface', '#12121a')
             }]
         },
         options: {
@@ -1444,7 +997,7 @@ export function renderStatusChart(chartData) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { color: getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
+                    labels: { color: window.getChartColor('--text', '#f1f5f9'), font: { family: 'inherit' } }
                 }
             }
         }
@@ -1492,22 +1045,22 @@ export function connectWS() {
 
     ws.onopen = () => {
         wsRetryDelay = 1000;
-        setConnectionStatus(true);
+        window.setConnectionStatus(true);
     };
 
     ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
         if (msg.type === 'cameras') {
-            updateDashFromWS(msg.data);
+            window.updateDashFromWS(msg.data);
         } else if (msg.type === 'alert') {
-            handleIncomingAlert(msg);
+            window.handleIncomingAlert(msg);
         } else if (msg.type === 'task_status') {
-            handleTaskStatusUpdate(msg.data);
+            window.handleTaskStatusUpdate(msg.data);
         }
     };
 
     ws.onclose = () => {
-        setConnectionStatus(false);
+        window.setConnectionStatus(false);
         setTimeout(connectWS, wsRetryDelay);
         wsRetryDelay = Math.min(wsRetryDelay * 2, 30000);
     };
@@ -1604,13 +1157,13 @@ export function updateDashFromWS(cams) {
         }
     }
 
-    renderDash();
-    renderImportantCamerasWidget();
-    renderOffCamerasWidget();
-    renderCameraChangesWidget();
-    renderNvrHealthWidget();
-    renderNvrHealthSummaryWidget();
-    renderDashboardCharts();
+    window.renderDash();
+    window.renderImportantCamerasWidget();
+    window.renderOffCamerasWidget();
+    window.renderCameraChangesWidget();
+    window.renderNvrHealthWidget();
+    window.renderNvrHealthSummaryWidget();
+    window.renderDashboardCharts();
 
     const dashLoader = document.getElementById('dashLoader');
     if (dashLoader) dashLoader.classList.add('hidden');
@@ -1623,7 +1176,7 @@ export function updateDashFromWS(cams) {
     }
 
     if (typeof map !== 'undefined' && map && typeof updateMapMarkersFromWS === 'function') {
-        updateMapMarkersFromWS(cams);
+        window.updateMapMarkersFromWS(cams);
     }
 }
 
@@ -1649,7 +1202,7 @@ export function applyTheme(theme) {
     }
 
     localStorage.setItem('hikstatus-theme', theme);
-    updateThemeIcon(theme);
+    window.updateThemeIcon(theme);
 }
 
 export function toggleTheme() {
@@ -1663,7 +1216,7 @@ export function toggleTheme() {
         nextTheme = 'system';
     }
 
-    applyTheme(nextTheme);
+    window.applyTheme(nextTheme);
 
     let themeLabel = '';
     if (nextTheme === 'system') themeLabel = 'هماهنگ با سیستم';
@@ -1671,7 +1224,7 @@ export function toggleTheme() {
     else if (nextTheme === 'dark') themeLabel = 'تاریک';
 
     if (typeof showToast === 'function') {
-        showToast(`پوسته به حالت «${themeLabel}» تغییر یافت`);
+        window.showToast(`پوسته به حالت «${themeLabel}» تغییر یافت`);
     }
 }
 
@@ -1720,7 +1273,7 @@ export function isKioskActive() {
 }
 
 export function updateKioskUIState() {
-    const isFS = isKioskActive();
+    const isFS = window.isKioskActive();
     if (isFS) {
         document.body.classList.add('kiosk-mode');
     } else {
@@ -1744,19 +1297,19 @@ export function toggleKiosk() {
             if (p && typeof p.then === 'function') {
                 p.then(() => {
                     document.body.classList.add('kiosk-mode');
-                    updateKioskUIState();
+                    window.updateKioskUIState();
                 }).catch((err) => {
                     console.error(`Error attempting to enable fullscreen: ${err.message}`);
                     document.body.classList.toggle('kiosk-mode');
-                    updateKioskUIState();
+                    window.updateKioskUIState();
                 });
             } else {
                 document.body.classList.add('kiosk-mode');
-                updateKioskUIState();
+                window.updateKioskUIState();
             }
         } else {
             document.body.classList.toggle('kiosk-mode');
-            updateKioskUIState();
+            window.updateKioskUIState();
         }
     } else {
         const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
@@ -1769,7 +1322,7 @@ export function toggleKiosk() {
             }
         }
         document.body.classList.remove('kiosk-mode');
-        updateKioskUIState();
+        window.updateKioskUIState();
     }
 }
 
@@ -1782,7 +1335,7 @@ export function initKioskListeners() {
             } else {
                 document.body.classList.add('kiosk-mode');
             }
-            updateKioskUIState();
+            window.updateKioskUIState();
         });
     });
 }
@@ -1801,7 +1354,7 @@ export function initBrowserAlerts() {
         }
     });
 
-    updateBrowserAlertsUI();
+    window.updateBrowserAlertsUI();
 }
 
 export function updateBrowserAlertsUI() {
@@ -1845,7 +1398,7 @@ export function updateBrowserAlertsUI() {
 export async function toggleBrowserAlerts(checkbox) {
     if (checkbox.checked) {
         if (!("Notification" in window)) {
-            showToast("این مرورگر از اعلان‌ها پشتیبانی نمی‌کند", "error");
+            window.showToast("این مرورگر از اعلان‌ها پشتیبانی نمی‌کند", "error");
             checkbox.checked = false;
             return;
         }
@@ -1853,22 +1406,22 @@ export async function toggleBrowserAlerts(checkbox) {
         const permission = await Notification.requestPermission();
         if (permission === "granted") {
             localStorage.setItem('BROWSER_ALERT_ENABLED', 'true');
-            showToast("اعلان‌های دسکتاپ فعال شدند");
+            window.showToast("اعلان‌های دسکتاپ فعال شدند");
         } else {
             localStorage.setItem('BROWSER_ALERT_ENABLED', 'false');
             checkbox.checked = false;
-            showToast("مجوز اعلان صادر نشد", "error");
+            window.showToast("مجوز اعلان صادر نشد", "error");
         }
     } else {
         localStorage.setItem('BROWSER_ALERT_ENABLED', 'false');
-        showToast("اعلان‌های دسکتاپ غیرفعال شدند");
+        window.showToast("اعلان‌های دسکتاپ غیرفعال شدند");
     }
-    updateBrowserAlertsUI();
+    window.updateBrowserAlertsUI();
 }
 
 export function toggleGlobalMute(checkbox) {
     localStorage.setItem('BROWSER_ALERT_MUTED', checkbox.checked ? 'true' : 'false');
-    showToast(checkbox.checked ? "صداها بی‌صدا شدند" : "صداها فعال شدند");
+    window.showToast(checkbox.checked ? "صداها بی‌صدا شدند" : "صداها فعال شدند");
 }
 
 export function toggleCategoryNotify(category, checkbox) {
@@ -1943,7 +1496,7 @@ export function playSynthesizedSound(category) {
 
 export function testSound(category) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return showToast("مرورگر شما از صدا پشتیبانی نمی‌کند", "error");
+    if (!AudioContext) return window.showToast("مرورگر شما از صدا پشتیبانی نمی‌کند", "error");
     
     const originalMute = localStorage.getItem('BROWSER_ALERT_MUTED');
     const originalSoundVal = localStorage.getItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`);
@@ -1951,7 +1504,7 @@ export function testSound(category) {
     localStorage.setItem('BROWSER_ALERT_MUTED', 'false');
     localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, 'true');
     
-    playSynthesizedSound(category);
+    window.playSynthesizedSound(category);
     
     localStorage.setItem('BROWSER_ALERT_MUTED', originalMute);
     localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, originalSoundVal);
@@ -1959,20 +1512,20 @@ export function testSound(category) {
 
 export function testBrowserNotification() {
     if (!("Notification" in window)) {
-        return showToast("این مرورگر از اعلان‌ها پشتیبانی نمی‌کند", "error");
+        return window.showToast("این مرورگر از اعلان‌ها پشتیبانی نمی‌کند", "error");
     }
 
     if (Notification.permission !== "granted") {
         Notification.requestPermission().then(permission => {
-            updateBrowserAlertsUI();
+            window.updateBrowserAlertsUI();
             if (permission === "granted") {
-                sendTestNotification();
+                window.sendTestNotification();
             } else {
-                showToast("مجوز اعلان صادر نشد. لطفاً مجوز را دستی فعال کنید.", "error");
+                window.showToast("مجوز اعلان صادر نشد. لطفاً مجوز را دستی فعال کنید.", "error");
             }
         });
     } else {
-        sendTestNotification();
+        window.sendTestNotification();
     }
 }
 
@@ -1983,12 +1536,12 @@ export function sendTestNotification() {
         dir: 'rtl'
     });
     
-    playSynthesizedSound('recovery');
-    showToast("اعلان آزمایشی ارسال شد");
+    window.playSynthesizedSound('recovery');
+    window.showToast("اعلان آزمایشی ارسال شد");
     
     notification.onclick = () => {
         window.focus();
-        nav('dash');
+        window.nav('dash');
         notification.close();
     };
 }
@@ -2012,12 +1565,12 @@ export function handleIncomingAlert(msg) {
         });
         notification.onclick = () => {
             window.focus();
-            nav('dash');
+            window.nav('dash');
             notification.close();
         };
     }
 
-    playSynthesizedSound(category);
+    window.playSynthesizedSound(category);
 }
 
 export function populateMapGroupSelect() {
@@ -2050,7 +1603,7 @@ export async function onMapGroupChange(groupId) {
                 localStorage.setItem('map_zoom_geo', group.map_zoom);
             }
         }
-        await loadGroupPlans(currentGroupId);
+        await window.loadGroupPlans(currentGroupId);
     } else {
         if (floorBtn) floorBtn.style.display = 'none';
         if (mapType === 'floor') {
@@ -2065,9 +1618,9 @@ export async function onMapGroupChange(groupId) {
         mapStartLng = lngSet ? parseFloat(lngSet.value) : 45.062508;
     }
 
-    renderPlanTabs();
-    setupLeafletMap(true);
-    renderMapCameraList();
+    window.renderPlanTabs();
+    window.setupLeafletMap(true);
+    window.renderMapCameraList();
 }
 
 export function renderPlanTabs() {
@@ -2090,9 +1643,9 @@ export function renderPlanTabs() {
 
     container.innerHTML = mapPlans.map(p => {
         const isActive = p.id === activePlanId;
-        return `<div style="display:inline-flex;align-items:center;gap:4px;background:${isActive ? 'var(--primary)' : 'var(--bg-tertiary)'};color:${isActive ? '#fff' : 'var(--text-secondary)'};border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;white-space:nowrap;" onclick="switchPlan(${p.id})">
+        return `<div style="display:inline-flex;align-items:center;gap:4px;background:${isActive ? 'var(--primary)' : 'var(--bg-tertiary)'};color:${isActive ? '#fff' : 'var(--text-secondary)'};border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;white-space:nowrap;" onclick="window.switchPlan(${p.id})">
             <span>${p.name}</span>
-            <span onclick="deletePlan(${p.id});event.stopPropagation();" style="cursor:pointer;opacity:0.7;font-size:14px;line-height:1;" title="حذف">&times;</span>
+            <span onclick="window.deletePlan(${p.id});event.stopPropagation();" style="cursor:pointer;opacity:0.7;font-size:14px;line-height:1;" title="حذف">&times;</span>
         </div>`;
     }).join('');
 }
@@ -2102,9 +1655,9 @@ export function switchPlan(planId) {
     if (!plan) return;
     activePlanId = planId;
     mapImage = plan.image_url;
-    renderPlanTabs();
-    setupLeafletMap(true);
-    renderMapCameraList();
+    window.renderPlanTabs();
+    window.setupLeafletMap(true);
+    window.renderMapCameraList();
 }
 
 export async function initOrRefreshMap() {
@@ -2117,8 +1670,8 @@ export async function initOrRefreshMap() {
         }
     }
 
-    await loadGroupsCache();
-    populateMapGroupSelect();
+    await window.loadGroupsCache();
+    window.populateMapGroupSelect();
 
     const typeSet = settingsCache.find(s => s.key === 'MAP_TYPE');
     mapType = typeSet ? typeSet.value : 'floor';
@@ -2145,7 +1698,7 @@ export async function initOrRefreshMap() {
                 mapStartLng = group.map_center_lng;
             }
         }
-        await loadGroupPlans(currentGroupId);
+        await window.loadGroupPlans(currentGroupId);
     }
 
     document.getElementById('btn-map-floor').classList.toggle('active', mapType === 'floor');
@@ -2153,14 +1706,14 @@ export async function initOrRefreshMap() {
     document.getElementById('upload-plan-section').style.display = mapType === 'floor' ? 'block' : 'none';
 
     try {
-        const nRes = await apiFetch(`${API}/nvrs`);
+        const nRes = await window.apiFetch(`${API}/nvrs`);
         nvrCache = await nRes.json();
     } catch (e) {
         console.error('Failed to load NVRs:', e);
     }
 
     try {
-        const camRes = await apiFetch(`${API}/cameras`);
+        const camRes = await window.apiFetch(`${API}/cameras`);
         mapCamerasList = await camRes.json();
         mapCamerasList.forEach(c => {
             const nvr = nvrCache.find(n => n.ip === c.nvr_ip);
@@ -2170,9 +1723,9 @@ export async function initOrRefreshMap() {
         console.error('Failed to load cameras:', e);
     }
 
-    renderPlanTabs();
-    setupLeafletMap();
-    renderMapCameraList();
+    window.renderPlanTabs();
+    window.setupLeafletMap();
+    window.renderMapCameraList();
 }
 
 export function setupLeafletMap(ignoreRestored = false) {
@@ -2255,7 +1808,7 @@ export function setupLeafletMap(ignoreRestored = false) {
                 map.fitBounds(bounds);
             }
 
-            drawCameraMarkers(bounds, w, h);
+            window.drawCameraMarkers(bounds, w, h);
         };
         img.onerror = function () {
             container.innerHTML = `
@@ -2307,7 +1860,7 @@ export function setupLeafletMap(ignoreRestored = false) {
             maxZoom: 20
         }).addTo(map);
 
-        drawCameraMarkers();
+        window.drawCameraMarkers();
     }
 
     // 3. Listen to map movements to update localStorage
@@ -2326,7 +1879,7 @@ export function setupLeafletMap(ignoreRestored = false) {
     });
 
     map.on('click', () => {
-        closeMapFovSection();
+        window.closeMapFovSection();
     });
 }
 
@@ -2393,9 +1946,9 @@ export function calculateFovPoints(c, latlng) {
     const spread = c.fov_spread || 60;
 
     if (mapType === 'floor') {
-        return getFovPolygonPoints(latlng, radius, angle, spread);
+        return window.getFovPolygonPoints(latlng, radius, angle, spread);
     } else {
-        return getFovPolygonPointsGeo(latlng, radius, angle, spread);
+        return window.getFovPolygonPointsGeo(latlng, radius, angle, spread);
     }
 }
 
@@ -2417,7 +1970,7 @@ export function getMarkerPopupContent(c) {
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-size: 12px; font-weight: 500; color: var(--text);">محدوده دید (FOV)</span>
                 <label class="toggle" style="transform: scale(0.8); margin: 0; padding: 0; display: inline-block;">
-                    <input type="checkbox" id="popup-fov-enable-${c.id}" ${isFovEnabled ? 'checked' : ''} onchange="toggleMarkerFov(${c.id}, this.checked)">
+                    <input type="checkbox" id="popup-fov-enable-${c.id}" ${isFovEnabled ? 'checked' : ''} onchange="window.toggleMarkerFov(${c.id}, this.checked)">
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -2429,26 +1982,26 @@ export function getMarkerPopupContent(c) {
                         <span>جهت زاویه</span>
                         <span id="lbl-angle-${c.id}" style="color: var(--primary-hover); font-weight: bold;">${c.fov_angle || 0}°</span>
                     </div>
-                    <input type="range" min="0" max="360" value="${c.fov_angle || 0}" style="width: 100%; accent-color: var(--primary);" oninput="updateMarkerFovVal(${c.id}, 'angle', this.value)">
+                    <input type="range" min="0" max="360" value="${c.fov_angle || 0}" style="width: 100%; accent-color: var(--primary);" oninput="window.updateMarkerFovVal(${c.id}, 'angle', this.value)">
                 </div>
                 <div style="margin-bottom: 8px;">
                     <div style="display:flex; justify-content:space-between; font-size: 11px; color: var(--text-secondary);">
                         <span>برد (شعاع)</span>
                         <span id="lbl-radius-${c.id}" style="color: var(--primary-hover); font-weight: bold;">${c.fov_radius || 50}</span>
                     </div>
-                    <input type="range" min="5" max="500" value="${c.fov_radius || 50}" style="width: 100%; accent-color: var(--primary);" oninput="updateMarkerFovVal(${c.id}, 'radius', this.value)">
+                    <input type="range" min="5" max="500" value="${c.fov_radius || 50}" style="width: 100%; accent-color: var(--primary);" oninput="window.updateMarkerFovVal(${c.id}, 'radius', this.value)">
                 </div>
                 <div style="margin-bottom: 8px;">
                     <div style="display:flex; justify-content:space-between; font-size: 11px; color: var(--text-secondary);">
                         <span>زاویه بازشو</span>
                         <span id="lbl-spread-${c.id}" style="color: var(--primary-hover); font-weight: bold;">${c.fov_spread || 60}°</span>
                     </div>
-                    <input type="range" min="10" max="180" value="${c.fov_spread || 60}" style="width: 100%; accent-color: var(--primary);" oninput="updateMarkerFovVal(${c.id}, 'spread', this.value)">
+                    <input type="range" min="10" max="180" value="${c.fov_spread || 60}" style="width: 100%; accent-color: var(--primary);" oninput="window.updateMarkerFovVal(${c.id}, 'spread', this.value)">
                 </div>
             </div>
             
             <!-- Remove from Map Button -->
-            <button onclick="removeCameraFromMap(${c.id})" style="
+            <button onclick="window.removeCameraFromMap(${c.id})" style="
                 width: 100%;
                 margin-top: 8px;
                 background: rgba(239, 68, 68, 0.1);
@@ -2489,11 +2042,11 @@ export function updateMarkerFovVal(id, field, value) {
 
     const marker = mapMarkers.find(m => m.camera_id === id);
     if (marker && marker.fovPolygon) {
-        const pts = calculateFovPoints(c, marker.getLatLng());
+        const pts = window.calculateFovPoints(c, marker.getLatLng());
         marker.fovPolygon.setLatLngs(pts);
     }
 
-    saveFovDebounced(id, c.fov_angle, c.fov_radius, c.fov_spread);
+    window.saveFovDebounced(id, c.fov_angle, c.fov_radius, c.fov_spread);
 }
 
 export function createMarkerForMap(c, latlng) {
@@ -2512,7 +2065,7 @@ export function createMarkerForMap(c, latlng) {
 
     let fovPolygon = null;
     if (c.fov_angle != null && c.fov_radius != null) {
-        const pts = calculateFovPoints(c, latlng);
+        const pts = window.calculateFovPoints(c, latlng);
         fovPolygon = L.polygon(pts, {
             color: '#f43f5e',
             fillColor: '#f43f5e',
@@ -2537,13 +2090,13 @@ export function createMarkerForMap(c, latlng) {
 
     marker.on('click', function (e) {
         L.DomEvent.stopPropagation(e);
-        selectMarkerForFov(marker, c);
+        window.selectMarkerForFov(marker, c);
     });
 
     marker.on('drag', function (e) {
         if (marker.fovPolygon) {
             const position = marker.getLatLng();
-            const pts = calculateFovPoints(c, position);
+            const pts = window.calculateFovPoints(c, position);
             marker.fovPolygon.setLatLngs(pts);
         }
     });
@@ -2574,66 +2127,16 @@ export function createMarkerForMap(c, latlng) {
             c.longitude = payload.longitude;
         }
 
-        await apiFetch(`${API}/cameras/${c.id}`, {
+        await window.apiFetch(`${API}/cameras/${c.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        showToast(`موقعیت دوربین "${c.name}" ذخیره شد`);
+        window.showToast(`موقعیت دوربین "${c.name}" ذخیره شد`);
     });
 
     mapMarkers.push(marker);
     return marker;
-}
-
-export function drawCameraMarkers(bounds = null, w = 1, h = 1) {
-    if (typeof clearActiveFovSelection === 'function') {
-        clearActiveFovSelection();
-    }
-
-    if (mapClusterGroup) {
-        map.removeLayer(mapClusterGroup);
-        mapClusterGroup.clearLayers();
-    } else {
-        mapClusterGroup = L.markerClusterGroup({
-            maxClusterRadius: 50,
-            spiderfyOnMaxZoom: true,
-            showCoverageOnHover: false,
-            zoomToBoundsOnClick: true
-        });
-    }
-
-    mapMarkers.forEach(m => {
-        if (m.fovPolygon) {
-            map.removeLayer(m.fovPolygon);
-        }
-        map.removeLayer(m);
-    });
-    mapMarkers = [];
-
-    const cams = currentGroupId
-        ? mapCamerasList.filter(c => c.group_id === currentGroupId)
-        : mapCamerasList;
-
-    cams.forEach(c => {
-        let latlng = null;
-
-        if (mapType === 'floor') {
-            if (c.x_pos === null || c.y_pos === null || c.plan_id !== activePlanId) return;
-            const x = (c.x_pos * w) / 100;
-            const y = ((100 - c.y_pos) * h) / 100;
-            latlng = [y, x];
-        } else {
-            if (c.latitude === null || c.longitude === null) return;
-            latlng = [c.latitude, c.longitude];
-        }
-
-        createMarkerForMap(c, latlng);
-    });
-
-    if (!mapEditMode) {
-        map.addLayer(mapClusterGroup);
-    }
 }
 
 export function updateMapMarkersFromWS(cams) {
@@ -2652,7 +2155,7 @@ export function updateMapMarkersFromWS(cams) {
             markerEl.className = `cam-marker ${statusClass}`;
         }
     });
-    renderMapCameraList();
+    window.renderMapCameraList();
 }
 
 export function toggleMapEditMode() {
@@ -2676,113 +2179,7 @@ export function toggleMapEditMode() {
         if (guide) guide.style.display = 'none';
     }
 
-    setupLeafletMap();
-}
-
-export function renderMapCameraList() {
-    const container = document.getElementById('map-camera-list');
-    if (!container) return;
-
-    const searchVal = (document.getElementById('mapCameraSearch')?.value || '').toLowerCase();
-
-    let pool = mapCamerasList;
-    if (currentGroupId) {
-        pool = pool.filter(c => c.group_id === currentGroupId);
-    }
-
-    const sorted = [...pool].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
-
-    const filtered = sorted.filter(c =>
-        c.name.toLowerCase().includes(searchVal) ||
-        c.ip.includes(searchVal) ||
-        c.channel_id.toString().includes(searchVal)
-    );
-
-    if (filtered.length === 0) {
-        container.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 11px;">دوربینی یافت نشد</div>';
-        return;
-    }
-
-    container.innerHTML = filtered.map(c => {
-        const hasLoc = mapType === 'floor' ? (c.x_pos !== null && c.y_pos !== null && c.plan_id === activePlanId) : (c.latitude !== null && c.longitude !== null);
-        const dotClass = c.status === 'Online' ? 'online' : (c.status === 'Offline' ? 'offline' : 'unknown');
-
-        if (hasLoc) {
-            return `
-                <div class="map-cam-item" onclick="focusCameraOnMap(${c.id})">
-                    <div class="map-cam-name-wrap">
-                        <span class="map-cam-dot ${dotClass}"></span>
-                        <span class="map-cam-name" title="${c.name}">${c.name}</span>
-                    </div>
-                    <span class="map-cam-badge">CH ${c.channel_id}</span>
-                </div>
-            `;
-        } else {
-            return `
-                <div class="map-cam-item unpositioned" style="cursor: default; display: flex; justify-content: space-between; align-items: center; padding: 8px 10px;">
-                    <div class="map-cam-name-wrap" style="opacity: 0.6; display: flex; align-items: center; gap: 8px; overflow: hidden; flex: 1;">
-                        <span class="map-cam-dot unknown"></span>
-                        <span class="map-cam-name" title="${c.name}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${c.name}</span>
-                    </div>
-                    <div class="map-cam-actions" style="display: flex; gap: 6px; flex-shrink: 0;">
-                        <!-- Add as Simple Dot -->
-                        <button onclick="addCameraToCenter(${c.id}, false); event.stopPropagation();" title="افزودن به عنوان نقطه ساده" style="
-                            background: rgba(99, 102, 241, 0.15);
-                            border: 1px solid var(--primary);
-                            color: var(--primary-hover);
-                            border-radius: 4px;
-                            width: 24px;
-                            height: 24px;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            cursor: pointer;
-                            transition: var(--transition);
-                        ">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="6"/>
-                            </svg>
-                        </button>
-                        <!-- Add with Field of View -->
-                        <button onclick="addCameraToCenter(${c.id}, true); event.stopPropagation();" title="افزودن با زاویه دید (FOV)" style="
-                            background: rgba(244, 63, 94, 0.15);
-                            border: 1px solid #f43f5e;
-                            color: #fb7185;
-                            border-radius: 4px;
-                            width: 24px;
-                            height: 24px;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            cursor: pointer;
-                            transition: var(--transition);
-                        ">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                <path d="M12 21 L3 5 A11 11 0 0 1 21 5 Z" fill="rgba(244, 63, 94, 0.3)"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-    }).join('');
-}
-
-export function filterMapCamerasList() {
-    renderMapCameraList();
-}
-
-export function focusCameraOnMap(id) {
-    if (!map) return;
-    const marker = mapMarkers.find(m => m.camera_id === id);
-    if (marker) {
-        const latlng = marker.getLatLng();
-        map.flyTo(latlng, map.getZoom());
-        const c = mapCamerasList.find(cam => cam.id === id);
-        if (c) selectMarkerForFov(marker, c);
-    } else {
-        showToast('این دوربین در نقشه یافت نشد', 'error');
-    }
+    window.setupLeafletMap();
 }
 
 export function applyRoleUI() {
@@ -2823,11 +2220,11 @@ export function populateInspectorGroupsList() {
     }
     listCon.innerHTML = groupCache.map(g => `
         <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; background: var(--surface); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);">
-            <input type="checkbox" class="inspector-group-cb" value="${g.id}" onchange="updateInspectorSelectAllState()">
+            <input type="checkbox" class="inspector-group-cb" value="${g.id}" onchange="window.updateInspectorSelectAllState()">
             <span style="user-select: none;">${g.name}</span>
         </label>
     `).join('');
-    updateInspectorSelectAllState();
+    window.updateInspectorSelectAllState();
 }
 
 export function toggleAllInspectorGroups(checked) {
@@ -2878,8 +2275,8 @@ export function renderUsersList() {
                 <span style="font-size:12px; opacity:0.7; margin-right:15px;">${detailsText}</span>
             </div>
             <div class="list-item-actions" style="display: flex; gap: 8px;">
-                <button class="btn btn-ghost" onclick="openEditUserModal(${u.id})" style="color:var(--primary); padding: 4px 8px;">ویرایش</button>
-                <button class="btn btn-ghost" onclick="deleteUser(${u.id})" style="color:var(--danger); padding: 4px 8px;">حذف</button>
+                <button class="btn btn-ghost" onclick="window.openEditUserModal(${u.id})" style="color:var(--primary); padding: 4px 8px;">ویرایش</button>
+                <button class="btn btn-ghost" onclick="window.deleteUser(${u.id})" style="color:var(--danger); padding: 4px 8px;">حذف</button>
             </div>
         </div>`;
     }).join('');
@@ -2900,8 +2297,8 @@ export function openProfileModal() {
     document.getElementById('p-new-pass').value = '';
     document.getElementById('p-new-pass-confirm').value = '';
     
-    cancel2FASetup();
-    update2FAUIState();
+    window.cancel2FASetup();
+    window.update2FAUIState();
     
     document.getElementById('profileModal').classList.add('open');
 }
@@ -2933,18 +2330,18 @@ export function update2FAUIState() {
 export function cancel2FASetup() {
     const codeField = document.getElementById('p-2fa-verification-code');
     if (codeField) codeField.value = '';
-    update2FAUIState();
+    window.update2FAUIState();
 }
 
 export function copy2FAKey() {
     const keyInput = document.getElementById('p-2fa-manual-key');
     keyInput.select();
     navigator.clipboard.writeText(keyInput.value);
-    showToast('کلید با موفقیت در حافظه کپی شد');
+    window.showToast('کلید با موفقیت در حافظه کپی شد');
 }
 
 export function selectMarkerForFov(marker, c) {
-    clearActiveFovSelection();
+    window.clearActiveFovSelection();
     
     activeFovMarker = marker;
     activeFovCamera = c;
@@ -2971,7 +2368,7 @@ export function selectMarkerForFov(marker, c) {
         document.getElementById('sidebar-fov-spread').value = c.fov_spread || 60;
         document.getElementById('lbl-sidebar-spread').textContent = `${c.fov_spread || 60}°`;
         
-        spawnFovHandles();
+        window.spawnFovHandles();
     }
 }
 
@@ -2985,7 +2382,7 @@ export function clearActiveFovSelection() {
 export function closeMapFovSection() {
     const panel = document.getElementById('map-fov-section');
     if (panel) panel.style.display = 'none';
-    clearActiveFovSelection();
+    window.clearActiveFovSelection();
 }
 
 export function spawnFovHandles() {
@@ -3015,11 +2412,11 @@ export function spawnFovHandles() {
     
     fovHandles.push(leftHandle, rightHandle);
     
-    leftHandle.on('drag', () => handleDrag(leftHandle, rightHandle));
-    rightHandle.on('drag', () => handleDrag(leftHandle, rightHandle));
+    leftHandle.on('drag', () => window.handleDrag(leftHandle, rightHandle));
+    rightHandle.on('drag', () => window.handleDrag(leftHandle, rightHandle));
     
-    leftHandle.on('dragend', () => saveFovFromHandles());
-    rightHandle.on('dragend', () => saveFovFromHandles());
+    leftHandle.on('dragend', () => window.saveFovFromHandles());
+    rightHandle.on('dragend', () => window.saveFovFromHandles());
 }
 
 export function getFlatAngle(center, pt) {
@@ -3067,15 +2464,15 @@ export function handleDrag(leftHandle, rightHandle) {
         const distR = Math.sqrt(Math.pow(rightLatLng.lat - center.lat, 2) + Math.pow(rightLatLng.lng - center.lng, 2));
         radius = Math.round((distL + distR) / 2);
         
-        leftAngle = getFlatAngle(center, leftLatLng);
-        rightAngle = getFlatAngle(center, rightLatLng);
+        leftAngle = window.getFlatAngle(center, leftLatLng);
+        rightAngle = window.getFlatAngle(center, rightLatLng);
     } else {
         const distL = map.distance(center, leftLatLng);
         const distR = map.distance(center, rightLatLng);
         radius = Math.round((distL + distR) / 2);
         
-        leftAngle = getGeoAngle(center, leftLatLng);
-        rightAngle = getGeoAngle(center, rightLatLng);
+        leftAngle = window.getGeoAngle(center, leftLatLng);
+        rightAngle = window.getGeoAngle(center, rightLatLng);
     }
     
     let spread = rightAngle - leftAngle;
@@ -3100,7 +2497,7 @@ export function handleDrag(leftHandle, rightHandle) {
     document.getElementById('lbl-sidebar-spread').textContent = `${c.fov_spread}°`;
     
     if (activeFovMarker.fovPolygon) {
-        const pts = calculateFovPoints(c, center);
+        const pts = window.calculateFovPoints(c, center);
         activeFovMarker.fovPolygon.setLatLngs(pts);
     }
 }
@@ -3108,8 +2505,8 @@ export function handleDrag(leftHandle, rightHandle) {
 export function saveFovFromHandles() {
     if (!activeFovCamera) return;
     const c = activeFovCamera;
-    saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
-    spawnFovHandles();
+    window.saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
+    window.spawnFovHandles();
 }
 
 export function updateSidebarFovVal(field, value) {
@@ -3131,19 +2528,19 @@ export function updateSidebarFovVal(field, value) {
     }
     
     if (marker.fovPolygon) {
-        const pts = calculateFovPoints(c, marker.getLatLng());
+        const pts = window.calculateFovPoints(c, marker.getLatLng());
         marker.fovPolygon.setLatLngs(pts);
     }
     
-    spawnFovHandles();
-    saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
+    window.spawnFovHandles();
+    window.saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
 }
 
 export function displayPersianDateTime(isoStr) {
     if (!isoStr) return 'هرگز';
     try {
         const d = new Date(isoStr);
-        return formatPersianDateTime(d);
+        return window.formatPersianDateTime(d);
     } catch(e) {
         return 'نامعتبر';
     }
@@ -3227,10 +2624,10 @@ export function renderScheduledTasks() {
             ? ''
             : (isRunning
                 ? `<button class="btn btn-ghost" disabled style="opacity: 0.5; padding: 4px 10px; font-size: 12px;">اجرا</button>`
-                : `<button class="btn btn-ghost" onclick="confirmRunTask('${t.id}', '${t.name}')" style="color: #22c55e; padding: 4px 10px; font-size: 12px;">اجرا</button>`);
+                : `<button class="btn btn-ghost" onclick="window.confirmRunTask('${t.id}', '${t.name}')" style="color: #22c55e; padding: 4px 10px; font-size: 12px;">اجرا</button>`);
 
         const stopBtn = isRunning
-            ? `<button class="btn btn-ghost" onclick="stopTask('${t.id}')" style="color: #ef4444; padding: 4px 10px; font-size: 12px;">توقف</button>`
+            ? `<button class="btn btn-ghost" onclick="window.stopTask('${t.id}')" style="color: #ef4444; padding: 4px 10px; font-size: 12px;">توقف</button>`
             : `<button class="btn btn-ghost" disabled style="opacity: 0.5; padding: 4px 10px; font-size: 12px;">توقف</button>`;
 
         const isChecked = isEnabled ? 'checked' : '';
@@ -3251,7 +2648,7 @@ export function renderScheduledTasks() {
                     <div class="task-card-controls">
                         ${statusBadge}
                         <label class="toggle" style="transform: scale(0.85); transform-origin: right; margin: 0;">
-                            <input type="checkbox" ${isChecked} onchange="toggleTask('${t.id}', this.checked)">
+                            <input type="checkbox" ${isChecked} onchange="window.toggleTask('${t.id}', this.checked)">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -3259,12 +2656,12 @@ export function renderScheduledTasks() {
                 <div class="task-card-body">
                     <div class="task-card-row">
                         <span class="task-card-label">آخرین اجرا:</span>
-                        <span class="task-card-value">${t.last_run ? displayPersianDateTime(t.last_run) : 'هرگز'} ${t.last_duration ? '(' + formatDuration(t.last_duration) + ')' : ''} - ${lastStatusBadge}</span>
+                        <span class="task-card-value">${t.last_run ? window.displayPersianDateTime(t.last_run) : 'هرگز'} ${t.last_duration ? '(' + window.formatDuration(t.last_duration) + ')' : ''} - ${lastStatusBadge}</span>
                     </div>
                     ${errorHtml}
                     <div class="task-card-row">
                         <span class="task-card-label">اجرای بعدی:</span>
-                        <span class="task-card-value">${displayPersianDateTime(t.next_run)}</span>
+                        <span class="task-card-value">${window.displayPersianDateTime(t.next_run)}</span>
                     </div>
                     <div class="task-card-row">
                         <span class="task-card-label">دوره تکرار:</span>
@@ -3272,9 +2669,9 @@ export function renderScheduledTasks() {
                             ${t.id === 'analyze_outages' ? `
                                 <span class="task-card-value" style="color: var(--text-muted); font-size: 12px;">وابسته به تنظیمات بررسی قطعی‌ها</span>
                             ` : (() => {
-                                const p = parseIntervalToUnit(t.interval);
+                                const p = window.parseIntervalToUnit(t.interval);
                                 return `
-                                <span class="task-card-value">${formatInterval(t.interval)}</span>
+                                <span class="task-card-value">${window.formatInterval(t.interval)}</span>
                                 <div class="task-card-interval-edit" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                                     <input type="number" id="interval-val-${t.id}" class="form-input" style="width: 65px; padding: 4px 6px; font-size: 12px; text-align: center;" value="${p.val}" min="1">
                                     <select id="interval-unit-${t.id}" class="form-input" style="padding: 4px 6px; font-size: 12px; width: 85px;">
@@ -3283,7 +2680,7 @@ export function renderScheduledTasks() {
                                         <option value="3600" ${p.unit === 3600 ? 'selected' : ''}>ساعت</option>
                                         <option value="86400" ${p.unit === 86400 ? 'selected' : ''}>روز</option>
                                     </select>
-                                    <button class="btn btn-sm" onclick="saveTaskInterval('${t.id}')" style="padding: 4px 10px; font-size: 11px; background: var(--surface-3); border: 1px solid var(--border);">ذخیره</button>
+                                    <button class="btn btn-sm" onclick="window.saveTaskInterval('${t.id}')" style="padding: 4px 10px; font-size: 11px; background: var(--surface-3); border: 1px solid var(--border);">ذخیره</button>
                                 </div>
                                 `;
                             })()}
@@ -3300,8 +2697,8 @@ export function renderScheduledTasks() {
 }
 
 export async function confirmRunTask(id, name) {
-    if (await showConfirm(`آیا از اجرای دستی «${name}» اطمینان دارید؟`)) {
-        runTask(id);
+    if (await window.showConfirm(`آیا از اجرای دستی «${name}» اطمینان دارید؟`)) {
+        window.runTask(id);
     }
 }
 
@@ -3314,11 +2711,11 @@ export function handleTaskStatusUpdate(task) {
     }
     const activeTabBtn = document.querySelector('.settings-nav button.active');
     if (activeTabBtn && activeTabBtn.getAttribute('data-tab') === 'sec-tasks') {
-        renderScheduledTasks();
+        window.renderScheduledTasks();
     }
     if (task.id === 'sync_nvr_health') {
-        renderNvrHealthWidget();
-        renderNvrHealthSummaryWidget();
+        window.renderNvrHealthWidget();
+        window.renderNvrHealthSummaryWidget();
     }
 }
 
@@ -3337,7 +2734,7 @@ export function toggleGlobalSearch(event) {
         document.getElementById('global-search-results').innerHTML = 
             '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">عبارتی وارد کنید...</div>';
         
-        warmUpSearchCache();
+        window.warmUpSearchCache();
     }
 }
 
@@ -3373,7 +2770,7 @@ export function onGlobalSearch(query) {
 
     resultsContainer.innerHTML = matches.map(c => {
         const nvrObj = nvrCache.find(n => n.ip === c.nvr_ip);
-        const nvrName = nvrObj && nvrObj.name ? nvrObj.name : `NVR ${getNvrNum(c.nvr_ip)}`;
+        const nvrName = nvrObj && nvrObj.name ? nvrObj.name : `NVR ${window.getNvrNum(c.nvr_ip)}`;
         const groupObj = nvrObj && nvrObj.group_id ? groupCache.find(g => g.id === nvrObj.group_id) : null;
         const groupName = groupObj && groupObj.name ? groupObj.name : 'سایر NVRها';
 
@@ -3383,7 +2780,7 @@ export function onGlobalSearch(query) {
             '<span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>' : 
             '<span style="width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block;"></span>';
 
-        return `<div class="search-result-item" onclick="showCam('${meta}'); toggleGlobalSearch();" style="padding: 8px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.2s; border-radius: 4px; gap: 8px;">
+        return `<div class="search-result-item" onclick="window.showCam('${meta}'); window.toggleGlobalSearch();" style="padding: 8px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.2s; border-radius: 4px; gap: 8px;">
             <div style="display: flex; flex-direction: column; gap: 2px;">
                 <span style="font-size: 13px; font-weight: 500; color: var(--text);">${pathText}</span>
                 <span style="font-size: 11px; color: var(--text-secondary);">${c.ip}</span>
@@ -3417,7 +2814,7 @@ export function populateOutageGroupFilter() {
 }
 
 export function filterOutages() {
-    renderOutagesList();
+    window.renderOutagesList();
 }
 
 export function renderOutagesList() {
@@ -3483,7 +2880,7 @@ export function renderOutagesList() {
     if (pEnd) pEnd.textContent = endIndex;
     if (pTotal) pTotal.textContent = totalCount;
 
-    renderOutagesPageButtons(totalPages);
+    window.renderOutagesPageButtons(totalPages);
 
     if (totalCount === 0) {
         list.innerHTML = '<tr><td colspan="13" class="empty-state" style="text-align: center; padding: 20px;">هیچ قطعی یافت نشد</td></tr>';
@@ -3502,28 +2899,28 @@ export function renderOutagesList() {
         if (o.status === 'explained') {
             statusBadge = '<span class="badge badge-success" style="background:#10b981; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">رفع ابهام شده</span>';
             if (role === 'admin') {
-                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; background: #6366f1; border-color: #6366f1; cursor: pointer;">ویرایش</button>`;
+                actionBtn = `<button class="btn btn-primary" onclick="window.openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; background: #6366f1; border-color: #6366f1; cursor: pointer;">ویرایش</button>`;
             } else {
                 actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">غیر قابل ویرایش</span>';
             }
         } else if (o.status === 'expired') {
             statusBadge = '<span class="badge badge-danger" style="background:#ef4444; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">منقضی شده</span>';
             if (role === 'admin') {
-                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; background: #6366f1; border-color: #6366f1; cursor: pointer;">رفع ابهام (ادمین)</button>`;
+                actionBtn = `<button class="btn btn-primary" onclick="window.openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; background: #6366f1; border-color: #6366f1; cursor: pointer;">رفع ابهام (ادمین)</button>`;
             } else {
                 actionBtn = '<span style="font-size: 12px; color: var(--danger);">پایان مهلت</span>';
             }
         } else {
             statusBadge = '<span class="badge badge-warning" style="background:#f59e0b; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">در انتظار رفع ابهام</span>';
             if (canExplain) {
-                actionBtn = `<button class="btn btn-primary" onclick="openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; cursor: pointer;">رفع ابهام</button>`;
+                actionBtn = `<button class="btn btn-primary" onclick="window.openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; cursor: pointer;">رفع ابهام</button>`;
             } else {
                 actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">-</span>';
             }
         }
         
         const isChecked = outagesSelectedIds.includes(o.id) ? 'checked' : '';
-        const checkboxHtml = `<input type="checkbox" class="outage-row-checkbox" value="${o.id}" ${isChecked} onchange="onOutageRowCheckboxChange(${o.id}, this.checked)" style="cursor: pointer;">`;
+        const checkboxHtml = `<input type="checkbox" class="outage-row-checkbox" value="${o.id}" ${isChecked} onchange="window.onOutageRowCheckboxChange(${o.id}, this.checked)" style="cursor: pointer;">`;
 
         return `<tr style="border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
             <td style="padding: 12px; text-align: center;">${checkboxHtml}</td>
@@ -3566,7 +2963,7 @@ export function renderOutagesPageButtons(totalPages) {
         btn.textContent = i;
         btn.onclick = () => {
             currentOutagePage = i;
-            renderOutagesList();
+            window.renderOutagesList();
         };
         container.appendChild(btn);
     }
@@ -3574,7 +2971,7 @@ export function renderOutagesPageButtons(totalPages) {
 
 export function changeOutagesPage(direction) {
     currentOutagePage += direction;
-    renderOutagesList();
+    window.renderOutagesList();
 }
 
 export function onOutageRowCheckboxChange(id, checked) {
@@ -3585,7 +2982,7 @@ export function onOutageRowCheckboxChange(id, checked) {
     } else {
         outagesSelectedIds = outagesSelectedIds.filter(x => x !== id);
     }
-    updateOutagesBulkBar();
+    window.updateOutagesBulkBar();
 }
 
 export function toggleSelectAllOutages() {
@@ -3605,7 +3002,7 @@ export function toggleSelectAllOutages() {
             outagesSelectedIds = outagesSelectedIds.filter(x => x !== id);
         }
     });
-    updateOutagesBulkBar();
+    window.updateOutagesBulkBar();
 }
 
 export function updateOutagesBulkBar() {
@@ -3646,7 +3043,7 @@ export async function openExplanationModal(id) {
 
     // Populate active causes dynamically from database
     try {
-        const res = await apiFetch(`/api/v1/outage-causes`);
+        const res = await window.apiFetch(`/api/v1/outage-causes`);
         const causes = await res.json();
         const sel = document.getElementById('exp-type');
         if (sel) {
@@ -3674,7 +3071,7 @@ export async function openExplanationModal(id) {
 
 export async function openBulkExplanationModal() {
     if (outagesSelectedIds.length === 0) {
-        showToast('هیچ موردی انتخاب نشده است', 'error');
+        window.showToast('هیچ موردی انتخاب نشده است', 'error');
         return;
     }
     isBulkExplanation = true;
@@ -3686,7 +3083,7 @@ export async function openBulkExplanationModal() {
     document.getElementById('exp-outage-id').value = '';
 
     try {
-        const res = await apiFetch(`/api/v1/outage-causes`);
+        const res = await window.apiFetch(`/api/v1/outage-causes`);
         const causes = await res.json();
         const sel = document.getElementById('exp-type');
         if (sel) {
@@ -3732,7 +3129,7 @@ export function applySystemSuggestion() {
     if (currentSuggestedDetail) {
         document.getElementById('exp-detail').value = currentSuggestedDetail;
     }
-    showToast('پیشنهاد هوشمند سیستم با موفقیت اعمال شد');
+    window.showToast('پیشنهاد هوشمند سیستم با موفقیت اعمال شد');
 }
 
 export function closeExplanationModal() {
@@ -3763,15 +3160,15 @@ export function cycleWidgetSize(widgetId) {
         sizeLabel.textContent = SIZE_LABELS[nextSize];
     }
 
-    saveDashboardLayout();
+    window.saveDashboardLayout();
     if (widgetId === 'widget-chart-status' || widgetId === 'widget-chart-causes') {
         setTimeout(renderDashboardCharts, 150);
     }
 }
 
 export function initDashboardCustomization() {
-    loadDashboardLayout();
-    initDragAndDropListeners();
+    window.loadDashboardLayout();
+    window.initDragAndDropListeners();
 }
 
 export function toggleDashEditMode(forceState) {
@@ -3786,16 +3183,16 @@ export function toggleDashEditMode(forceState) {
         if (btnEdit) btnEdit.classList.add('active');
         if (fabEdit) fabEdit.classList.add('active');
         if (editControls) editControls.classList.remove('hidden');
-        enableDraggableWidgets(true);
-        if (typeof showToast === 'function') showToast('حالت ویرایش داشبورد فعال شد. می‌توانید کارت‌ها را با درگ و دراپ جابجا کنید.');
+        window.enableDraggableWidgets(true);
+        if (typeof showToast === 'function') window.showToast('حالت ویرایش داشبورد فعال شد. می‌توانید کارت‌ها را با درگ و دراپ جابجا کنید.');
     } else {
         dashSection.classList.remove('dash-edit-mode');
         if (btnEdit) btnEdit.classList.remove('active');
         if (fabEdit) fabEdit.classList.remove('active');
         if (editControls) editControls.classList.add('hidden');
-        enableDraggableWidgets(false);
-        saveDashboardLayout();
-        if (typeof showToast === 'function') showToast('تغییرات داشبورد ذخیره گردید.');
+        window.enableDraggableWidgets(false);
+        window.saveDashboardLayout();
+        if (typeof showToast === 'function') window.showToast('تغییرات داشبورد ذخیره گردید.');
     }
 }
 
@@ -3810,11 +3207,11 @@ export function removeWidget(widgetId) {
     const el = document.getElementById(widgetId);
     if (el) {
         el.classList.add('widget-hidden');
-        saveDashboardLayout();
+        window.saveDashboardLayout();
         if (isDashEditMode) {
-            updateAddWidgetModalContent();
+            window.updateAddWidgetModalContent();
         }
-        if (typeof showToast === 'function') showToast('ویجت از داشبورد حذف شد');
+        if (typeof showToast === 'function') window.showToast('ویجت از داشبورد حذف شد');
     }
 }
 
@@ -3829,14 +3226,14 @@ export function addWidget(widgetId) {
         if (container && !container.contains(el)) {
             container.appendChild(el);
         }
-        saveDashboardLayout();
-        updateAddWidgetModalContent();
-        closeAddWidgetModal();
-        if (widgetId === 'widget-important-cams') renderImportantCamerasWidget();
-        if (widgetId === 'widget-off-recording') renderOffCamerasWidget();
-        if (widgetId === 'widget-camera-changes') renderCameraChangesWidget();
+        window.saveDashboardLayout();
+        window.updateAddWidgetModalContent();
+        window.closeAddWidgetModal();
+        if (widgetId === 'widget-important-cams') window.renderImportantCamerasWidget();
+        if (widgetId === 'widget-off-recording') window.renderOffCamerasWidget();
+        if (widgetId === 'widget-camera-changes') window.renderCameraChangesWidget();
         if (widgetId === 'widget-chart-status' || widgetId === 'widget-chart-causes') setTimeout(renderDashboardCharts, 150);
-        if (typeof showToast === 'function') showToast('ویجت با موفقیت به داشبورد اضافه شد');
+        if (typeof showToast === 'function') window.showToast('ویجت با موفقیت به داشبورد اضافه شد');
     }
 }
 
@@ -3855,8 +3252,8 @@ export function resetDashboardLayout() {
             if (container) container.appendChild(el);
         }
     });
-    saveDashboardLayout();
-    if (typeof showToast === 'function') showToast('چینش داشبورد به حالت اولیه بازنشانی شد');
+    window.saveDashboardLayout();
+    if (typeof showToast === 'function') window.showToast('چینش داشبورد به حالت اولیه بازنشانی شد');
 }
 
 export function saveDashboardLayout() {
@@ -3948,13 +3345,13 @@ export function initDragAndDropListeners() {
         if (widget) widget.classList.remove('dragging');
         draggedWidgetId = null;
         if (isDashEditMode) {
-            saveDashboardLayout();
+            window.saveDashboardLayout();
         }
     });
 }
 
 export function openAddWidgetModal() {
-    updateAddWidgetModalContent();
+    window.updateAddWidgetModalContent();
     const modal = document.getElementById('modal-add-widget');
     if (modal) {
         modal.classList.remove('hidden');
@@ -4003,7 +3400,7 @@ export function updateAddWidgetModalContent() {
                     <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text);">${meta.title}</h4>
                     <p style="font-size: 12px; color: var(--text-muted);">${meta.desc}</p>
                 </div>
-                <button class="btn btn-primary btn-sm" onclick="addWidget('${id}')" style="padding: 6px 14px; font-size: 12px; cursor: pointer; flex-shrink: 0;">
+                <button class="btn btn-primary btn-sm" onclick="window.addWidget('${id}')" style="padding: 6px 14px; font-size: 12px; cursor: pointer; flex-shrink: 0;">
                     + افزودن
                 </button>
             </div>
@@ -4025,14 +3422,14 @@ export function formatTimeAgo(dateStr) {
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins < 1) return 'چند لحظه پیش';
     if (diffMins < 60) {
-        return toPersianNumbers(`${diffMins} دقیقه پیش`);
+        return window.toPersianNumbers(`${diffMins} دقیقه پیش`);
     }
     const diffHours = Math.floor(diffMins / 60);
     const remMins = diffMins % 60;
     if (remMins === 0) {
-        return toPersianNumbers(`${diffHours} ساعت پیش`);
+        return window.toPersianNumbers(`${diffHours} ساعت پیش`);
     }
-    return toPersianNumbers(`${diffHours} ساعت و ${remMins} دقیقه پیش`);
+    return window.toPersianNumbers(`${diffHours} ساعت و ${remMins} دقیقه پیش`);
 }
 
 export function formatHddInfo(hddJsonStr) {
@@ -4053,299 +3450,12 @@ export function formatHddInfo(hddJsonStr) {
             let statusClass = h.status === 'OK' ? 'text-success' : 'text-danger';
             let statusLabel = h.status === 'OK' ? 'سالم' : (h.status || 'خطا');
             return `<div style="padding-right: 4px; display: flex; align-items: center; gap: 8px;">
-                <span>💾 ${h.name || 'هارد'}: ${toPersianNumbers(capStr)} / ${toPersianNumbers(freeStr)} خالی</span>
+                <span>💾 ${h.name || 'هارد'}: ${window.toPersianNumbers(capStr)} / ${window.toPersianNumbers(freeStr)} خالی</span>
                 <span class="${statusClass}" style="font-weight: bold;">(${statusLabel})</span>
             </div>`;
         }).join('');
     } catch (e) {
         return '💿 خطا در خواندن اطلاعات هارد';
-    }
-}
-
-export function renderNvrHealthWidget() {
-    const listEl = document.getElementById('nvr-health-list');
-    if (!listEl) return;
-
-    const updateTimeEl = document.getElementById('nvr-health-update-time');
-    if (updateTimeEl) {
-        const task = scheduledTasksCache.find(t => t.id === 'sync_nvr_health');
-        updateTimeEl.textContent = task && task.last_run ? `بروزرسانی: ${formatTimeAgo(task.last_run)}` : 'بروزرسانی: در حال انتظار...';
-    }
-
-    const activeNvrs = nvrCache.filter(n => n.enabled !== false);
-    if (activeNvrs.length === 0) {
-        listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">دستگاه NVR فعال یافت نشد.</div>';
-        return;
-    }
-
-    const html = activeNvrs.map(n => {
-        let statusBadge = '';
-        if (n.status === 'Online') {
-            statusBadge = '<span class="badge badge-success" style="font-size: 11px; padding: 2px 6px;">متصل</span>';
-        } else if (n.status === 'AuthError') {
-            statusBadge = '<span class="badge badge-danger" style="font-size: 11px; padding: 2px 6px;">خطای احراز هویت</span>';
-        } else {
-            statusBadge = '<span class="badge badge-danger" style="font-size: 11px; padding: 2px 6px;">قطع ارتباط</span>';
-        }
-
-        const cpuVal = n.cpu_usage !== null && n.cpu_usage !== undefined ? `${n.cpu_usage}%` : 'نامشخص';
-        const ramVal = n.memory_usage !== null && n.memory_usage !== undefined ? `${n.memory_usage}%` : 'نامشخص';
-
-        let uptimeVal = 'نامشخص';
-        if (n.uptime) {
-            let days = Math.floor(n.uptime / 86400);
-            let hours = Math.floor((n.uptime % 86400) / 3600);
-            if (days > 0) {
-                uptimeVal = `${days} روز و ${hours} ساعت`;
-            } else {
-                uptimeVal = `${hours} ساعت`;
-            }
-        }
-
-        const hddHtml = formatHddInfo(n.hdd_status);
-
-        return `
-            <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <strong style="font-size: 13px; color: var(--text-primary);">${n.name || 'NVR بدون نام'}</strong>
-                        <span class="mono" style="font-size: 11px; color: var(--text-secondary);">${n.ip}</span>
-                    </div>
-                    <div>${statusBadge}</div>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 11px; color: var(--text-secondary); border-top: 1px dashed var(--border); padding-top: 8px;">
-                    <div>⚙️ پردازنده: <strong style="color: var(--text);">${toPersianNumbers(cpuVal)}</strong></div>
-                    <div>🧠 حافظه: <strong style="color: var(--text);">${toPersianNumbers(ramVal)}</strong></div>
-                    <div>⏱️ کارکرد: <strong style="color: var(--text);">${toPersianNumbers(uptimeVal)}</strong></div>
-                </div>
-                <div style="font-size: 11px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
-                    ${hddHtml}
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    listEl.innerHTML = html;
-}
-
-export function renderNvrHealthSummaryWidget() {
-    const contentEl = document.getElementById('nvr-health-summary-content');
-    if (!contentEl) return;
-
-    const updateTimeEl = document.getElementById('nvr-health-summary-update-time');
-    if (updateTimeEl) {
-        const task = scheduledTasksCache.find(t => t.id === 'sync_nvr_health');
-        updateTimeEl.textContent = task && task.last_run ? `بروزرسانی: ${formatTimeAgo(task.last_run)}` : 'بروزرسانی: در حال انتظار...';
-    }
-
-    const activeNvrs = nvrCache.filter(n => n.enabled !== false);
-    if (activeNvrs.length === 0) {
-        contentEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">دستگاه NVR فعال یافت نشد.</div>';
-        return;
-    }
-
-    const total = activeNvrs.length;
-    const online = activeNvrs.filter(n => n.status === 'Online').length;
-    const offline = activeNvrs.filter(n => n.status !== 'Online' && n.status !== 'AuthError').length;
-    const authError = activeNvrs.filter(n => n.status === 'AuthError').length;
-
-    let totalHdds = 0;
-    let failedHdds = 0;
-    activeNvrs.forEach(n => {
-        if (n.hdd_status) {
-            try {
-                const hdds = JSON.parse(n.hdd_status);
-                if (Array.isArray(hdds)) {
-                    totalHdds += hdds.length;
-                    failedHdds += hdds.filter(h => h.status !== 'OK').length;
-                }
-            } catch (e) {}
-        }
-    });
-
-    const highCpu = activeNvrs.filter(n => n.cpu_usage !== null && n.cpu_usage > 80).length;
-    const highRam = activeNvrs.filter(n => n.memory_usage !== null && n.memory_usage > 90).length;
-
-    let hddStatusText = '<span class="text-success" style="font-weight: bold;">تمامی هاردها سالم هستند</span>';
-    if (totalHdds === 0) {
-        hddStatusText = '<span class="text-muted">اطلاعات هارد در دسترس نیست</span>';
-    } else if (failedHdds > 0) {
-        hddStatusText = `<span class="text-danger" style="font-weight: bold;">⚠️ ${toPersianNumbers(failedHdds)} خطا در هاردها</span>`;
-    }
-
-    let resourceAlertText = '<span class="text-success">نرمال</span>';
-    if (highCpu > 0 || highRam > 0) {
-        resourceAlertText = '<span class="text-danger" style="font-weight: bold;">⚠️ بار مصرفی بالا</span>';
-    }
-
-    contentEl.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <div class="stat-row">
-                <span class="stat-label">تعداد کل NVRهای فعال</span>
-                <span class="stat-value" style="font-weight: bold;">${toPersianNumbers(total)}</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">دستگاه‌های متصل</span>
-                <span class="stat-value text-success" style="font-weight: bold;">${toPersianNumbers(online)}</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">دستگاه‌های قطع شده</span>
-                <span class="stat-value ${offline > 0 ? 'text-danger' : 'text-muted'}" style="font-weight: bold;">${toPersianNumbers(offline)}</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">خطای احراز هویت</span>
-                <span class="stat-value ${authError > 0 ? 'text-danger' : 'text-muted'}" style="font-weight: bold;">${toPersianNumbers(authError)}</span>
-            </div>
-            <div class="stat-row" style="border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 4px;">
-                <span class="stat-label">سلامت ذخیره‌سازی (HDD)</span>
-                <span class="stat-value" style="font-size: 11px;">${hddStatusText}</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">مصرف منابع سخت‌افزاری</span>
-                <span class="stat-value" style="font-size: 11px;">${resourceAlertText}</span>
-            </div>
-        </div>
-    `;
-}
-
-export function renderImportantCamerasWidget() {
-    const grid = document.getElementById('important-cams-grid');
-    const countBadge = document.getElementById('important-cams-count');
-    if (!grid) return;
-
-    if (!dashCamerasCache || dashCamerasCache.length === 0) {
-        grid.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); padding: 12px 0; text-align: center; width: 100%; grid-column: 1 / -1;">در حال بارگذاری...</div>';
-        return;
-    }
-
-    const importantCams = dashCamerasCache.filter(c => c.importance === 'مهم' || c.importance === 'high' || c.importance === 3);
-    if (countBadge) countBadge.textContent = importantCams.length;
-
-    if (importantCams.length === 0) {
-        grid.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); padding: 12px 0; text-align: center; width: 100%; grid-column: 1 / -1;">هیچ دوربینی با درجه اهمیت «مهم» تعریف نشده است.</div>';
-        return;
-    }
-
-    grid.innerHTML = importantCams.map(c => createCard(c)).join('');
-}
-
-export async function renderOffCamerasWidget() {
-    const listEl = document.getElementById('off-recording-list');
-    if (!listEl) return;
-    
-    try {
-        const res = await apiFetch(`${API}/cameras/off`);
-        const data = await res.json();
-        
-        if (data.length === 0) {
-            listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">هیچ دوربین ضبط خاموشی وجود ندارد.</div>';
-            return;
-        }
-        
-        listEl.innerHTML = data.map(item => `
-            <div class="widget-list-item">
-                <div class="item-title" title="${escapeHTML(item.name)}">${escapeHTML(item.name)}</div>
-                <div class="item-meta">
-                    <span style="font-weight: 500;">${escapeHTML(item.factory)}</span>
-                    <span style="color: var(--danger); font-size: 11px;">(خاموش از ${escapeHTML(item.hours_off_str)})</span>
-                </div>
-            </div>
-        `).join('');
-    } catch (e) {
-        console.error('Error rendering off cameras widget:', e);
-        listEl.innerHTML = '<div style="font-size: 12px; color: var(--danger); text-align: center; padding: 16px 0;">خطا در بارگذاری اطلاعات</div>';
-    }
-}
-
-export function setChangesFilter(type, value) {
-    if (value === 'off_recording') {
-        changesFilterAction = 'off_recording';
-        document.querySelectorAll('[data-cf-period]').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('[data-cf-action]').forEach(b => b.classList.toggle('active', b.dataset.cfAction === 'off_recording'));
-        renderFilteredCameraChanges();
-        return;
-    }
-
-    if (type === 'period') {
-        changesFilterPeriod = value;
-        document.querySelectorAll('[data-cf-period]').forEach(b => b.classList.toggle('active', b.dataset.cfPeriod === value));
-    } else {
-        changesFilterAction = value;
-        document.querySelectorAll('[data-cf-action]').forEach(b => b.classList.toggle('active', b.dataset.cfAction === value));
-    }
-    renderFilteredCameraChanges();
-}
-
-export function renderFilteredCameraChanges() {
-    const listEl = document.getElementById('changes-list');
-    if (!listEl) return;
-
-    if (changesFilterAction === 'off_recording') {
-        if (!offRecordingCache) {
-            listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">در حال بارگذاری...</div>';
-            return;
-        }
-        if (offRecordingCache.length === 0) {
-            listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">هیچ دوربین ضبط خاموشی وجود ندارد.</div>';
-            return;
-        }
-        listEl.innerHTML = offRecordingCache.map(item => `
-            <div class="widget-list-item" style="padding: 5px 8px;">
-                <div class="item-title" title="${escapeHTML(item.name)}" style="font-size: 12px; max-width: 130px;">${escapeHTML(item.name)}</div>
-                <div class="item-meta" style="font-size: 11px;">
-                    <span>${escapeHTML(item.factory)}</span>
-                    <span style="color: var(--danger); font-size: 10px;">خاموش از ${escapeHTML(item.hours_off_str)}</span>
-                </div>
-            </div>
-        `).join('');
-        return;
-    }
-
-    if (!changesCache) return;
-
-    let items = [];
-    if (changesFilterPeriod === '24h') items = changesCache.changes_24h || [];
-    else if (changesFilterPeriod === '7d') items = changesCache.changes_week || [];
-    else items = changesCache.changes_month || [];
-
-    if (changesFilterAction === 'added') items = items.filter(i => i.action === 'اضافه شده');
-    else if (changesFilterAction === 'removed') items = items.filter(i => i.action === 'حذف شده');
-
-    if (items.length === 0) {
-        listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">بدون تغییر</div>';
-        return;
-    }
-
-    listEl.innerHTML = items.map(item => {
-        const actionClass = item.action === 'اضافه شده' ? 'added' : 'removed';
-        const timeHtml = item.time_ago ? `<span style="color: var(--text-muted); font-size: 9px;">${escapeHTML(item.time_ago)}</span>` : '';
-        return `
-            <div class="widget-list-item" style="padding: 5px 8px;">
-                <div class="item-title" title="${escapeHTML(item.name)}" style="font-size: 12px; max-width: 130px;">${escapeHTML(item.name)}</div>
-                <div class="item-meta" style="font-size: 11px;">
-                    <span>${escapeHTML(item.factory)}</span>
-                    <span class="badge-action ${actionClass}">${escapeHTML(item.action)}</span>
-                    ${timeHtml}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-export async function renderCameraChangesWidget() {
-    const listEl = document.getElementById('changes-list');
-    if (!listEl) return;
-    
-    try {
-        const [changesRes] = await Promise.all([
-            apiFetch(`${API}/cameras/changes`),
-            prefetchOffRecording()
-        ]);
-        changesCache = await changesRes.json();
-        renderFilteredCameraChanges();
-    } catch (e) {
-        console.error('Error rendering camera changes widget:', e);
-        listEl.innerHTML = '<div style="font-size: 12px; color: var(--danger); text-align: center; padding: 16px 0;">خطا در بارگذاری اطلاعات</div>';
     }
 }
 
@@ -4384,7 +3494,7 @@ export function renderDashboardCharts() {
     const now = Date.now();
     if (causesCanvas && (now - lastCausesFetchTime > 15000 || !dashChartCausesInstance)) {
         lastCausesFetchTime = now;
-        apiFetch(`${API}/reports/causes?period=30d`).then(async res => {
+        window.apiFetch(`${API}/reports/causes?period=30d`).then(async res => {
             const data = await res.json();
             if (!Array.isArray(data) || data.length === 0) return;
             const labels = data.map(d => d.cause);
@@ -4420,7 +3530,7 @@ export function renderDashboardCharts() {
 
 export function openEditGroupModal(id) {
     const group = groupCache.find(g => g.id === id);
-    if (!group) return showToast('کارخانه پیدا نشد', 'error');
+    if (!group) return window.showToast('کارخانه پیدا نشد', 'error');
     
     document.getElementById('editGroupId').value = group.id;
     document.getElementById('editGroupName').value = group.name;
@@ -4442,11 +3552,11 @@ export function populateEditInspectorGroupsList() {
     }
     listCon.innerHTML = groupCache.map(g => `
         <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; background: var(--surface); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);">
-            <input type="checkbox" class="edit-inspector-group-cb" value="${g.id}" onchange="updateEditInspectorSelectAllState()">
+            <input type="checkbox" class="edit-inspector-group-cb" value="${g.id}" onchange="window.updateEditInspectorSelectAllState()">
             <span style="user-select: none;">${g.name}</span>
         </label>
     `).join('');
-    updateEditInspectorSelectAllState();
+    window.updateEditInspectorSelectAllState();
 }
 
 export function toggleAllEditInspectorGroups(checked) {
@@ -4464,7 +3574,7 @@ export function updateEditInspectorSelectAllState() {
 
 export function openEditUserModal(id) {
     const user = usersCache.find(u => u.id === id);
-    if (!user) return showToast('کاربر پیدا نشد', 'error');
+    if (!user) return window.showToast('کاربر پیدا نشد', 'error');
 
     document.getElementById('editUserId').value = user.id;
     document.getElementById('editUserName').value = user.username;
@@ -4482,20 +3592,20 @@ export function openEditUserModal(id) {
     }
 
     // Populate and set checkboxes
-    populateEditInspectorGroupsList();
+    window.populateEditInspectorGroupsList();
     if (user.accessible_group_ids) {
         const allowedIds = user.accessible_group_ids.split(',').map(id => id.trim());
         const checkboxes = document.querySelectorAll('.edit-inspector-group-cb');
         checkboxes.forEach(cb => {
             cb.checked = allowedIds.includes(cb.value);
         });
-        updateEditInspectorSelectAllState();
+        window.updateEditInspectorSelectAllState();
     } else {
-        toggleAllEditInspectorGroups(true);
-        updateEditInspectorSelectAllState();
+        window.toggleAllEditInspectorGroups(true);
+        window.updateEditInspectorSelectAllState();
     }
 
-    onEditUserRoleChange();
+    window.onEditUserRoleChange();
 
     document.getElementById('editUserModal').classList.add('open');
 }
