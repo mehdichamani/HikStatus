@@ -44,9 +44,15 @@ def update_cam(
     session: Session = Depends(get_session)
 ):
     import main
+    auth_fn = main.app.dependency_overrides.get(main.require_auth, main.require_auth)
     control_fn = main.app.dependency_overrides.get(main.require_control, main.require_control)
     try:
-        user = control_fn(request, response, session)
+        user = auth_fn(request, response, session)
+    except TypeError:
+        user = auth_fn()
+
+    try:
+        user = control_fn(user)
     except TypeError:
         user = control_fn()
 
@@ -225,10 +231,10 @@ def get_camera_live_page(
             <span class="info">آدرس: {camera.ip} | ان‌وی‌آر: {camera.nvr_ip}</span>
         </div>
         <div class="video-container">
-            <img class="video-frame" id="liveImg" src="/api/cameras/{id}/stream" alt="Live Stream">
+            <img class="video-frame" id="liveImg" src="/api/v1/cameras/{id}/stream" alt="Live Stream">
         </div>
         <div class="controls">
-            <button class="btn" onclick="document.getElementById('liveImg').src='/api/cameras/{id}/stream?' + new Date().getTime();">بروزرسانی اتصال</button>
+            <button class="btn" onclick="document.getElementById('liveImg').src='/api/v1/cameras/{id}/stream?' + new Date().getTime();">بروزرسانی اتصال</button>
             <button class="btn" onclick="window.close();">بستن صفحه</button>
         </div>
         <script>
@@ -236,7 +242,7 @@ def get_camera_live_page(
             const img = document.getElementById('liveImg');
             img.onerror = function() {{
                 setTimeout(() => {{
-                    img.src = '/api/cameras/{id}/stream?' + new Date().getTime();
+                    img.src = '/api/v1/cameras/{id}/stream?' + new Date().getTime();
                 }}, 2000);
             }};
         </script>
