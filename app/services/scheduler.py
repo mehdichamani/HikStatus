@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import time
 from typing import Optional
 from sqlmodel import Session, select
-from app.database import engine, ScheduledTask, Log
+from app.database import engine, ScheduledTask
 from app.logging_config import logger, log_event
 from app.services.monitor import task_ping_cameras, task_sync_nvr_configs, task_sync_nvr_stats, task_sync_nvr_health, task_cleanup_database, task_capture_camera_snapshots, task_analyze_outages, broadcast
 

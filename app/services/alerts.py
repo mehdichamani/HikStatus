@@ -1,7 +1,6 @@
 import smtplib
 import requests
 import threading
-import jdatetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.database import Session, engine, Settings, User, UserAlertSettings

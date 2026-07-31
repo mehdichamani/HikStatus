@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlmodel import Session, select
-from typing import Optional
 
 from app.database import get_session, Settings
 from app.logging_config import log_event
