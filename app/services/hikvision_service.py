@@ -46,7 +46,17 @@ def gen_frames_ffmpeg(rtsp_url):
         "-r", "5",
         "pipe:1"
     ]
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, preexec_fn=os.setsid)
+
+    popen_kwargs = {
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.DEVNULL
+    }
+    if hasattr(os, "setsid"):
+        popen_kwargs["preexec_fn"] = os.setsid
+    elif hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+        popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
+    process = subprocess.Popen(cmd, **popen_kwargs)
     try:
         while True:
             # خواندن فریم‌ها به صورت بلاک‌بلاک از خروجی استاندارد ffmpeg
@@ -58,6 +68,9 @@ def gen_frames_ffmpeg(rtsp_url):
         pass
     finally:
         try:
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            if hasattr(os, "killpg") and hasattr(os, "getpgid"):
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            else:
+                process.terminate()
         except Exception:
             pass
