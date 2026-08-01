@@ -3256,13 +3256,21 @@ export function resetDashboardLayout() {
     localStorage.removeItem('hikstatus_dashboard_layout');
     const container = document.getElementById('dash-widgets-container');
     
+    const defaultVisible = [
+        'widget-cam-stats',
+        'widget-nvr-health-summary',
+        'widget-factory-summary',
+        'widget-offline-section',
+        'widget-nvr-container'
+    ];
+    
     DEFAULT_WIDGET_ORDER.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            if (id === 'widget-important-cams' || id === 'widget-chart-status' || id === 'widget-chart-causes' || id === 'widget-ping-summary') {
-                el.classList.add('widget-hidden');
-            } else {
+            if (defaultVisible.includes(id)) {
                 el.classList.remove('widget-hidden');
+            } else {
+                el.classList.add('widget-hidden');
             }
             if (container) container.appendChild(el);
         }
