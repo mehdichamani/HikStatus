@@ -1085,9 +1085,12 @@ export function updateDashFromWS(cams) {
     const on = cams.filter(c => c.status === 'Online').length;
     const off = cams.filter(c => c.status !== 'Online');
 
-    document.getElementById('s-tot').textContent = cams.length;
-    document.getElementById('s-on').textContent = on;
-    document.getElementById('s-off').textContent = off.length;
+    const sTotEl = document.getElementById('s-tot');
+    const sOnEl = document.getElementById('s-on');
+    const sOffEl = document.getElementById('s-off');
+    if (sTotEl) sTotEl.textContent = cams.length;
+    if (sOnEl) sOnEl.textContent = on;
+    if (sOffEl) sOffEl.textContent = off.length;
 
     const totEl = document.getElementById('tot');
     const onEl = document.getElementById('on');
