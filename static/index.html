@@ -252,8 +252,12 @@
                                 <path d="M12 6v6l4 2" />
                             </svg>
                             <span class="stat-combined-title">خلاصه وضعیت دوربین‌ها</span>
-                            <span class="widget-update-time" id="cam-health-update-time"
-                                style="margin-right: auto; font-size: 11px; color: var(--text-muted);">بروزرسانی: در حال انتظار...</span>
+                            <div class="widget-update-container" style="margin-right: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                                <span class="widget-update-time" id="cam-update-timer-text" style="font-size: 10px; color: var(--text-muted); font-weight: 500;">در حال انتظار...</span>
+                                <div style="width: 80px; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; border: 1px solid var(--border);">
+                                    <div id="cam-update-progress" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.2s linear;"></div>
+                                </div>
+                            </div>
                         </div>
                         <div id="cam-health-summary-content"
                             style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">
@@ -327,9 +331,12 @@
                                 <polyline points="22 4 12 14.01 9 11.01" />
                             </svg>
                             <span class="stat-combined-title">خلاصه وضعیت سلامت NVRها</span>
-                            <span class="widget-update-time" id="nvr-health-summary-update-time"
-                                style="margin-right: auto; font-size: 11px; color: var(--text-muted);">بروزرسانی: در حال
-                                انتظار...</span>
+                            <div class="widget-update-container" style="margin-right: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                                <span class="widget-update-time" id="nvr-update-timer-text" style="font-size: 10px; color: var(--text-muted); font-weight: 500;">در حال انتظار...</span>
+                                <div style="width: 80px; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; border: 1px solid var(--border);">
+                                    <div id="nvr-update-progress" style="width: 0%; height: 100%; background: var(--success); transition: width 0.2s linear;"></div>
+                                </div>
+                            </div>
                         </div>
                         <div id="nvr-health-summary-content"
                             style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">

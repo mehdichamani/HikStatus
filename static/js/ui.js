@@ -3926,4 +3926,68 @@ window.closeCamDetailsModal = function() {
     setTimeout(() => {
         modalEl.remove();
     }, 250);
+};
+
+window.startDashboardCountdowns = function() {
+    if (window.dashboardCountdownInterval) {
+        clearInterval(window.dashboardCountdownInterval);
+    }
+    
+    window.dashboardCountdownInterval = setInterval(() => {
+        if (!window.scheduledTasksCache || window.scheduledTasksCache.length === 0) return;
+        
+        const now = new Date();
+        
+        // 1. Camera Health Update (ping_cameras)
+        const camTask = window.scheduledTasksCache.find(t => t.id === 'ping_cameras');
+        if (camTask && camTask.next_run) {
+            const nextRun = new Date(camTask.next_run);
+            const total = camTask.interval || 60;
+            const diff = Math.max(0, Math.ceil((nextRun - now) / 1000));
+            
+            const timerTextEl = document.getElementById('cam-update-timer-text');
+            const progressEl = document.getElementById('cam-update-progress');
+            
+            if (timerTextEl) {
+                if (diff === 0) {
+                    timerTextEl.textContent = 'بروزرسانی...';
+                } else {
+                    timerTextEl.textContent = `بروزرسانی: ${window.toPersianNumbers(diff)} ثانیه`;
+                }
+            }
+            if (progressEl) {
+                const percentage = Math.min(100, Math.max(0, (1 - (diff / total)) * 100));
+                progressEl.style.width = `${percentage}%`;
+            }
+        }
+        
+        // 2. NVR Health Update (sync_nvr_health)
+        const nvrTask = window.scheduledTasksCache.find(t => t.id === 'sync_nvr_health');
+        if (nvrTask && nvrTask.next_run) {
+            const nextRun = new Date(nvrTask.next_run);
+            const total = nvrTask.interval || 300;
+            const diff = Math.max(0, Math.ceil((nextRun - now) / 1000));
+            
+            const timerTextEl = document.getElementById('nvr-update-timer-text');
+            const progressEl = document.getElementById('nvr-update-progress');
+            
+            if (timerTextEl) {
+                if (diff === 0) {
+                    timerTextEl.textContent = 'بروزرسانی...';
+                } else {
+                    const mins = Math.floor(diff / 60);
+                    const secs = diff % 60;
+                    if (mins > 0) {
+                        timerTextEl.textContent = `بروزرسانی: ${window.toPersianNumbers(mins)} دقیقه و ${window.toPersianNumbers(secs)} ثانیه`;
+                    } else {
+                        timerTextEl.textContent = `بروزرسانی: ${window.toPersianNumbers(secs)} ثانیه`;
+                    }
+                }
+            }
+            if (progressEl) {
+                const percentage = Math.min(100, Math.max(0, (1 - (diff / total)) * 100));
+                progressEl.style.width = `${percentage}%`;
+            }
+        }
+    }, 1000);
 };

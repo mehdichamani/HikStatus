@@ -134,6 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     connectWS();
     initBrowserAlerts();
     checkAdminPasswordWarning();
+    window.startDashboardCountdowns();
 
     // Hide initial loading screen
     const loadingScreen = document.getElementById('initial-loading-screen');
