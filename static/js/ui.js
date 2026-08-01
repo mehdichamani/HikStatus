@@ -160,9 +160,14 @@ export function renderDash() {
             factoryHtml += `
                 <div class="nvr-block ${isNvrCollapsed ? '' : 'open'} ${isNvrOffline ? 'offline' : ''}">
                     <div class="nvr-header" onclick="window.toggleNvr(this)">
-                        <div class="nvr-header-left">
+                        <div class="nvr-header-left" style="display: flex; align-items: center; gap: 6px;">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${window.getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
+                            <button class="nvr-health-btn" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 4px; color: var(--primary); padding: 2px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; margin-right: 2px;" onclick="window.showNvrHealthModal(event, '${ip}')" title="مشاهده وضعیت سلامت NVR">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                </svg>
+                            </button>
                             ${isAuthError ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>خطای رمز عبور</span>` : (isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : '')}
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -207,9 +212,14 @@ export function renderDash() {
             unassignedHtml += `
                 <div class="nvr-block ${isNvrCollapsed ? '' : 'open'} ${isNvrOffline ? 'offline' : ''}">
                     <div class="nvr-header" onclick="window.toggleNvr(this)">
-                        <div class="nvr-header-left">
+                        <div class="nvr-header-left" style="display: flex; align-items: center; gap: 6px;">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${window.getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
+                            <button class="nvr-health-btn" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 4px; color: var(--primary); padding: 2px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; margin-right: 2px;" onclick="window.showNvrHealthModal(event, '${ip}')" title="مشاهده وضعیت سلامت NVR">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                </svg>
+                            </button>
                             ${isAuthError ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>خطای رمز عبور</span>` : (isNvrOffline ? `<span class="text-danger" style="font-size:11px; font-weight:bold; margin-right:8px; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; background:var(--danger); border-radius:50%;"></span>قطع ارتباط</span>` : '')}
                         </div>
                         <svg class="nvr-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -3655,3 +3665,102 @@ export function onEditUserRoleChange() {
         if (inspectorCon) inspectorCon.style.display = 'none';
     }
 }
+
+window.showNvrHealthModal = function(event, ip) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    const n = nvrCache.find(x => x.ip === ip);
+    if (!n) {
+        window.showToast('اطلاعات NVR یافت نشد', 'error');
+        return;
+    }
+
+    const existing = document.getElementById('nvr-health-detail-modal');
+    if (existing) existing.remove();
+
+    let statusBadge = '';
+    if (n.status === 'Online') {
+        statusBadge = '<span style="font-size: 11px; padding: 3px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25); font-weight: bold; display: flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block; animation: pulse 2s infinite;"></span>متصل</span>';
+    } else if (n.status === 'AuthError') {
+        statusBadge = '<span style="font-size: 11px; padding: 3px 8px; border-radius: 12px; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25); font-weight: bold;">⚠️ خطای احراز هویت</span>';
+    } else {
+        statusBadge = '<span style="font-size: 11px; padding: 3px 8px; border-radius: 12px; background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); font-weight: bold;">❌ قطع ارتباط</span>';
+    }
+
+    let uptimeVal = 'نامشخص';
+    if (n.uptime) {
+        let days = Math.floor(n.uptime / 86400);
+        let hours = Math.floor((n.uptime % 86400) / 3600);
+        uptimeVal = days > 0 ? `${days} روز و ${hours} ساعت` : `${hours} ساعت`;
+    }
+
+    const hddHtml = formatHddInfo(n.hdd_status);
+
+    const modalHtml = `
+        <div id="nvr-health-detail-modal" class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
+            <div class="modal-content" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 460px; padding: 20px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px; transform: scale(0.95); transition: transform 0.25s ease; position: relative;">
+                
+                <button onclick="window.closeNvrHealthModal()" style="position: absolute; left: 16px; top: 16px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; padding: 4px;" title="بستن">&times;</button>
+                
+                <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <h3 style="font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0;">${n.name || 'NVR بدون نام'}</h3>
+                        <span class="mono" style="font-size: 12px; color: var(--text-secondary); opacity: 0.8;">IP: ${n.ip}</span>
+                    </div>
+                    <div style="margin-right: auto; padding-left: 20px;">${statusBadge}</div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.01); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 12px;">
+                        <span style="color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">⏱️ زمان کارکرد دستگاه (Uptime):</span>
+                        <strong style="color: var(--text);">${window.toPersianNumbers(uptimeVal)}</strong>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <h4 style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin: 0; display: flex; align-items: center; gap: 4px;">💿 وضعیت دیسک‌های ذخیره‌سازی:</h4>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            ${hddHtml}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modalEl = document.getElementById('nvr-health-detail-modal');
+    const contentEl = modalEl.querySelector('.modal-content');
+    
+    modalEl.offsetHeight; // force reflow
+
+    modalEl.style.opacity = '1';
+    contentEl.style.transform = 'scale(1)';
+
+    modalEl.addEventListener('click', function(e) {
+        if (e.target === modalEl) window.closeNvrHealthModal();
+    });
+
+    const escHandler = function(e) {
+        if (e.key === 'Escape') {
+            window.closeNvrHealthModal();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+};
+
+window.closeNvrHealthModal = function() {
+    const modalEl = document.getElementById('nvr-health-detail-modal');
+    if (!modalEl) return;
+
+    const contentEl = modalEl.querySelector('.modal-content');
+    modalEl.style.opacity = '0';
+    contentEl.style.transform = 'scale(0.95)';
+
+    setTimeout(() => {
+        modalEl.remove();
+    }, 250);
+};

@@ -285,7 +285,6 @@ window.SIZE_LABELS = { 'size-full': '100%', 'size-half': '50%', 'size-third': '3
 window.DEFAULT_WIDGET_ORDER = [
     'widget-cam-stats',
     'widget-nvr-stats',
-    'widget-nvr-health',
     'widget-nvr-health-summary',
     'widget-factory-summary',
     'widget-off-recording',

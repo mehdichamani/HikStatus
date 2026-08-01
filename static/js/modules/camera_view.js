@@ -708,6 +708,62 @@ export function renderNvrHealthSummaryWidget() {
         hddStatusText = `<span style="color: #ef4444; font-weight: 700; display: flex; align-items: center; gap: 4px;">⚠️ ${window.toPersianNumbers(failedHdds)} خطا در هاردها</span>`;
     }
 
+    const criticalNvrs = activeNvrs.filter(n => {
+        if (n.status !== 'Online') return true;
+        if (n.hdd_status) {
+            try {
+                const hdds = JSON.parse(n.hdd_status);
+                if (Array.isArray(hdds) && hdds.some(h => h.status && h.status.toLowerCase() !== 'ok')) {
+                    return true;
+                }
+            } catch (e) {}
+        }
+        return false;
+    });
+
+    let alertsHtml = '';
+    if (criticalNvrs.length === 0) {
+        alertsHtml = `
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 8px; justify-content: center; color: #10b981; font-size: 11.5px; font-weight: bold; margin-top: 4px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>تمامی ${window.toPersianNumbers(total)} دستگاه NVR در وضعیت عادی هستند</span>
+            </div>
+        `;
+    } else {
+        const listItems = criticalNvrs.map(n => {
+            let errorLabel = '';
+            if (n.status === 'AuthError') {
+                errorLabel = '<span style="color: #f59e0b; font-weight: bold;">خطای احراز</span>';
+            } else if (n.status !== 'Online') {
+                errorLabel = '<span style="color: #ef4444; font-weight: bold;">قطع ارتباط</span>';
+            } else {
+                errorLabel = '<span style="color: #ef4444; font-weight: bold;">خطای هارد</span>';
+            }
+
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.2s ease;" onclick="window.showNvrHealthModal(event, '${n.ip}')" title="مشاهده جزئیات سلامت NVR">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--text-primary);">${n.name || 'NVR بدون نام'}</span>
+                        <span class="mono" style="font-size: 10px; color: var(--text-secondary);">${n.ip}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        ${errorLabel}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-muted);"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        alertsHtml = `
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                <h4 style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin: 0 0 2px 0; display: flex; align-items: center; gap: 4px;">🚨 لیست هشدارهای سلامت (${window.toPersianNumbers(criticalNvrs.length)} دستگاه):</h4>
+                <div class="widget-list-scrollable" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-left: 2px;">
+                    ${listItems}
+                </div>
+            </div>
+        `;
+    }
+
     contentEl.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 10px;">
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
@@ -735,6 +791,8 @@ export function renderNvrHealthSummaryWidget() {
                     <span>${hddStatusText}</span>
                 </div>
             </div>
+
+            ${alertsHtml}
         </div>
     `;
 }
