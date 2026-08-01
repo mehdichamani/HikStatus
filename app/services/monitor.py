@@ -255,12 +255,8 @@ def fetch_nvr_extended_info(ip, user, password, req_sess):
                 info['uptime'] = int(up.text)
 
             cpus = root.findall('.//ns:CPUList/ns:CPU/ns:cpuUtilization', ns)
-            if cpus and cpus[0].text and cpus[0].text.isdigit():
-                info['cpu_usage'] = int(cpus[0].text)
-
-            mems = root.findall('.//ns:MemoryList/ns:Memory/ns:memoryUsage', ns)
-            if mems and mems[0].text and mems[0].text.isdigit():
-                info['memory_usage'] = int(mems[0].text)
+            # CPU and RAM extraction removed per user request
+            pass
     except Exception:
         pass
 
@@ -1127,8 +1123,9 @@ async def task_sync_nvr_health():
                 if ext_info['serial_number'] is not None: db_nvr.serial_number = ext_info['serial_number']
                 if ext_info['mac_address'] is not None: db_nvr.mac_address = ext_info['mac_address']
                 if ext_info['uptime'] is not None: db_nvr.uptime = ext_info['uptime']
-                if ext_info['cpu_usage'] is not None: db_nvr.cpu_usage = ext_info['cpu_usage']
-                if ext_info['memory_usage'] is not None: db_nvr.memory_usage = ext_info['memory_usage']
+                # CPU and RAM saved fields cleared/removed per user request
+                db_nvr.cpu_usage = None
+                db_nvr.memory_usage = None
                 if ext_info['hdd_status'] is not None: db_nvr.hdd_status = ext_info['hdd_status']
                 if ext_info['device_time'] is not None: db_nvr.device_time = ext_info['device_time']
                 session.add(db_nvr)

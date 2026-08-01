@@ -191,7 +191,7 @@ def seed_scheduled_tasks():
                 id="sync_nvr_health",
                 name="پایش سلامت تجهیزات NVR",
                 description="دریافت وضعیت منابع سخت‌افزاری (CPU و حافظه)، وضعیت هاردها و زمان داخلی دستگاه‌های NVR",
-                interval=7200
+                interval=300
             ),
             ScheduledTask(
                 id="capture_camera_snapshots",
@@ -219,6 +219,9 @@ def seed_scheduled_tasks():
             else:
                 existing.name = task.name
                 existing.description = task.description
+                if task.id == "sync_nvr_health" and existing.interval == 7200:
+                    existing.interval = 300
+                    existing.next_run = datetime.now()
                 session.add(existing)
         session.commit()
 

@@ -3433,10 +3433,10 @@ export function formatTimeAgo(dateStr) {
 }
 
 export function formatHddInfo(hddJsonStr) {
-    if (!hddJsonStr) return '💿 اطلاعات هارد: نامشخص';
+    if (!hddJsonStr) return '<div style="font-size: 11px; color: var(--text-muted);">💿 اطلاعات هارد: نامشخص</div>';
     try {
         const hdds = JSON.parse(hddJsonStr);
-        if (!Array.isArray(hdds) || hdds.length === 0) return '💿 بدون هارد دیسک';
+        if (!Array.isArray(hdds) || hdds.length === 0) return '<div style="font-size: 11px; color: var(--text-muted);">💿 بدون هارد دیسک</div>';
         return hdds.map(h => {
             const capVal = parseFloat(h.capacity) || 0;
             const freeVal = parseFloat(h.freeSpace) || 0;
@@ -3447,17 +3447,43 @@ export function formatHddInfo(hddJsonStr) {
             let capStr = capGB > 900 ? `${(capGB / 1024).toFixed(1)}TB` : `${capGB}GB`;
             let freeStr = freeGB > 900 ? `${(freeGB / 1024).toFixed(1)}TB` : `${freeGB}GB`;
 
-            let statusClass = h.status === 'OK' ? 'text-success' : 'text-danger';
-            let statusLabel = h.status === 'OK' ? 'سالم' : (h.status || 'خطا');
-            return `<div style="padding-right: 4px; display: flex; align-items: center; gap: 8px;">
-                <span>💾 ${h.name || 'هارد'}: ${window.toPersianNumbers(capStr)} / ${window.toPersianNumbers(freeStr)} خالی</span>
-                <span class="${statusClass}" style="font-weight: bold;">(${statusLabel})</span>
-            </div>`;
+            const isOk = h.status && h.status.toLowerCase() === 'ok';
+            const statusClass = isOk ? 'badge badge-success' : 'badge badge-danger';
+            const statusLabel = isOk ? 'سالم' : (h.status || 'خطا');
+
+            const usedVal = Math.max(0, capVal - freeVal);
+            const usedPercent = capVal > 0 ? Math.min(100, Math.round((usedVal / capVal) * 100)) : 0;
+            
+            const isFullAndRecording = isOk && (freeVal < 5120 || usedPercent >= 99);
+            const overwriteBadge = isFullAndRecording ? '<span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: bold; margin-right: 4px;">ضبط مداوم</span>' : '';
+
+            return `
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 14px;">💾</span>
+                            <span style="font-weight: 600; color: var(--text-primary);">${h.name || 'هارد'}</span>
+                            <span style="color: var(--text-muted);">(${window.toPersianNumbers(capStr)} / ${window.toPersianNumbers(freeStr)} خالی)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            ${overwriteBadge}
+                            <span class="${statusClass}" style="font-size: 10px; padding: 1px 6px; font-weight: bold;">${statusLabel}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; position: relative;">
+                            <div style="width: ${usedPercent}%; height: 100%; background: ${usedPercent > 95 ? 'var(--primary, #6366f1)' : 'var(--success, #10b981)'}; border-radius: 3px; transition: width 0.3s ease;"></div>
+                        </div>
+                        <span class="mono" style="font-size: 10px; color: var(--text-secondary); width: 28px; text-align: left;">${window.toPersianNumbers(usedPercent)}%</span>
+                    </div>
+                </div>
+            `;
         }).join('');
     } catch (e) {
-        return '💿 خطا در خواندن اطلاعات هارد';
+        return '<div style="font-size: 11px; color: var(--danger);">💿 خطا در خواندن اطلاعات هارد</div>';
     }
 }
+
 
 export function renderDashboardCharts() {
     if (typeof Chart === 'undefined') return;

@@ -616,22 +616,19 @@ export function renderNvrHealthWidget() {
 
     const activeNvrs = nvrCache.filter(n => n.enabled !== false);
     if (activeNvrs.length === 0) {
-        listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">دستگاه NVR فعال یافت نشد.</div>';
+        listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 24px 0;">دستگاه NVR فعال یافت نشد.</div>';
         return;
     }
 
     const html = activeNvrs.map(n => {
         let statusBadge = '';
         if (n.status === 'Online') {
-            statusBadge = '<span class="badge badge-success" style="font-size: 11px; padding: 2px 6px;">متصل</span>';
+            statusBadge = '<span style="font-size: 10px; padding: 3px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25); font-weight: bold; display: flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block; animation: pulse 2s infinite;"></span>متصل</span>';
         } else if (n.status === 'AuthError') {
-            statusBadge = '<span class="badge badge-danger" style="font-size: 11px; padding: 2px 6px;">خطای احراز هویت</span>';
+            statusBadge = '<span style="font-size: 10px; padding: 3px 8px; border-radius: 12px; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25); font-weight: bold; display: flex; align-items: center; gap: 4px;">⚠️ خطای احراز</span>';
         } else {
-            statusBadge = '<span class="badge badge-danger" style="font-size: 11px; padding: 2px 6px;">قطع ارتباط</span>';
+            statusBadge = '<span style="font-size: 10px; padding: 3px 8px; border-radius: 12px; background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); font-weight: bold; display: flex; align-items: center; gap: 4px;">❌ قطع ارتباط</span>';
         }
-
-        const cpuVal = n.cpu_usage !== null && n.cpu_usage !== undefined ? `${n.cpu_usage}%` : 'نامشخص';
-        const ramVal = n.memory_usage !== null && n.memory_usage !== undefined ? `${n.memory_usage}%` : 'نامشخص';
 
         let uptimeVal = 'نامشخص';
         if (n.uptime) {
@@ -647,20 +644,19 @@ export function renderNvrHealthWidget() {
         const hddHtml = window.formatHddInfo(n.hdd_status);
 
         return `
-            <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2);">
+            <div class="nvr-health-card" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; background: var(--surface-2); transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <strong style="font-size: 13px; color: var(--text-primary);">${n.name || 'NVR بدون نام'}</strong>
-                        <span class="mono" style="font-size: 11px; color: var(--text-secondary);">${n.ip}</span>
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--text);">${n.name || 'NVR بدون نام'}</span>
+                        <span class="mono" style="font-size: 11px; color: var(--text-secondary); opacity: 0.85; display: flex; align-items: center; gap: 8px;">
+                            <span>${n.ip}</span>
+                            <span style="color: var(--border);">|</span>
+                            <span>⏱️ کارکرد: ${window.toPersianNumbers(uptimeVal)}</span>
+                        </span>
                     </div>
                     <div>${statusBadge}</div>
                 </div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 11px; color: var(--text-secondary); border-top: 1px dashed var(--border); padding-top: 8px;">
-                    <div>⚙️ پردازنده: <strong style="color: var(--text);">${window.toPersianNumbers(cpuVal)}</strong></div>
-                    <div>🧠 حافظه: <strong style="color: var(--text);">${window.toPersianNumbers(ramVal)}</strong></div>
-                    <div>⏱️ کارکرد: <strong style="color: var(--text);">${window.toPersianNumbers(uptimeVal)}</strong></div>
-                </div>
-                <div style="font-size: 11px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+                <div style="font-size: 11px; display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--border); padding-top: 8px;">
                     ${hddHtml}
                 </div>
             </div>
@@ -682,7 +678,7 @@ export function renderNvrHealthSummaryWidget() {
 
     const activeNvrs = nvrCache.filter(n => n.enabled !== false);
     if (activeNvrs.length === 0) {
-        contentEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">دستگاه NVR فعال یافت نشد.</div>';
+        contentEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 24px 0;">دستگاه NVR فعال یافت نشد.</div>';
         return;
     }
 
@@ -699,52 +695,45 @@ export function renderNvrHealthSummaryWidget() {
                 const hdds = JSON.parse(n.hdd_status);
                 if (Array.isArray(hdds)) {
                     totalHdds += hdds.length;
-                    failedHdds += hdds.filter(h => h.status !== 'OK').length;
+                    failedHdds += hdds.filter(h => h.status && h.status.toLowerCase() !== 'ok').length;
                 }
             } catch (e) {}
         }
     });
 
-    const highCpu = activeNvrs.filter(n => n.cpu_usage !== null && n.cpu_usage > 80).length;
-    const highRam = activeNvrs.filter(n => n.memory_usage !== null && n.memory_usage > 90).length;
-
-    let hddStatusText = '<span class="text-success" style="font-weight: bold;">تمامی هاردها سالم هستند</span>';
+    let hddStatusText = '<span style="color: #10b981; font-weight: 700; display: flex; align-items: center; gap: 4px;">💚 تمامی هاردها سالم هستند</span>';
     if (totalHdds === 0) {
-        hddStatusText = '<span class="text-muted">اطلاعات هارد در دسترس نیست</span>';
+        hddStatusText = '<span style="color: var(--text-muted);">اطلاعات هارد در دسترس نیست</span>';
     } else if (failedHdds > 0) {
-        hddStatusText = `<span class="text-danger" style="font-weight: bold;">⚠️ ${window.toPersianNumbers(failedHdds)} خطا در هاردها</span>`;
-    }
-
-    let resourceAlertText = '<span class="text-success">نرمال</span>';
-    if (highCpu > 0 || highRam > 0) {
-        resourceAlertText = '<span class="text-danger" style="font-weight: bold;">⚠️ بار مصرفی بالا</span>';
+        hddStatusText = `<span style="color: #ef4444; font-weight: 700; display: flex; align-items: center; gap: 4px;">⚠️ ${window.toPersianNumbers(failedHdds)} خطا در هاردها</span>`;
     }
 
     contentEl.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <div class="stat-row">
-                <span class="stat-label">تعداد کل NVRهای فعال</span>
-                <span class="stat-value" style="font-weight: bold;">${window.toPersianNumbers(total)}</span>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                <div style="background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 11px; color: var(--text-secondary);">کل NVRها</span>
+                    <span style="font-size: 18px; font-weight: 800; color: var(--primary);">${window.toPersianNumbers(total)}</span>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 11px; color: var(--text-secondary);">دستگاه‌های متصل</span>
+                    <span style="font-size: 18px; font-weight: 800; color: #10b981;">${window.toPersianNumbers(online)}</span>
+                </div>
+                <div style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 11px; color: var(--text-secondary);">قطع ارتباط</span>
+                    <span style="font-size: 18px; font-weight: 800; color: ${offline > 0 ? '#ef4444' : 'var(--text-muted)'};">${window.toPersianNumbers(offline)}</span>
+                </div>
+                <div style="background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 11px; color: var(--text-secondary);">خطای احراز هویت</span>
+                    <span style="font-size: 18px; font-weight: 800; color: ${authError > 0 ? '#f59e0b' : 'var(--text-muted)'};">${window.toPersianNumbers(authError)}</span>
+                </div>
             </div>
-            <div class="stat-row">
-                <span class="stat-label">دستگاه‌های متصل</span>
-                <span class="stat-value text-success" style="font-weight: bold;">${window.toPersianNumbers(online)}</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">دستگاه‌های قطع شده</span>
-                <span class="stat-value ${offline > 0 ? 'text-danger' : 'text-muted'}" style="font-weight: bold;">${window.toPersianNumbers(offline)}</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">خطای احراز هویت</span>
-                <span class="stat-value ${authError > 0 ? 'text-danger' : 'text-muted'}" style="font-weight: bold;">${window.toPersianNumbers(authError)}</span>
-            </div>
-            <div class="stat-row" style="border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 4px;">
-                <span class="stat-label">سلامت ذخیره‌سازی (HDD)</span>
-                <span class="stat-value" style="font-size: 11px;">${hddStatusText}</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">مصرف منابع سخت‌افزاری</span>
-                <span class="stat-value" style="font-size: 11px;">${resourceAlertText}</span>
+            
+            <div style="display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.01); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; padding: 2px 0;">
+                    <span style="color: var(--text-secondary);">وضعیت کل هارد دیسک‌ها:</span>
+                    <span>${hddStatusText}</span>
+                </div>
             </div>
         </div>
     `;

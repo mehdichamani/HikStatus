@@ -302,8 +302,8 @@ window.DEFAULT_WIDGET_ORDER = [
 window.WIDGET_METADATA = {
     'widget-cam-stats': { title: 'وضعیت دوربین‌ها', desc: 'نمایش تعداد کل، متصل و قطع دوربین‌ها' },
     'widget-nvr-stats': { title: 'وضعیت NVRها', desc: 'نمایش تعداد کل، متصل و قطع دستگاه‌های NVR' },
-    'widget-nvr-health': { title: 'وضعیت سلامت NVRها', desc: 'نمایش اطلاعات سخت‌افزاری پردازنده، حافظه، دیسک‌ها و کارکرد NVRها' },
-    'widget-nvr-health-summary': { title: 'خلاصه وضعیت سلامت NVRها', desc: 'نمایش گزارش خلاصه سلامت و هشدارهای سخت‌افزاری تجهیزات ضبط' },
+    'widget-nvr-health': { title: 'وضعیت سلامت NVRها', desc: 'نمایش وضعیت دیسک‌ها (HDD)، کارکرد (Uptime) و پایش سلامت فیزیکی دستگاه‌های NVR' },
+    'widget-nvr-health-summary': { title: 'خلاصه وضعیت سلامت NVRها', desc: 'نمایش گزارش خلاصه سلامت و وضعیت ذخیره‌سازی تجهیزات ضبط' },
     'widget-factory-summary': { title: 'خلاصه کارخانه‌ها', desc: 'نمایش آمار کلی کارخانجات' },
     'widget-off-recording': { title: 'دوربین‌های ضبط خاموش', desc: 'لیست دوربین‌هایی که ضبط آن‌ها غیرفعال است به همراه جزئیات' },
     'widget-camera-changes': { title: 'تغییرات اخیر دوربین‌ها', desc: 'نمایش لیست دوربین‌های حذف یا اضافه شده در ۲۴ ساعت و هفته/ماه اخیر' },
