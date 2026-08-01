@@ -24,8 +24,10 @@
 
     <!-- Kiosk Exit Floating Button -->
     <button id="kiosk-exit-btn" class="kiosk-exit-btn" onclick="toggleKiosk()" title="خروج از حالت کیوسک (کلید ESC)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3">
+            </path>
         </svg>
         <span>خروج از کیوسک</span>
     </button>
@@ -70,9 +72,11 @@
                 </div>
 
                 <!-- Theme Toggle -->
-                <button class="btn-icon" id="btn-theme-toggle" onclick="toggleTheme()" title="تغییر حالت تاریک/روشن" aria-label="تغییر تم صفحه"
+                <button class="btn-icon" id="btn-theme-toggle" onclick="toggleTheme()" title="تغییر حالت تاریک/روشن"
+                    aria-label="تغییر تم صفحه"
                     style="flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="5"></circle>
                         <line x1="12" y1="1" x2="12" y2="3"></line>
                         <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -86,7 +90,8 @@
                 </button>
 
                 <!-- Kiosk Mode Toggle -->
-                <button class="btn-icon" id="btn-kiosk-toggle" onclick="toggleKiosk()" title="حالت کیوسک (تمام‌صفحه)" aria-label="حالت کیوسک"
+                <button class="btn-icon" id="btn-kiosk-toggle" onclick="toggleKiosk()" title="حالت کیوسک (تمام‌صفحه)"
+                    aria-label="حالت کیوسک"
                     style="flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
@@ -98,7 +103,8 @@
 
                 <!-- Global Search -->
                 <div class="global-search-container" style="position: relative;">
-                    <button class="btn-icon" onclick="toggleGlobalSearch(event)" id="btn-global-search" title="جستجوی عمومی" aria-label="جستجوی عمومی"
+                    <button class="btn-icon" onclick="toggleGlobalSearch(event)" id="btn-global-search"
+                        title="جستجوی عمومی" aria-label="جستجوی عمومی"
                         style="flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -109,8 +115,8 @@
                     <!-- Dropdown search overlay -->
                     <div id="global-search-dropdown" class="hidden"
                         style="position: absolute; top: calc(100% + 8px); left: 0; width: 320px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); z-index: 1000; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-                        <input type="text" id="global-search-input" class="form-input-ltr" placeholder="جستجوی دوربین، IP یا کارخانه..."
-                            oninput="onGlobalSearch(this.value)"
+                        <input type="text" id="global-search-input" class="form-input-ltr"
+                            placeholder="جستجوی دوربین، IP یا کارخانه..." oninput="onGlobalSearch(this.value)"
                             style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 8px 12px; width: 100%; outline: none; font-family: inherit; font-size: 13px;">
                         <div id="global-search-results"
                             style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
@@ -186,24 +192,32 @@
             <!-- Edit Mode Banner (only shown in Edit Mode) -->
             <div id="dash-edit-controls" class="hidden"
                 style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding: 10px 16px; background: var(--surface-2); border: 1px dashed var(--primary); border-radius: 8px; flex-wrap: wrap; gap: 10px;">
-                <span style="font-size: 13px; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 6px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span
+                    style="font-size: 13px; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
                     حالت شخصی‌سازی داشبورد
                 </span>
 
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <button class="chip active" onclick="openAddWidgetModal()" title="افزودن ویجت جدید" aria-label="افزودن ویجت"
+                    <button class="chip active" onclick="openAddWidgetModal()" title="افزودن ویجت جدید"
+                        aria-label="افزودن ویجت"
                         style="padding: 6px 12px; font-size: 13px; display: flex; align-items: center; gap: 4px; background: var(--primary); color: #fff; border: none; cursor: pointer;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
                         <span>افزودن ویجت</span>
                     </button>
 
-                    <button class="chip" onclick="resetDashboardLayout()" title="بازنشانی چینش به حالت پیش‌فرض" aria-label="بازنشانی چینش"
+                    <button class="chip" onclick="resetDashboardLayout()" title="بازنشانی چینش به حالت پیش‌فرض"
+                        aria-label="بازنشانی چینش"
                         style="padding: 6px 12px; font-size: 13px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
                             <path d="M3 3v5h5"></path>
                         </svg>
@@ -223,8 +237,10 @@
                             <span class="widget-title-label">وضعیت دوربین‌ها</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-cam-stats')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-cam-stats')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-cam-stats')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-cam-stats')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
                     <div class="stat-card-combined">
@@ -259,8 +275,10 @@
                             <span class="widget-title-label">وضعیت NVRها</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-stats')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-stats')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-stats')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-stats')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
                     <div class="stat-card-combined" id="nvr-status-card">
@@ -297,50 +315,69 @@
                             <span class="widget-title-label">وضعیت سلامت NVRها</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-health')" title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-health')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-health')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-health')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
-                    <div class="stat-card-combined" style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 280px;">
+                    <div class="stat-card-combined"
+                        style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 280px;">
                         <div class="stat-combined-header" style="display: flex; align-items: center; gap: 8px;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="color: var(--primary);">
                                 <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
                                 <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
                                 <line x1="6" y1="6" x2="6.01" y2="6" />
                                 <line x1="6" y1="18" x2="6.01" y2="18" />
                             </svg>
                             <span class="stat-combined-title">وضعیت سلامت NVRها</span>
-                            <span class="widget-update-time" id="nvr-health-update-time" style="margin-right: auto; font-size: 11px; color: var(--text-muted);">بروزرسانی: در حال انتظار...</span>
+                            <span class="widget-update-time" id="nvr-health-update-time"
+                                style="margin-right: auto; font-size: 11px; color: var(--text-muted);">بروزرسانی: در حال
+                                انتظار...</span>
                         </div>
-                        <div id="nvr-health-list" class="widget-list-scrollable" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 8px;">
-                            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">در حال بارگذاری...</div>
+                        <div id="nvr-health-list" class="widget-list-scrollable"
+                            style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 8px;">
+                            <div
+                                style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+                                در حال بارگذاری...</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Widget: NVR Health Summary -->
-                <div class="dash-widget size-third" id="widget-nvr-health-summary" data-widget-id="widget-nvr-health-summary">
+                <div class="dash-widget size-third" id="widget-nvr-health-summary"
+                    data-widget-id="widget-nvr-health-summary">
                     <div class="dash-widget-controls">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
                             <span class="widget-title-label">خلاصه وضعیت سلامت NVRها</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-health-summary')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-health-summary')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-health-summary')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-health-summary')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
-                    <div class="stat-card-combined" style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 220px;">
+                    <div class="stat-card-combined"
+                        style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 220px;">
                         <div class="stat-combined-header" style="display: flex; align-items: center; gap: 8px;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--success);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="color: var(--success);">
                                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                                 <polyline points="22 4 12 14.01 9 11.01" />
                             </svg>
                             <span class="stat-combined-title">خلاصه وضعیت سلامت NVRها</span>
-                            <span class="widget-update-time" id="nvr-health-summary-update-time" style="margin-right: auto; font-size: 11px; color: var(--text-muted);">بروزرسانی: در حال انتظار...</span>
+                            <span class="widget-update-time" id="nvr-health-summary-update-time"
+                                style="margin-right: auto; font-size: 11px; color: var(--text-muted);">بروزرسانی: در حال
+                                انتظار...</span>
                         </div>
-                        <div id="nvr-health-summary-content" style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">
-                            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">در حال بارگذاری...</div>
+                        <div id="nvr-health-summary-content"
+                            style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">
+                            <div
+                                style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+                                در حال بارگذاری...</div>
                         </div>
                     </div>
                 </div>
@@ -353,8 +390,10 @@
                             <span class="widget-title-label">کارخانه‌ها</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-factory-summary')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-factory-summary')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-factory-summary')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-factory-summary')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
                     <div class="stat-card-combined" id="factory-summary-card">
@@ -383,20 +422,28 @@
                             <span class="widget-title-label">دوربین‌های ضبط خاموش</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-off-recording')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-off-recording')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-off-recording')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-off-recording')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
-                    <div class="stat-card-combined" style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 220px;">
+                    <div class="stat-card-combined"
+                        style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 220px;">
                         <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--danger);">
-                                <path d="M22.54 6.42a2.78 2.78 0 0 0-2.43-1.63H3.88a2.78 2.78 0 0 0-2.43 1.63 3.1 3.1 0 0 0 .19 2.92L6 16.5a2.78 2.78 0 0 0 2.43 1.38h7.14a2.78 2.78 0 0 0 2.43-1.38l4.37-7.16a3.1 3.1 0 0 0 .17-2.92z"/>
-                                <line x1="2" y1="2" x2="22" y2="22"/>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="color: var(--danger);">
+                                <path
+                                    d="M22.54 6.42a2.78 2.78 0 0 0-2.43-1.63H3.88a2.78 2.78 0 0 0-2.43 1.63 3.1 3.1 0 0 0 .19 2.92L6 16.5a2.78 2.78 0 0 0 2.43 1.38h7.14a2.78 2.78 0 0 0 2.43-1.38l4.37-7.16a3.1 3.1 0 0 0 .17-2.92z" />
+                                <line x1="2" y1="2" x2="22" y2="22" />
                             </svg>
                             <span class="stat-combined-title">دوربین‌های ضبط خاموش</span>
                         </div>
-                        <div id="off-recording-list" class="widget-list-scrollable" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
-                            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">در حال بارگذاری...</div>
+                        <div id="off-recording-list" class="widget-list-scrollable"
+                            style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                            <div
+                                style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+                                در حال بارگذاری...</div>
                         </div>
                     </div>
                 </div>
@@ -409,32 +456,46 @@
                             <span class="widget-title-label">تغییرات اخیر دوربین‌ها</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-camera-changes')" title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-camera-changes')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-camera-changes')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-camera-changes')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
-                    <div class="stat-card-combined" style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 280px;">
+                    <div class="stat-card-combined"
+                        style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 280px;">
                         <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
-                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="color: var(--primary);">
+                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
                             </svg>
                             <span class="stat-combined-title">تغییرات اخیر دوربین‌ها</span>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; overflow: hidden;">
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <button class="chip active" data-cf-period="24h" onclick="setChangesFilter('period', '24h')">۲۴ ساعت</button>
-                                <button class="chip" data-cf-period="7d" onclick="setChangesFilter('period', '7d')">۷ روز</button>
-                                <button class="chip" data-cf-period="month" onclick="setChangesFilter('period', 'month')">ماه</button>
+                                <button class="chip active" data-cf-period="24h"
+                                    onclick="setChangesFilter('period', '24h')">۲۴ ساعت</button>
+                                <button class="chip" data-cf-period="7d" onclick="setChangesFilter('period', '7d')">۷
+                                    روز</button>
+                                <button class="chip" data-cf-period="month"
+                                    onclick="setChangesFilter('period', 'month')">ماه</button>
                                 <div style="height: 18px; width: 1px; background: var(--border); margin: 0 4px;"></div>
-                                <button class="chip active" data-cf-action="all" onclick="setChangesFilter('action', 'all')">همه</button>
-                                <button class="chip" data-cf-action="added" onclick="setChangesFilter('action', 'added')">اضافه شده</button>
-                                <button class="chip" data-cf-action="removed" onclick="setChangesFilter('action', 'removed')">حذف شده</button>
+                                <button class="chip active" data-cf-action="all"
+                                    onclick="setChangesFilter('action', 'all')">همه</button>
+                                <button class="chip" data-cf-action="added"
+                                    onclick="setChangesFilter('action', 'added')">اضافه شده</button>
+                                <button class="chip" data-cf-action="removed"
+                                    onclick="setChangesFilter('action', 'removed')">حذف شده</button>
                                 <div style="height: 18px; width: 1px; background: var(--border); margin: 0 4px;"></div>
-                                <button class="chip" data-cf-action="off_recording" onclick="setChangesFilter('action', 'off_recording')">ضبط خاموش</button>
+                                <button class="chip" data-cf-action="off_recording"
+                                    onclick="setChangesFilter('action', 'off_recording')">ضبط خاموش</button>
                             </div>
-                            <div id="changes-list" class="widget-list-scrollable" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
-                                <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">در حال بارگذاری...</div>
+                            <div id="changes-list" class="widget-list-scrollable"
+                                style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+                                <div
+                                    style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+                                    در حال بارگذاری...</div>
                             </div>
                         </div>
                     </div>
@@ -448,8 +509,10 @@
                             <span class="widget-title-label">دوربین‌های قطع شده</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-offline-section')" title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-offline-section')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-offline-section')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-offline-section')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
                     <div id="offline-section" class="hidden" style="margin-bottom: 0;">
@@ -469,8 +532,10 @@
                             <span class="widget-title-label">سلامت شبکه</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-all-ok')" title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-all-ok')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-all-ok')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-all-ok')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
                     <div id="all-ok" class="all-ok hidden" style="margin-bottom: 0;">
@@ -494,30 +559,47 @@
                             <span class="widget-title-label">گروه‌بندی کارخانه‌ها و NVRها</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-container')" title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-container')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-container')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-container')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
-                    <div class="nvr-widget-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 4px 8px; flex-wrap: wrap; gap: 10px;">
-                        <h3 style="font-size: 15px; font-weight: 700; color: var(--text);">گروه‌بندی کارخانه‌ها و NVRها</h3>
-                        <div class="dash-actions-toolbar" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <div class="nvr-widget-header"
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 4px 8px; flex-wrap: wrap; gap: 10px;">
+                        <h3 style="font-size: 15px; font-weight: 700; color: var(--text);">گروه‌بندی کارخانه‌ها و NVRها
+                        </h3>
+                        <div class="dash-actions-toolbar"
+                            style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                             <!-- Filter Chips -->
                             <div style="display: flex; gap: 4px; align-items: center;">
-                                <button class="chip active" id="filter-cam-all" onclick="setDashCamFilter('all')" title="همه دوربین‌ها" aria-label="نمایش همه دوربین‌ها">
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                                <button class="chip active" id="filter-cam-all" onclick="setDashCamFilter('all')"
+                                    title="همه دوربین‌ها" aria-label="نمایش همه دوربین‌ها">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <rect x="3" y="3" width="7" height="7" />
+                                        <rect x="14" y="3" width="7" height="7" />
+                                        <rect x="3" y="14" width="7" height="7" />
+                                        <rect x="14" y="14" width="7" height="7" />
                                     </svg>
                                     <span>همه</span>
                                 </button>
-                                <button class="chip" id="filter-cam-online" onclick="setDashCamFilter('online')" title="دوربین‌های متصل" aria-label="نمایش دوربین‌های متصل">
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+                                <button class="chip" id="filter-cam-online" onclick="setDashCamFilter('online')"
+                                    title="دوربین‌های متصل" aria-label="نمایش دوربین‌های متصل">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                        <polyline points="22 4 12 14.01 9 11.01" />
                                     </svg>
                                     <span>متصل</span>
                                 </button>
-                                <button class="chip" id="filter-cam-offline" onclick="setDashCamFilter('offline')" title="دوربین‌های قطع شده" aria-label="نمایش دوربین‌های قطع شده">
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+                                <button class="chip" id="filter-cam-offline" onclick="setDashCamFilter('offline')"
+                                    title="دوربین‌های قطع شده" aria-label="نمایش دوربین‌های قطع شده">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="15" y1="9" x2="9" y2="15" />
+                                        <line x1="9" y1="9" x2="15" y2="15" />
                                     </svg>
                                     <span>قطع</span>
                                 </button>
@@ -543,15 +625,21 @@
 
                             <!-- Expand / Collapse All -->
                             <div style="display: flex; gap: 4px; align-items: center;">
-                                <button class="chip" onclick="expandAllFactories()" title="گشودن همه کارخانه‌ها" aria-label="گشودن همه">
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="7 13 12 18 17 13"/><polyline points="7 6 12 11 17 6"/>
+                                <button class="chip" onclick="expandAllFactories()" title="گشودن همه کارخانه‌ها"
+                                    aria-label="گشودن همه">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <polyline points="7 13 12 18 17 13" />
+                                        <polyline points="7 6 12 11 17 6" />
                                     </svg>
                                     <span>گشودن همه</span>
                                 </button>
-                                <button class="chip" onclick="collapseAllFactories()" title="جمع کردن همه کارخانه‌ها" aria-label="جمع کردن همه">
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/>
+                                <button class="chip" onclick="collapseAllFactories()" title="جمع کردن همه کارخانه‌ها"
+                                    aria-label="جمع کردن همه">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <polyline points="17 11 12 6 7 11" />
+                                        <polyline points="17 18 12 13 7 18" />
                                     </svg>
                                     <span>جمع کردن همه</span>
                                 </button>
@@ -562,29 +650,36 @@
                 </div>
 
                 <!-- Widget: Important Cameras -->
-                <div class="dash-widget size-full widget-hidden" id="widget-important-cams" data-widget-id="widget-important-cams">
+                <div class="dash-widget size-full widget-hidden" id="widget-important-cams"
+                    data-widget-id="widget-important-cams">
                     <div class="dash-widget-controls">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
                             <span class="widget-title-label">دوربین‌های مهم</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-important-cams')" title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-important-cams')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-important-cams')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-important-cams')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
                     <div class="stat-card-combined" style="padding: 16px;">
                         <div class="stat-combined-header" style="justify-content: space-between;">
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--danger);">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="color: var(--danger);">
+                                    <polygon
+                                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                                    </polygon>
                                 </svg>
                                 <span class="stat-combined-title">دوربین‌های با اهمیت «مهم»</span>
                             </div>
                             <span id="important-cams-count" class="badge badge-danger">0</span>
                         </div>
                         <div id="important-cams-grid" class="cam-grid" style="margin-top: 12px;">
-                            <div style="font-size: 13px; color: var(--text-muted); padding: 12px 0; text-align: center; width: 100%; grid-column: 1 / -1;">
+                            <div
+                                style="font-size: 13px; color: var(--text-muted); padding: 12px 0; text-align: center; width: 100%; grid-column: 1 / -1;">
                                 دوربین با اهمیت «مهم» یافت نشد.
                             </div>
                         </div>
@@ -592,73 +687,87 @@
                 </div>
 
                 <!-- Widget: Status Chart -->
-                <div class="dash-widget size-half widget-hidden" id="widget-chart-status" data-widget-id="widget-chart-status">
+                <div class="dash-widget size-half widget-hidden" id="widget-chart-status"
+                    data-widget-id="widget-chart-status">
                     <div class="dash-widget-controls">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
                             <span class="widget-title-label">نمودار وضعیت فعلی</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-chart-status')" title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-chart-status')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-chart-status')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-chart-status')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
                     <div class="stat-card-combined" style="padding: 16px;">
                         <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="color: var(--primary);">
                                 <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
                                 <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
                             </svg>
                             <span class="stat-combined-title">نمودار وضعیت فعلی تجهیزات</span>
                         </div>
-                        <div style="position: relative; height: 200px; width: 100%; display: flex; justify-content: center; align-items: center; padding-top: 8px;">
+                        <div
+                            style="position: relative; height: 200px; width: 100%; display: flex; justify-content: center; align-items: center; padding-top: 8px;">
                             <canvas id="dash-chart-status-canvas"></canvas>
                         </div>
                     </div>
                 </div>
 
                 <!-- Widget: Outage Causes Chart -->
-                <div class="dash-widget size-half widget-hidden" id="widget-chart-causes" data-widget-id="widget-chart-causes">
+                <div class="dash-widget size-half widget-hidden" id="widget-chart-causes"
+                    data-widget-id="widget-chart-causes">
                     <div class="dash-widget-controls">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
                             <span class="widget-title-label">نمودار علل قطعی</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-chart-causes')" title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-chart-causes')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-chart-causes')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">50%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-chart-causes')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
                     <div class="stat-card-combined" style="padding: 16px;">
                         <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--warning);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="color: var(--warning);">
                                 <line x1="18" y1="20" x2="18" y2="10"></line>
                                 <line x1="12" y1="20" x2="12" y2="4"></line>
                                 <line x1="6" y1="20" x2="6" y2="14"></line>
                             </svg>
                             <span class="stat-combined-title">نمودار علل قطعی‌ها</span>
                         </div>
-                        <div style="position: relative; height: 200px; width: 100%; display: flex; justify-content: center; align-items: center; padding-top: 8px;">
+                        <div
+                            style="position: relative; height: 200px; width: 100%; display: flex; justify-content: center; align-items: center; padding-top: 8px;">
                             <canvas id="dash-chart-causes-canvas"></canvas>
                         </div>
                     </div>
                 </div>
 
                 <!-- Widget: Network Latency / SLA -->
-                <div class="dash-widget size-third widget-hidden" id="widget-ping-summary" data-widget-id="widget-ping-summary">
+                <div class="dash-widget size-third widget-hidden" id="widget-ping-summary"
+                    data-widget-id="widget-ping-summary">
                     <div class="dash-widget-controls">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
                             <span class="widget-title-label">پایداری و پینگ شبکه</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-ping-summary')" title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-ping-summary')" title="حذف ویجت">✕</button>
+                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-ping-summary')"
+                                title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
+                            <button class="widget-remove-btn" onclick="removeWidget('widget-ping-summary')"
+                                title="حذف ویجت">✕</button>
                         </div>
                     </div>
                     <div class="stat-card-combined">
                         <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--info);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="color: var(--info);">
                                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                             </svg>
                             <span class="stat-combined-title">پایداری و پینگ شبکه</span>
@@ -1086,9 +1195,11 @@
                     </div>
 
                     <div style="display: flex; flex-direction: column; gap: 6px; min-width: 250px;">
-                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">جستجوی نام یا IP دوربین</label>
+                        <label style="font-size: 11px; color: var(--text-muted); font-weight: 500;">جستجوی نام یا IP
+                            دوربین</label>
                         <input type="text" id="outage-search" class="form-input" oninput="filterOutages()"
-                            placeholder="جستجو بر اساس نام یا IP..." style="padding: 6px 12px; font-size: 13px; width: 100%;">
+                            placeholder="جستجو بر اساس نام یا IP..."
+                            style="padding: 6px 12px; font-size: 13px; width: 100%;">
                     </div>
                 </div>
 
@@ -1096,9 +1207,11 @@
                 <div id="outages-bulk-bar" class="hidden"
                     style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid rgba(59, 130, 246, 0.2); flex-wrap: wrap; gap: 10px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 13px; font-weight: 600; color: var(--text);">تعداد رکوردهای انتخاب‌شده: <span id="outages-selected-count" style="color: var(--primary);">0</span></span>
+                        <span style="font-size: 13px; font-weight: 600; color: var(--text);">تعداد رکوردهای انتخاب‌شده:
+                            <span id="outages-selected-count" style="color: var(--primary);">0</span></span>
                     </div>
-                    <button class="btn btn-primary" onclick="openBulkExplanationModal()" style="padding: 6px 14px; font-size: 13px;">
+                    <button class="btn btn-primary" onclick="openBulkExplanationModal()"
+                        style="padding: 6px 14px; font-size: 13px;">
                         رفع ابهام دسته‌جمعی موارد انتخاب‌شده
                     </button>
                 </div>
@@ -1109,7 +1222,8 @@
                         <thead>
                             <tr style="border-bottom: 2px solid var(--border);">
                                 <th style="padding: 12px; width: 40px; text-align: center;">
-                                    <input type="checkbox" id="outage-select-all" onchange="toggleSelectAllOutages()" style="cursor: pointer;">
+                                    <input type="checkbox" id="outage-select-all" onchange="toggleSelectAllOutages()"
+                                        style="cursor: pointer;">
                                 </th>
                                 <th style="padding: 12px; font-weight: 600; color: var(--text-secondary);">نام دوربین
                                 </th>
@@ -1138,14 +1252,18 @@
                 </div>
 
                 <!-- Pagination Controls -->
-                <div id="outages-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px;">
+                <div id="outages-pagination"
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px;">
                     <div style="font-size: 13px; color: var(--text-secondary);">
-                        نمایش <span id="outages-pagination-start">0</span> تا <span id="outages-pagination-end">0</span> از <span id="outages-pagination-total">0</span> قطعی
+                        نمایش <span id="outages-pagination-start">0</span> تا <span id="outages-pagination-end">0</span>
+                        از <span id="outages-pagination-total">0</span> قطعی
                     </div>
                     <div style="display: flex; gap: 6px; align-items: center;">
-                        <button class="btn btn-ghost" id="outages-btn-prev" onclick="changeOutagesPage(-1)" style="padding: 4px 10px; font-size: 12px;">قبلی</button>
+                        <button class="btn btn-ghost" id="outages-btn-prev" onclick="changeOutagesPage(-1)"
+                            style="padding: 4px 10px; font-size: 12px;">قبلی</button>
                         <div id="outages-page-numbers" style="display: flex; gap: 4px; align-items: center;"></div>
-                        <button class="btn btn-ghost" id="outages-btn-next" onclick="changeOutagesPage(1)" style="padding: 4px 10px; font-size: 12px;">بعدی</button>
+                        <button class="btn btn-ghost" id="outages-btn-next" onclick="changeOutagesPage(1)"
+                            style="padding: 4px 10px; font-size: 12px;">بعدی</button>
                     </div>
                 </div>
             </div>
@@ -1155,20 +1273,25 @@
         <section id="settings" class="view">
             <!-- Settings list container (Android-like menu) -->
             <div id="settings-menu-container" style="max-width: 800px; margin: 0 auto; width: 100%; padding: 0 10px;">
-                <div class="card-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+                <div class="card-header"
+                    style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
                     <h3 style="font-size: 16px; font-weight: 700; color: var(--text);">تنظیمات سیستم</h3>
                 </div>
                 <div id="settings-menu-list" class="settings-menu-list"></div>
             </div>
 
             <!-- Settings detail container (for cards) -->
-            <div id="settings-detail-container" style="max-width: 900px; margin: 0 auto; width: 100%; display: none; padding: 0 10px;">
-                <div class="panel-main panel-scroll" style="padding: 0; border: none; box-shadow: none; background: transparent;">
+            <div id="settings-detail-container"
+                style="max-width: 900px; margin: 0 auto; width: 100%; display: none; padding: 0 10px;">
+                <div class="panel-main panel-scroll"
+                    style="padding: 0; border: none; box-shadow: none; background: transparent;">
                     <!-- Factory Groups Management -->
                     <div class="card" id="sec-groups" style="display: none;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
@@ -1178,7 +1301,8 @@
                             style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border);">
                             <input id="groupName" class="form-input" placeholder="نام کارخانه (مثلاً کارخانه تبریز)">
                             <input id="groupDesc" class="form-input" placeholder="توضیحات (اختیاری)" style="flex: 2;">
-                            <button class="btn btn-primary btn-icon-only" onclick="addGroup()" title="افزودن کارخانه" aria-label="افزودن کارخانه">
+                            <button class="btn btn-primary btn-icon-only" onclick="addGroup()" title="افزودن کارخانه"
+                                aria-label="افزودن کارخانه">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19" />
@@ -1192,8 +1316,10 @@
                     <!-- NVR Management -->
                     <div class="card" id="sec-nvr" style="display: none;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
@@ -1202,19 +1328,23 @@
                         <div class="nvr-form-wrapper">
                             <div class="nvr-form">
                                 <input id="nvrName" class="form-input" placeholder="نام دلخواه (مثلاً طبقه اول)">
-                                <input id="nvrIp" class="form-input form-input-ltr" placeholder="آدرس IP یا میزبان" oninput="validateNVRInputs()">
+                                <input id="nvrIp" class="form-input form-input-ltr" placeholder="آدرس IP یا میزبان"
+                                    oninput="validateNVRInputs()">
                                 <input id="nvrUser" class="form-input form-input-ltr" placeholder="نام کاربری">
-                                <input id="nvrPass" class="form-input form-input-ltr" type="password" placeholder="رمز عبور">
+                                <input id="nvrPass" class="form-input form-input-ltr" type="password"
+                                    placeholder="رمز عبور">
                                 <input id="nvrRtspPort" class="form-input form-input-ltr" type="number"
                                     placeholder="پورت RTSP" value="554" oninput="validateNVRInputs()">
                                 <select id="nvrGroup" class="form-input" style="width: 100%;">
                                     <option value="">بدون کارخانه (بدون گروه)</option>
                                 </select>
-                                <button id="btn-add-nvr" class="btn btn-primary" onclick="addNVR()" title="افزودن NVR" aria-label="افزودن NVR" style="height: 38px;">
+                                <button id="btn-add-nvr" class="btn btn-primary" onclick="addNVR()" title="افزودن NVR"
+                                    aria-label="افزودن NVR" style="height: 38px;">
                                     افزودن NVR
                                 </button>
                             </div>
-                            <span id="nvr-validation-msg" style="display: block; color: var(--danger); font-size: 11px; margin-top: 4px; padding: 0 16px; min-height: 16px;"></span>
+                            <span id="nvr-validation-msg"
+                                style="display: block; color: var(--danger); font-size: 11px; margin-top: 4px; padding: 0 16px; min-height: 16px;"></span>
                         </div>
                         <div id="nvr-list" class="list-container"></div>
                         <div class="settings-action-row">
@@ -1225,8 +1355,10 @@
                     <!-- Logs Management (System Logs) -->
                     <div class="card" id="sec-logs" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
@@ -1243,11 +1375,13 @@
                                         <circle cx="11" cy="11" r="8" />
                                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                     </svg>
-                                    <input id="logSearch" class="form-input-ltr" placeholder="جستجو..." onkeyup="delayLogSearch()"
+                                    <input id="logSearch" class="form-input-ltr" placeholder="جستجو..."
+                                        onkeyup="delayLogSearch()"
                                         style="background: transparent; border: none; color: var(--text); outline: none; width: 100%; font-family: inherit; font-size: 13px;">
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 5px;">
-                                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">سطح لاگ:</label>
+                                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">سطح
+                                        لاگ:</label>
                                     <select id="logLevelSelect" onchange="setLogLevelFilter(this.value)"
                                         style="background: var(--surface-2); color: var(--text); border: 1px solid var(--border); padding: 7px 10px; border-radius: var(--radius-sm); font-family: inherit; font-size: 13px; outline: none; cursor: pointer;">
                                         <option value="all">همه سطوح</option>
@@ -1258,26 +1392,35 @@
                                     </select>
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 5px;">
-                                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">دسته‌بندی:</label>
+                                    <label
+                                        style="font-size: 12px; color: var(--text-muted); font-weight: 600;">دسته‌بندی:</label>
                                     <div class="filter-chips" style="display: flex; flex-direction: column; gap: 6px;">
                                         <button class="chip active" onclick="setFilter(this, '')"
                                             style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">همه</button>
                                         <button class="chip" onclick="setFilter(this, 'Security')"
-                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">🔒 امنیتی</button>
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">🔒
+                                            امنیتی</button>
                                         <button class="chip" onclick="setFilter(this, 'Camera')"
-                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">📹 دوربین‌ها</button>
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">📹
+                                            دوربین‌ها</button>
                                         <button class="chip" onclick="setFilter(this, 'NVR')"
-                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">🖥️ دستگاه‌های NVR</button>
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">🖥️
+                                            دستگاه‌های NVR</button>
                                         <button class="chip" onclick="setFilter(this, 'User')"
-                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">👥 کاربران</button>
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">👥
+                                            کاربران</button>
                                         <button class="chip" onclick="setFilter(this, 'Config')"
-                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">⚙️ تنظیمات سیستم</button>
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">⚙️
+                                            تنظیمات سیستم</button>
                                         <button class="chip" onclick="setFilter(this, 'Task')"
-                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">⏱️ تسک‌ها</button>
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">⏱️
+                                            تسک‌ها</button>
                                         <button class="chip" onclick="setFilter(this, 'Alert')"
-                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">🔔 هشدارها</button>
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">🔔
+                                            هشدارها</button>
                                         <button class="chip" onclick="setFilter(this, 'System')"
-                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">💻 سیستمی</button>
+                                            style="text-align: right; width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: none; font-family: inherit; font-size: 13px;">💻
+                                            سیستمی</button>
                                     </div>
                                 </div>
                             </aside>
@@ -1310,8 +1453,10 @@
                     <!-- Browser Notification Settings -->
                     <div class="card" id="grp-Browser" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
@@ -1442,8 +1587,10 @@
                     <!-- System Controls Tab -->
                     <div id="sec-system" style="display: none; width: 100%;">
                         <div class="settings-card-header" style="margin-bottom: 16px;">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
@@ -1502,7 +1649,8 @@
                                     JSON خروجی بگیرید یا از فایل تنظیمات JSON بارگذاری کنید.
                                 </p>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                    <a id="btn-export-json" href="/api/v1/config/export" download class="btn btn-primary"
+                                    <a id="btn-export-json" href="/api/v1/config/export" download
+                                        class="btn btn-primary"
                                         style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                                             stroke="currentColor" stroke-width="2">
@@ -1522,7 +1670,8 @@
                                         </svg>
                                         <span>بارگذاری تنظیمات (JSON)</span>
                                     </button>
-                                    <a id="btn-download-sample-json" href="/static/hikstatus_config_sample.json" download class="btn"
+                                    <a id="btn-download-sample-json" href="/static/hikstatus_config_sample.json"
+                                        download class="btn"
                                         style="display: inline-flex; align-items: center; gap: 8px; background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border); text-decoration: none;">
                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                                             stroke="currentColor" stroke-width="2">
@@ -1590,43 +1739,57 @@
                     <!-- User Management Tab -->
                     <div class="card" id="sec-users" style="display: none;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
                             <h3>مدیریت کاربران</h3>
                         </div>
-                        <div class="nvr-form" style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
+                        <div class="nvr-form"
+                            style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
                             <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap; align-items: center;">
-                                <input id="userName" class="form-input form-input-ltr" placeholder="نام کاربری" style="flex: 1; min-width: 130px;">
-                                <input id="userPass" class="form-input form-input-ltr" type="password" placeholder="رمز عبور" style="flex: 1; min-width: 130px;">
+                                <input id="userName" class="form-input form-input-ltr" placeholder="نام کاربری"
+                                    style="flex: 1; min-width: 130px;">
+                                <input id="userPass" class="form-input form-input-ltr" type="password"
+                                    placeholder="رمز عبور" style="flex: 1; min-width: 130px;">
                                 <select id="userRole" class="form-input" style="flex: 1.5; min-width: 150px;">
                                     <option value="it_manager">مسئول آی‌تی (پایش + ثبت علت قطعی)</option>
                                     <option value="inspector">ناظر (مشاهده و گزارش‌گیری)</option>
                                     <option value="admin">مدیر سیستم (دسترسی کامل)</option>
                                 </select>
-                                <select id="userGroup" class="form-input" style="display: none; flex: 1.2; min-width: 130px;">
+                                <select id="userGroup" class="form-input"
+                                    style="display: none; flex: 1.2; min-width: 130px;">
                                     <option value="">بدون گروه</option>
                                 </select>
-                                <button class="btn btn-primary btn-icon-only" onclick="addUser()" title="افزودن کاربر" aria-label="افزودن کاربر">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <button class="btn btn-primary btn-icon-only" onclick="addUser()" title="افزودن کاربر"
+                                    aria-label="افزودن کاربر">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
                                         <line x1="12" y1="5" x2="12" y2="19" />
                                         <line x1="5" y1="12" x2="19" y2="12" />
                                     </svg>
                                 </button>
                             </div>
-                            
+
                             <!-- Factory Multi-Select Container -->
-                            <div id="inspector-groups-container" style="display: block; width: 100%; margin-top: 12px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
-                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed var(--border);">
-                                    <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">انتخاب کارخانه‌های مجاز کاربر:</span>
-                                    <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--primary);">
-                                        <input type="checkbox" id="inspector-select-all" onchange="toggleAllInspectorGroups(this.checked)">
+                            <div id="inspector-groups-container"
+                                style="display: block; width: 100%; margin-top: 12px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed var(--border);">
+                                    <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">انتخاب
+                                        کارخانه‌های مجاز کاربر:</span>
+                                    <label
+                                        style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--primary);">
+                                        <input type="checkbox" id="inspector-select-all"
+                                            onchange="toggleAllInspectorGroups(this.checked)">
                                         <span>انتخاب همه</span>
                                     </label>
                                 </div>
-                                <div id="inspector-groups-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; max-height: 150px; overflow-y: auto;">
+                                <div id="inspector-groups-list"
+                                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; max-height: 150px; overflow-y: auto;">
                                     <!-- Dynamically populated -->
                                 </div>
                             </div>
@@ -1637,8 +1800,10 @@
                     <!-- Personal Alert Settings Tab -->
                     <div class="card" id="sec-my-alerts" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
@@ -1661,8 +1826,7 @@
                             </div>
                             <div class="form-field-group span-2" style="margin-bottom: 20px;">
                                 <label class="form-label">آدرس ایمیل</label>
-                                <input class="form-input" id="myMailRecipients"
-                                    placeholder="user@kavehglass.com">
+                                <input class="form-input" id="myMailRecipients" placeholder="user@kavehglass.com">
                             </div>
 
                             <div class="settings-toggle-header"
@@ -1689,29 +1853,36 @@
                     <!-- Limits Management Tab -->
                     <div class="card" id="grp-Limits" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
                             <h3>مدیریت محدودیت‌ها و سقف‌های سیستمی</h3>
                         </div>
-                        
+
                         <div class="settings-section" style="max-width: 760px;">
-                            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6;">
-                                تنظیمات و سقف‌های امنیتی، ارتباطی و پایش داده‌ها در این بخش به صورت متمرکز قابل ویرایش هستند.
+                            <p
+                                style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6;">
+                                تنظیمات و سقف‌های امنیتی، ارتباطی و پایش داده‌ها در این بخش به صورت متمرکز قابل ویرایش
+                                هستند.
                             </p>
 
                             <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
-                                
+
                                 <!-- Limit Card 1: WebSocket -->
                                 <div class="limit-item-card">
                                     <div class="limit-item-info">
-                                        <strong class="limit-item-title">سقف اتصال‌های همزمان وب‌سوکت (WebSocket)</strong>
-                                        <span class="limit-item-desc">حداکثر تعداد سشن‌ها/تب‌های همزمان متصل به وب‌سوکت برای کل سامانه</span>
+                                        <strong class="limit-item-title">سقف اتصال‌های همزمان وب‌سوکت
+                                            (WebSocket)</strong>
+                                        <span class="limit-item-desc">حداکثر تعداد سشن‌ها/تب‌های همزمان متصل به وب‌سوکت
+                                            برای کل سامانه</span>
                                     </div>
                                     <div class="limit-item-input-wrap">
-                                        <input type="number" id="LIMIT_WS_MAX_CONCURRENT" class="form-input limit-num-input" min="1" max="500" placeholder="20">
+                                        <input type="number" id="LIMIT_WS_MAX_CONCURRENT"
+                                            class="form-input limit-num-input" min="1" max="500" placeholder="20">
                                         <span class="limit-unit-tag">سشن</span>
                                     </div>
                                 </div>
@@ -1720,10 +1891,12 @@
                                 <div class="limit-item-card">
                                     <div class="limit-item-info">
                                         <strong class="limit-item-title">حداکثر تلاش‌های ورود ناموفق در دقیقه</strong>
-                                        <span class="limit-item-desc">سقف مجاز ورود ناموفق از هر IP پیش از مسدودسازی موقت ۱ دقیقه‌ای</span>
+                                        <span class="limit-item-desc">سقف مجاز ورود ناموفق از هر IP پیش از مسدودسازی
+                                            موقت ۱ دقیقه‌ای</span>
                                     </div>
                                     <div class="limit-item-input-wrap">
-                                        <input type="number" id="LIMIT_LOGIN_MAX_ATTEMPTS" class="form-input limit-num-input" min="1" max="100" placeholder="5">
+                                        <input type="number" id="LIMIT_LOGIN_MAX_ATTEMPTS"
+                                            class="form-input limit-num-input" min="1" max="100" placeholder="5">
                                         <span class="limit-unit-tag">تلاش</span>
                                     </div>
                                 </div>
@@ -1732,10 +1905,12 @@
                                 <div class="limit-item-card">
                                     <div class="limit-item-info">
                                         <strong class="limit-item-title">تایم‌اوت پینگ اتصال دوربین‌ها</strong>
-                                        <span class="limit-item-desc">حداکثر زمان انتظار برای پاسخ‌دهی پینگ شبکه هر دوربین</span>
+                                        <span class="limit-item-desc">حداکثر زمان انتظار برای پاسخ‌دهی پینگ شبکه هر
+                                            دوربین</span>
                                     </div>
                                     <div class="limit-item-input-wrap">
-                                        <input type="number" id="LIMIT_PING_TIMEOUT_SECONDS" class="form-input limit-num-input" min="1" max="30" placeholder="2">
+                                        <input type="number" id="LIMIT_PING_TIMEOUT_SECONDS"
+                                            class="form-input limit-num-input" min="1" max="30" placeholder="2">
                                         <span class="limit-unit-tag">ثانیه</span>
                                     </div>
                                 </div>
@@ -1744,10 +1919,12 @@
                                 <div class="limit-item-card">
                                     <div class="limit-item-info">
                                         <strong class="limit-item-title">تایم‌اوت گرفتن پیش‌نمایش تصویر دوربین</strong>
-                                        <span class="limit-item-desc">مهلت زمان استخراج فریم تصویر Snapshot از استریم دوربین</span>
+                                        <span class="limit-item-desc">مهلت زمان استخراج فریم تصویر Snapshot از استریم
+                                            دوربین</span>
                                     </div>
                                     <div class="limit-item-input-wrap">
-                                        <input type="number" id="LIMIT_SNAPSHOT_TIMEOUT_SECONDS" class="form-input limit-num-input" min="1" max="60" placeholder="5">
+                                        <input type="number" id="LIMIT_SNAPSHOT_TIMEOUT_SECONDS"
+                                            class="form-input limit-num-input" min="1" max="60" placeholder="5">
                                         <span class="limit-unit-tag">ثانیه</span>
                                     </div>
                                 </div>
@@ -1755,11 +1932,14 @@
                                 <!-- Limit Card 5: API Rate Limit -->
                                 <div class="limit-item-card">
                                     <div class="limit-item-info">
-                                        <strong class="limit-item-title">سقف درخواست‌های مجاز عمومی API در دقیقه</strong>
-                                        <span class="limit-item-desc">حداکثر نرخ درخواست‌های ارسال‌شده از هر آدرس IP به سرور</span>
+                                        <strong class="limit-item-title">سقف درخواست‌های مجاز عمومی API در
+                                            دقیقه</strong>
+                                        <span class="limit-item-desc">حداکثر نرخ درخواست‌های ارسال‌شده از هر آدرس IP به
+                                            سرور</span>
                                     </div>
                                     <div class="limit-item-input-wrap">
-                                        <input type="number" id="LIMIT_API_RATE_LIMIT_PER_MIN" class="form-input limit-num-input" min="10" max="1000" placeholder="60">
+                                        <input type="number" id="LIMIT_API_RATE_LIMIT_PER_MIN"
+                                            class="form-input limit-num-input" min="10" max="1000" placeholder="60">
                                         <span class="limit-unit-tag">در دقیقه</span>
                                     </div>
                                 </div>
@@ -1767,11 +1947,14 @@
                                 <!-- Limit Card 6: Log Retention -->
                                 <div class="limit-item-card">
                                     <div class="limit-item-info">
-                                        <strong class="limit-item-title">مدت زمان نگه‌داری لاگ‌های قطعی و مانیتورینگ</strong>
-                                        <span class="limit-item-desc">لاگ‌ها و رویدادهای قدیمی‌تر از این تعداد روز به صورت خودکار پاک‌سازی می‌شوند</span>
+                                        <strong class="limit-item-title">مدت زمان نگه‌داری لاگ‌های قطعی و
+                                            مانیتورینگ</strong>
+                                        <span class="limit-item-desc">لاگ‌ها و رویدادهای قدیمی‌تر از این تعداد روز به
+                                            صورت خودکار پاک‌سازی می‌شوند</span>
                                     </div>
                                     <div class="limit-item-input-wrap">
-                                        <input type="number" id="LIMIT_LOG_RETENTION_DAYS" class="form-input limit-num-input" min="7" max="365" placeholder="90">
+                                        <input type="number" id="LIMIT_LOG_RETENTION_DAYS"
+                                            class="form-input limit-num-input" min="7" max="365" placeholder="90">
                                         <span class="limit-unit-tag">روز</span>
                                     </div>
                                 </div>
@@ -1786,8 +1969,10 @@
                     <!-- Scheduled Tasks Tab -->
                     <div class="card" id="sec-tasks" style="display: none; width: 100%;">
                         <div class="settings-card-header">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
@@ -1804,9 +1989,12 @@
 
                     <!-- ABOUT US SECTION -->
                     <div class="card" id="sec-about" style="display: none; max-width: 100%; overflow: hidden;">
-                        <div class="settings-card-header" style="margin: 16px 20px 0; border-bottom: none; padding-bottom: 0;">
-                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات" aria-label="بازگشت به منوی تنظیمات">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <div class="settings-card-header"
+                            style="margin: 16px 20px 0; border-bottom: none; padding-bottom: 0;">
+                            <button class="settings-back-btn" onclick="goBackToSettingsMenu()" title="بازگشت به تنظیمات"
+                                aria-label="بازگشت به منوی تنظیمات">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
                             </button>
@@ -2012,7 +2200,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" id="m-imp-btn" onclick="cycleImpModal()">تغییر اهمیت</button>
-                <button class="btn btn-ghost" id="m-snap-btn" onclick="playLiveStream()">پخش زنده (جریان اصلی)</button>
+                <button class="btn btn-ghost" id="m-snap-btn" onclick="playLiveStream()">پخش زنده</button>
                 <button class="btn btn-ghost" onclick="closeModal()">بستن</button>
             </div>
         </div>
@@ -2078,7 +2266,8 @@
 
                     <div class="form-field-group" style="margin-bottom: 12px;">
                         <label class="form-label">رمز عبور جدید</label>
-                        <input type="password" id="p-new-pass" class="form-input form-input-ltr" placeholder="رمز عبور جدید">
+                        <input type="password" id="p-new-pass" class="form-input form-input-ltr"
+                            placeholder="رمز عبور جدید">
                     </div>
                     <div class="form-field-group" style="margin-bottom: 16px;">
                         <label class="form-label">تکرار رمز عبور جدید</label>
@@ -2141,8 +2330,9 @@
                         <div class="form-field-group">
                             <label class="form-label" style="font-size: 12px; font-weight: bold;">کد ۶ رقمی تولید شده را
                                 جهت تست وارد کنید:</label>
-                            <input type="text" id="p-2fa-verification-code" class="form-input form-input-ltr mono" placeholder="000000"
-                                style="text-align: center; letter-spacing: 4px; font-size: 16px;" maxlength="6">
+                            <input type="text" id="p-2fa-verification-code" class="form-input form-input-ltr mono"
+                                placeholder="000000" style="text-align: center; letter-spacing: 4px; font-size: 16px;"
+                                maxlength="6">
                         </div>
 
                         <div style="display: flex; gap: 8px; margin-top: 5px;">
@@ -2195,7 +2385,8 @@
             <div class="modal-handle"></div>
             <div class="modal-header">
                 <h3 id="confirm-title">تایید عملیات</h3>
-                <button class="btn-close" onclick="closeConfirmModal(false)" title="بستن" aria-label="بستن">&times;</button>
+                <button class="btn-close" onclick="closeConfirmModal(false)" title="بستن"
+                    aria-label="بستن">&times;</button>
             </div>
             <div class="modal-body" style="padding: 16px 20px;">
                 <p id="confirm-message" style="line-height: 1.6; font-size: 14px; color: var(--text-secondary);"></p>
@@ -2213,7 +2404,8 @@
             <div class="modal-handle"></div>
             <div class="modal-header">
                 <h3>ویرایش کارخانه / گروه</h3>
-                <button class="btn-close" onclick="closeEditGroupModal()" title="بستن" aria-label="بستن">&times;</button>
+                <button class="btn-close" onclick="closeEditGroupModal()" title="بستن"
+                    aria-label="بستن">&times;</button>
             </div>
             <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px;">
                 <input type="hidden" id="editGroupId">
@@ -2241,15 +2433,18 @@
                 <h3>ویرایش کاربر</h3>
                 <button class="btn-close" onclick="closeEditUserModal()" title="بستن" aria-label="بستن">&times;</button>
             </div>
-            <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; max-height: 70vh; overflow-y: auto;">
+            <div class="modal-body"
+                style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; max-height: 70vh; overflow-y: auto;">
                 <input type="hidden" id="editUserId">
                 <div style="display: flex; flex-direction: column; gap: 5px;">
                     <label class="form-label" style="font-weight: 600;">نام کاربری:</label>
-                    <input id="editUserName" class="form-input form-input-ltr" readonly style="background: var(--surface-2); opacity: 0.7;">
+                    <input id="editUserName" class="form-input form-input-ltr" readonly
+                        style="background: var(--surface-2); opacity: 0.7;">
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 5px;">
                     <label class="form-label" style="font-weight: 600;">رمز عبور جدید (در صورت تغییر):</label>
-                    <input id="editUserPass" class="form-input form-input-ltr" type="password" placeholder="برای عدم تغییر خالی بگذارید">
+                    <input id="editUserPass" class="form-input form-input-ltr" type="password"
+                        placeholder="برای عدم تغییر خالی بگذارید">
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 5px;">
                     <label class="form-label" style="font-weight: 600;">نقش کاربر:</label>
@@ -2267,19 +2462,26 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
                     <input type="checkbox" id="editUserActive">
-                    <label for="editUserActive" style="font-size: 13px; font-weight: 600; cursor: pointer;">حساب کاربری فعال باشد</label>
+                    <label for="editUserActive" style="font-size: 13px; font-weight: 600; cursor: pointer;">حساب کاربری
+                        فعال باشد</label>
                 </div>
-                
+
                 <!-- Factory Multi-Select Container for Edit -->
-                <div id="edit-inspector-groups-container" style="display: block; margin-top: 8px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed var(--border);">
-                        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">انتخاب کارخانه‌های مجاز کاربر:</span>
-                        <label style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--primary);">
-                            <input type="checkbox" id="edit-inspector-select-all" onchange="toggleAllEditInspectorGroups(this.checked)">
+                <div id="edit-inspector-groups-container"
+                    style="display: block; margin-top: 8px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed var(--border);">
+                        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">انتخاب کارخانه‌های
+                            مجاز کاربر:</span>
+                        <label
+                            style="font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--primary);">
+                            <input type="checkbox" id="edit-inspector-select-all"
+                                onchange="toggleAllEditInspectorGroups(this.checked)">
                             <span>انتخاب همه</span>
                         </label>
                     </div>
-                    <div id="edit-inspector-groups-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; max-height: 120px; overflow-y: auto;">
+                    <div id="edit-inspector-groups-list"
+                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; max-height: 120px; overflow-y: auto;">
                         <!-- dynamic items -->
                     </div>
                 </div>
@@ -2343,7 +2545,8 @@
             <div class="modal-handle"></div>
             <div class="modal-header">
                 <h3>رفع ابهام قطعی دوربین</h3>
-                <button class="btn-close" onclick="closeExplanationModal()" title="بستن" aria-label="بستن">&times;</button>
+                <button class="btn-close" onclick="closeExplanationModal()" title="بستن"
+                    aria-label="بستن">&times;</button>
             </div>
             <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 16px;">
                 <input type="hidden" id="exp-outage-id">
@@ -2353,7 +2556,9 @@
                     style="padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; display: flex; flex-direction: column; gap: 6px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
                         <span style="font-size: 12px; font-weight: 600; color: #10b981;">💡 پیشنهاد هوشمند سیستم</span>
-                        <button class="btn btn-primary" onclick="applySystemSuggestion()" style="padding: 2px 8px; font-size: 11px; background: #10b981; border-color: #10b981; cursor: pointer; color: white;">اعمال پیشنهاد</button>
+                        <button class="btn btn-primary" onclick="applySystemSuggestion()"
+                            style="padding: 2px 8px; font-size: 11px; background: #10b981; border-color: #10b981; cursor: pointer; color: white;">اعمال
+                            پیشنهاد</button>
                     </div>
                     <div id="outages-suggestion-text" style="font-size: 12px; color: var(--text-secondary);"></div>
                 </div>
@@ -2388,10 +2593,12 @@
             <div class="modal-handle"></div>
             <div class="modal-header">
                 <h3>افزودن ویجت به داشبورد</h3>
-                <button class="btn-close" onclick="closeAddWidgetModal()" title="بستن" aria-label="بستن">&times;</button>
+                <button class="btn-close" onclick="closeAddWidgetModal()" title="بستن"
+                    aria-label="بستن">&times;</button>
             </div>
             <div class="modal-body" style="padding: 16px 20px;">
-                <div id="add-widget-list" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                <div id="add-widget-list"
+                    style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
                     <!-- Dynamically populated -->
                 </div>
             </div>
@@ -2403,14 +2610,16 @@
 
     <!-- Floating Action Buttons (FAB) -->
     <div id="fab-dash-controls" class="fab-container">
-        <button class="fab-btn" id="btn-fab-edit" onclick="toggleDashEditMode()" title="شخصی‌سازی داشبورد" aria-label="شخصی‌سازی داشبورد">
+        <button class="fab-btn" id="btn-fab-edit" onclick="toggleDashEditMode()" title="شخصی‌سازی داشبورد"
+            aria-label="شخصی‌سازی داشبورد">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
             <span class="fab-tooltip">شخصی‌سازی داشبورد</span>
         </button>
-        <button class="fab-btn" id="btn-fab-refresh" onclick="fetchDash()" title="بروزرسانی داشبورد" aria-label="بروزرسانی داشبورد">
+        <button class="fab-btn" id="btn-fab-refresh" onclick="fetchDash()" title="بروزرسانی داشبورد"
+            aria-label="بروزرسانی داشبورد">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="23 4 23 10 17 10" />
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />

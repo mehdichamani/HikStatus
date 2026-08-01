@@ -31,10 +31,12 @@ async def fetch_camera_snapshot(nvr, camera) -> tuple:
     return await asyncio.to_thread(fetch_pic)
 
 
-def gen_frames_ffmpeg(rtsp_url):
+async def gen_frames_ffmpeg(rtsp_url, scale_width=640, fps=5):
     """
-    تولید فریم‌های جریان زنده و ترنسکد با ffmpeg به تصاویر متحرک JPEG
+    تولید فریم‌های جریان زنده و ترنسکد با ffmpeg به صورت ناهمگام
     """
+    # اگر عرض تصویر صفر یا خالی باشد، scale اعمال نمی‌شود تا تصویر اصلی فرستاده شود
+    vf_chain = f"scale={scale_width}:-1" if scale_width else "null"
     cmd = [
         "ffmpeg",
         "-rtsp_transport", "tcp",
@@ -42,35 +44,34 @@ def gen_frames_ffmpeg(rtsp_url):
         "-f", "mpjpeg",
         "-q", "4",
         "-an",
-        "-vf", "scale=640:-1",
-        "-r", "5",
+        "-vf", vf_chain,
+        "-r", str(fps),
         "pipe:1"
     ]
 
-    popen_kwargs = {
-        "stdout": subprocess.PIPE,
-        "stderr": subprocess.DEVNULL
-    }
-    if hasattr(os, "setsid"):
-        popen_kwargs["preexec_fn"] = os.setsid
-    elif hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
-        popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    creationflags = 0
+    if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP") and os.name == 'nt':
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
-    process = subprocess.Popen(cmd, **popen_kwargs)
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+        creationflags=creationflags
+    )
+
     try:
         while True:
-            # خواندن فریم‌ها به صورت بلاک‌بلاک از خروجی استاندارد ffmpeg
-            data = process.stdout.read(4096)
+            # خواندن فریم‌ها به صورت ناهمگام
+            data = await process.stdout.read(4096)
             if not data:
                 break
             yield data
-    except Exception:
+    except (asyncio.CancelledError, GeneratorExit):
         pass
     finally:
         try:
-            if hasattr(os, "killpg") and hasattr(os, "getpgid"):
-                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            else:
-                process.terminate()
+            process.terminate()
+            await process.wait()
         except Exception:
             pass
