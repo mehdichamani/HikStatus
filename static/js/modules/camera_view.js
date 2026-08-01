@@ -797,6 +797,78 @@ export function renderNvrHealthSummaryWidget() {
     `;
 }
 
+export function renderCamHealthSummaryWidget() {
+    const contentEl = document.getElementById('cam-health-summary-content');
+    if (!contentEl) return;
+
+    const updateTimeEl = document.getElementById('cam-health-update-time');
+    if (updateTimeEl) {
+        updateTimeEl.textContent = `بروزرسانی: ${new Date().toLocaleTimeString('fa-IR')}`;
+    }
+
+    if (!dashCamerasCache || dashCamerasCache.length === 0) {
+        contentEl.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 24px 0;">در حال بارگذاری...</div>';
+        return;
+    }
+
+    const total = dashCamerasCache.length;
+    const online = dashCamerasCache.filter(c => c.status === 'Online').length;
+    const offline = dashCamerasCache.filter(c => c.status !== 'Online').length;
+
+    const offRecordingCount = window.offRecordingCache ? window.offRecordingCache.length : 0;
+    const changes24h = (window.changesCache && window.changesCache.changes_24h) || [];
+    const deletedCount = changes24h.filter(c => c.action === 'حذف شده').length;
+
+    const offRecColor = offRecordingCount > 0 ? '#ef4444' : 'var(--text-muted)';
+    const delColor = deletedCount > 0 ? '#ef4444' : 'var(--text-muted)';
+
+    contentEl.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                <div style="background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 2px; text-align: center;">
+                    <span style="font-size: 10px; color: var(--text-secondary); white-space: nowrap;">کل دوربین‌ها</span>
+                    <span style="font-size: 18px; font-weight: 800; color: var(--primary);">${window.toPersianNumbers(total)}</span>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 2px; text-align: center;">
+                    <span style="font-size: 10px; color: var(--text-secondary); white-space: nowrap;">دوربین‌های متصل</span>
+                    <span style="font-size: 18px; font-weight: 800; color: #10b981;">${window.toPersianNumbers(online)}</span>
+                </div>
+                <div style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 2px; text-align: center;">
+                    <span style="font-size: 10px; color: var(--text-secondary); white-space: nowrap;">قطع ارتباط</span>
+                    <span style="font-size: 18px; font-weight: 800; color: ${offline > 0 ? '#ef4444' : 'var(--text-muted)'};">${window.toPersianNumbers(offline)}</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                <!-- Recording Off Item -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(255,255,255,0.01); border: 1px solid var(--border); border-radius: 6px; transition: all 0.2s ease;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 14px;">🎥</span>
+                        <span style="font-size: 12px; font-weight: 700; color: var(--text-primary);">دوربین‌های ضبط خاموش:</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 14px; font-weight: 800; color: ${offRecColor};">${window.toPersianNumbers(offRecordingCount)}</span>
+                        ${offRecordingCount > 0 ? `<button class="chip" style="margin: 0; padding: 2px 6px; font-size: 10px; cursor: pointer; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.2); color: var(--primary);" onclick="window.showOffRecordingDetailsModal(event)">نمایش جزئیات</button>` : ''}
+                    </div>
+                </div>
+
+                <!-- Deleted Cameras Item -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(255,255,255,0.01); border: 1px solid var(--border); border-radius: 6px; transition: all 0.2s ease;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 14px;">❌</span>
+                        <span style="font-size: 12px; font-weight: 700; color: var(--text-primary);">حذف شده (۲۴ ساعت اخیر):</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 14px; font-weight: 800; color: ${delColor};">${window.toPersianNumbers(deletedCount)}</span>
+                        ${deletedCount > 0 ? `<button class="chip" style="margin: 0; padding: 2px 6px; font-size: 10px; cursor: pointer; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.2); color: var(--primary);" onclick="window.showDeletedCamerasDetailsModal(event)">نمایش جزئیات</button>` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+
 export function renderImportantCamerasWidget() {
     const grid = document.getElementById('important-cams-grid');
     const countBadge = document.getElementById('important-cams-count');
@@ -932,6 +1004,9 @@ export async function renderCameraChangesWidget() {
         ]);
         changesCache = await changesRes.json();
         window.renderFilteredCameraChanges();
+        if (typeof window.renderCamHealthSummaryWidget === 'function') {
+            window.renderCamHealthSummaryWidget();
+        }
     } catch (e) {
         console.error('Error rendering camera changes widget:', e);
         listEl.innerHTML = '<div style="font-size: 12px; color: var(--danger); text-align: center; padding: 16px 0;">خطا در بارگذاری اطلاعات</div>';

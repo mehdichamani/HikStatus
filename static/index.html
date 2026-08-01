@@ -234,7 +234,7 @@
                     <div class="dash-widget-controls">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                            <span class="widget-title-label">وضعیت دوربین‌ها</span>
+                            <span class="widget-title-label">خلاصه وضعیت دوربین‌ها</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <button class="widget-size-btn" onclick="cycleWidgetSize('widget-cam-stats')"
@@ -243,69 +243,27 @@
                                 title="حذف ویجت">✕</button>
                         </div>
                     </div>
-                    <div class="stat-card-combined">
-                        <div class="stat-combined-header">
+                    <div class="stat-card-combined"
+                        style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 220px;">
+                        <div class="stat-combined-header" style="display: flex; align-items: center; gap: 8px;">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
+                                stroke-width="2" style="color: var(--primary);">
                                 <circle cx="12" cy="12" r="10" />
                                 <path d="M12 6v6l4 2" />
                             </svg>
-                            <span class="stat-combined-title">وضعیت دوربین‌ها</span>
+                            <span class="stat-combined-title">خلاصه وضعیت دوربین‌ها</span>
+                            <span class="widget-update-time" id="cam-health-update-time"
+                                style="margin-right: auto; font-size: 11px; color: var(--text-muted);">بروزرسانی: در حال انتظار...</span>
                         </div>
-                        <div class="stat-row">
-                            <span class="stat-label">کل</span>
-                            <span class="stat-value" id="s-tot">-</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">متصل</span>
-                            <span class="stat-value text-success" id="s-on">-</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">قطع</span>
-                            <span class="stat-value text-danger" id="s-off">-</span>
+                        <div id="cam-health-summary-content"
+                            style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">
+                            <div
+                                style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+                                در حال بارگذاری...</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Widget: NVR Stats -->
-                <div class="dash-widget size-third" id="widget-nvr-stats" data-widget-id="widget-nvr-stats">
-                    <div class="dash-widget-controls">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                            <span class="widget-title-label">وضعیت NVRها</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-nvr-stats')"
-                                title="تغییر اندازه ویجت">📐 <span class="size-label">33%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-nvr-stats')"
-                                title="حذف ویجت">✕</button>
-                        </div>
-                    </div>
-                    <div class="stat-card-combined" id="nvr-status-card">
-                        <div class="stat-combined-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
-                                <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
-                                <line x1="6" y1="6" x2="6.01" y2="6" />
-                                <line x1="6" y1="18" x2="6.01" y2="18" />
-                            </svg>
-                            <span class="stat-combined-title">وضعیت NVRها</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">کل</span>
-                            <span class="stat-value" id="s-nvr-tot">-</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">متصل</span>
-                            <span class="stat-value text-success" id="s-nvr-on">-</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">قطع</span>
-                            <span class="stat-value text-danger" id="s-nvr-off">-</span>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Widget: NVR Health Details -->
                 <div class="dash-widget size-half widget-hidden" id="widget-nvr-health" data-widget-id="widget-nvr-health">
@@ -524,32 +482,6 @@
                     </div>
                 </div>
 
-                <!-- Widget: All OK -->
-                <div class="dash-widget size-full" id="widget-all-ok" data-widget-id="widget-all-ok">
-                    <div class="dash-widget-controls">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <span class="widget-drag-handle" title="جابجایی (درگ و دراپ)">⠿</span>
-                            <span class="widget-title-label">سلامت شبکه</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <button class="widget-size-btn" onclick="cycleWidgetSize('widget-all-ok')"
-                                title="تغییر اندازه ویجت">📐 <span class="size-label">100%</span></button>
-                            <button class="widget-remove-btn" onclick="removeWidget('widget-all-ok')"
-                                title="حذف ویجت">✕</button>
-                        </div>
-                    </div>
-                    <div id="all-ok" class="all-ok hidden" style="margin-bottom: 0;">
-                        <div class="success-icon">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.5">
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                                <polyline points="22 4 12 14.01 9 11.01" />
-                            </svg>
-                        </div>
-                        <h3>همه دوربین‌ها متصل هستند</h3>
-                        <p>وضعیت شبکه عالی است</p>
-                    </div>
-                </div>
 
                 <!-- Widget: NVR Container with Internal Filters -->
                 <div class="dash-widget size-full" id="widget-nvr-container" data-widget-id="widget-nvr-container">

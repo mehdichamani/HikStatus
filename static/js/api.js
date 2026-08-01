@@ -1653,6 +1653,9 @@ export async function prefetchOffRecording() {
         const res = await window.apiFetch(`${API}/cameras/off`);
         offRecordingCache = await res.json();
         if (changesFilterAction === 'off_recording') window.renderFilteredCameraChanges();
+        if (typeof window.renderCamHealthSummaryWidget === 'function') {
+            window.renderCamHealthSummaryWidget();
+        }
     } catch (e) {
         console.error('Error prefetching off recording:', e);
     }

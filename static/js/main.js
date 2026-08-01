@@ -284,13 +284,11 @@ window.SIZE_LABELS = { 'size-full': '100%', 'size-half': '50%', 'size-third': '3
 
 window.DEFAULT_WIDGET_ORDER = [
     'widget-cam-stats',
-    'widget-nvr-stats',
     'widget-nvr-health-summary',
     'widget-factory-summary',
     'widget-off-recording',
     'widget-camera-changes',
     'widget-offline-section',
-    'widget-all-ok',
     'widget-nvr-container',
     'widget-important-cams',
     'widget-chart-status',
@@ -299,15 +297,13 @@ window.DEFAULT_WIDGET_ORDER = [
 ];
 
 window.WIDGET_METADATA = {
-    'widget-cam-stats': { title: 'وضعیت دوربین‌ها', desc: 'نمایش تعداد کل، متصل و قطع دوربین‌ها' },
-    'widget-nvr-stats': { title: 'وضعیت NVRها', desc: 'نمایش تعداد کل، متصل و قطع دستگاه‌های NVR' },
+    'widget-cam-stats': { title: 'خلاصه وضعیت دوربین‌ها', desc: 'نمایش خلاصه وضعیت اتصال، دوربین‌های ضبط خاموش و حذف شده در ۲۴ ساعت اخیر' },
     'widget-nvr-health': { title: 'وضعیت سلامت NVRها', desc: 'نمایش وضعیت دیسک‌ها (HDD)، کارکرد (Uptime) و پایش سلامت فیزیکی دستگاه‌های NVR' },
     'widget-nvr-health-summary': { title: 'خلاصه وضعیت سلامت NVRها', desc: 'نمایش گزارش خلاصه سلامت و وضعیت ذخیره‌سازی تجهیزات ضبط' },
     'widget-factory-summary': { title: 'خلاصه کارخانه‌ها', desc: 'نمایش آمار کلی کارخانجات' },
     'widget-off-recording': { title: 'دوربین‌های ضبط خاموش', desc: 'لیست دوربین‌هایی که ضبط آن‌ها غیرفعال است به همراه جزئیات' },
     'widget-camera-changes': { title: 'تغییرات اخیر دوربین‌ها', desc: 'نمایش لیست دوربین‌های حذف یا اضافه شده در ۲۴ ساعت و هفته/ماه اخیر' },
     'widget-offline-section': { title: 'دوربین‌های قطع شده', desc: 'لیست سریع دوربین‌های دارای قطعی' },
-    'widget-all-ok': { title: 'سلامت شبکه', desc: 'نمایش وضعیت اتصالات در صورت عدم قطعی' },
     'widget-nvr-container': { title: 'گروه‌بندی کارخانه‌ها و NVRها', desc: 'نمایش کامل دوربین‌ها به تفکیک کارخانه و NVR با فیلتر' },
     'widget-important-cams': { title: 'دوربین‌های مهم', desc: 'نمایش دوربین‌های با سطح اهمیت «مهم»' },
     'widget-chart-status': { title: 'نمودار وضعیت فعلی', desc: 'نمودار دوناتی درصد اتصالات و قطعی‌های فعلی' },

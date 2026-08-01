@@ -72,9 +72,10 @@ export function renderDash() {
 
     // Render Offline Section
     const off = filteredCams.filter(c => c.status !== 'Online');
+    const allOkEl = document.getElementById('all-ok');
     if (off.length > 0) {
         document.getElementById('offline-section').classList.remove('hidden');
-        document.getElementById('all-ok').classList.add('hidden');
+        if (allOkEl) allOkEl.classList.add('hidden');
         document.getElementById('offline-count').textContent = off.length;
         document.getElementById('offline-grid').innerHTML = off.map(c => window.createCard(c)).join('');
     } else {
@@ -82,9 +83,9 @@ export function renderDash() {
         // Only show "All OK" if there are no offline cameras in the entire unfiltered cache, and we are not filtering
         const unfilteredOff = dashCamerasCache.filter(c => c.status !== 'Online');
         if (unfilteredOff.length === 0 && dashCamFilter === 'all') {
-            document.getElementById('all-ok').classList.remove('hidden');
+            if (allOkEl) allOkEl.classList.remove('hidden');
         } else {
-            document.getElementById('all-ok').classList.add('hidden');
+            if (allOkEl) allOkEl.classList.add('hidden');
         }
     }
 
@@ -1173,6 +1174,7 @@ export function updateDashFromWS(cams) {
     window.renderCameraChangesWidget();
     window.renderNvrHealthWidget();
     window.renderNvrHealthSummaryWidget();
+    window.renderCamHealthSummaryWidget();
     window.renderDashboardCharts();
 
     const dashLoader = document.getElementById('dashLoader');
@@ -3754,6 +3756,156 @@ window.showNvrHealthModal = function(event, ip) {
 
 window.closeNvrHealthModal = function() {
     const modalEl = document.getElementById('nvr-health-detail-modal');
+    if (!modalEl) return;
+
+    const contentEl = modalEl.querySelector('.modal-content');
+    modalEl.style.opacity = '0';
+    contentEl.style.transform = 'scale(0.95)';
+
+    setTimeout(() => {
+        modalEl.remove();
+    }, 250);
+};
+
+window.showOffRecordingDetailsModal = function(event) {
+    if (event) event.stopPropagation();
+    const existing = document.getElementById('cam-details-modal');
+    if (existing) existing.remove();
+
+    const list = window.offRecordingCache || [];
+    let listHtml = '';
+    
+    if (list.length === 0) {
+        listHtml = '<div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 24px 0;">هیچ دوربین ضبط خاموشی وجود ندارد.</div>';
+    } else {
+        const items = list.map(item => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; gap: 10px;">
+                <div style="display: flex; flex-direction: column; gap: 2px; overflow: hidden; flex: 1;">
+                    <span style="font-size: 13px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${window.escapeHTML(item.name)}">${window.escapeHTML(item.name)}</span>
+                    <span style="font-size: 11px; color: var(--text-secondary); opacity: 0.8;">کارخانه: ${window.escapeHTML(item.factory)}</span>
+                </div>
+                <div style="font-size: 11px; color: var(--danger); font-weight: bold; background: rgba(239, 68, 68, 0.08); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.15); white-space: nowrap;">
+                    خاموش از ${window.escapeHTML(item.hours_off_str)}
+                </div>
+            </div>
+        `).join('');
+        listHtml = `<div class="widget-list-scrollable" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-left: 4px;">${items}</div>`;
+    }
+
+    const modalHtml = `
+        <div id="cam-details-modal" class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
+            <div class="modal-content" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 480px; padding: 20px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px; transform: scale(0.95); transition: transform 0.25s ease; position: relative;">
+                
+                <button onclick="window.closeCamDetailsModal()" style="position: absolute; left: 16px; top: 16px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; padding: 4px;" title="بستن">&times;</button>
+                
+                <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <h3 style="font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0;">دوربین‌های ضبط خاموش</h3>
+                        <span style="font-size: 12px; color: var(--text-secondary); opacity: 0.8;">تعداد کل: ${window.toPersianNumbers(list.length)} دوربین</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    ${listHtml}
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modalEl = document.getElementById('cam-details-modal');
+    const contentEl = modalEl.querySelector('.modal-content');
+    
+    modalEl.offsetHeight; // force reflow
+
+    modalEl.style.opacity = '1';
+    contentEl.style.transform = 'scale(1)';
+
+    modalEl.addEventListener('click', function(e) {
+        if (e.target === modalEl) window.closeCamDetailsModal();
+    });
+
+    const escHandler = function(e) {
+        if (e.key === 'Escape') {
+            window.closeCamDetailsModal();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+};
+
+window.showDeletedCamerasDetailsModal = function(event) {
+    if (event) event.stopPropagation();
+    const existing = document.getElementById('cam-details-modal');
+    if (existing) existing.remove();
+
+    const changes = (window.changesCache && window.changesCache.changes_24h) || [];
+    const list = changes.filter(item => item.action === 'حذف شده');
+    let listHtml = '';
+    
+    if (list.length === 0) {
+        listHtml = '<div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 24px 0;">هیچ دوربین حذف شده‌ای در ۲۴ ساعت اخیر یافت نشد.</div>';
+    } else {
+        const items = list.map(item => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; gap: 10px;">
+                <div style="display: flex; flex-direction: column; gap: 2px; overflow: hidden; flex: 1;">
+                    <span style="font-size: 13px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${window.escapeHTML(item.name)}">${window.escapeHTML(item.name)}</span>
+                    <span style="font-size: 11px; color: var(--text-secondary); opacity: 0.8;">کارخانه: ${window.escapeHTML(item.factory)}</span>
+                </div>
+                <div style="font-size: 11px; color: var(--danger); font-weight: bold; background: rgba(239, 68, 68, 0.08); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.15); white-space: nowrap; display: flex; align-items: center; gap: 4px;">
+                    ❌ ${window.escapeHTML(item.time_ago)}
+                </div>
+            </div>
+        `).join('');
+        listHtml = `<div class="widget-list-scrollable" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-left: 4px;">${items}</div>`;
+    }
+
+    const modalHtml = `
+        <div id="cam-details-modal" class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
+            <div class="modal-content" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 480px; padding: 20px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px; transform: scale(0.95); transition: transform 0.25s ease; position: relative;">
+                
+                <button onclick="window.closeCamDetailsModal()" style="position: absolute; left: 16px; top: 16px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; padding: 4px;" title="بستن">&times;</button>
+                
+                <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <h3 style="font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0;">دوربین‌های حذف شده (۲۴ ساعت اخیر)</h3>
+                        <span style="font-size: 12px; color: var(--text-secondary); opacity: 0.8;">تعداد کل: ${window.toPersianNumbers(list.length)} دوربین</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    ${listHtml}
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modalEl = document.getElementById('cam-details-modal');
+    const contentEl = modalEl.querySelector('.modal-content');
+    
+    modalEl.offsetHeight; // force reflow
+
+    modalEl.style.opacity = '1';
+    contentEl.style.transform = 'scale(1)';
+
+    modalEl.addEventListener('click', function(e) {
+        if (e.target === modalEl) window.closeCamDetailsModal();
+    });
+
+    const escHandler = function(e) {
+        if (e.key === 'Escape') {
+            window.closeCamDetailsModal();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+};
+
+window.closeCamDetailsModal = function() {
+    const modalEl = document.getElementById('cam-details-modal');
     if (!modalEl) return;
 
     const contentEl = modalEl.querySelector('.modal-content');
