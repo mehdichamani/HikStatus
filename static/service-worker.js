@@ -2,7 +2,6 @@ const CACHE_NAME = 'hikstatus-cache-v6';
 const ASSETS = [
   '/login',
   '/static/style.css',
-  '/static/app.js',
   '/static/logo.webp',
   '/static/index.html',
   '/static/login.html',

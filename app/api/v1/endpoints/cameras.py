@@ -2,7 +2,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlmodel import Session, select
-from typing import Optional
 from urllib.parse import quote
 
 from app.database import Camera, NVR, get_session, decrypt_password

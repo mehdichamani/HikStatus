@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-import jdatetime
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 import secrets
@@ -10,9 +9,9 @@ from loguru import logger
 load_dotenv()
 
 
-from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, WebSocket, WebSocketDisconnect, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -22,7 +21,7 @@ from app.logging_config import logger, log_event
 from app.services.monitor import start_monitor_loop, set_broadcast_callback
 from app.services.scheduler import scheduler
 from app.services.alerts import send_email_raw, send_telegram_raw, get_config_dict, invalidate_config_cache, get_persian_datetime, format_shamsi_datetime, notification_default_settings
-from app.rate_limiter import rate_limit, max_connections, limiter
+from app.rate_limiter import rate_limit, limiter
 
 class ConnectionManager:
     def __init__(self):
