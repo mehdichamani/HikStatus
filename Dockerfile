@@ -6,9 +6,9 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# استفاده از کش پیپ برای افزایش سرعت بیلدها
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
+# نصب بسته‌ها بدون استفاده از کش پیپ (پیشنهاد استاندارد برای اکثر محیط‌ها)
+# این خط می‌تواند در محیط‌های CI/CD مانند Railway یا DigitalOcean به‌صورت مستقیم استفاده شود.
+RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
 
 RUN useradd -m -s /bin/bash appuser
 
@@ -18,7 +18,16 @@ RUN mkdir -p data && chown -R appuser:appuser data
 
 USER appuser
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:28888/api/health')" || exit 1
+# تنظیمات پیش‌فرض برای پورت و هاست (قابل بازنویسی از طریق متغیرهای محیطی)
+ENV HOST=0.0.0.0 \
+    PORT=28888
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "28888"]
+# اعلام پورت برای ابزارهای اورکستری مانند Railway/DigitalOcean (قابل تغییر از طریق متغیر PORT)
+EXPOSE $PORT
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD python -c "import os, urllib.request; \
+    host=os.getenv('HOST','0.0.0.0'); port=os.getenv('PORT','28888'); \
+    urllib.request.urlopen(f'http://{host}:{port}/api/health')" || exit 1
+
+CMD ["sh", "-c", "uvicorn main:app --host $HOST --port $PORT"]
