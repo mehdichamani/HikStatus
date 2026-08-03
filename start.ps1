@@ -1,10 +1,10 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    HikStatus Native Manager (PowerShell TUI - Dual Language)
+    HikStatus Native Manager (PowerShell TUI - Clean & Dual Language)
 .DESCRIPTION
     Interactive TUI launcher and environment manager for HikStatus using Astral uv.
-    Supports Persian & English dual-language output and background service management.
+    Supports Persian & English dual-language output with clean layout alignment.
 .EXAMPLE
     .\start.ps1
 .EXAMPLE
@@ -31,61 +31,64 @@ $PidFile = Join-Path $ScriptDir "data\hikstatus.pid"
 $StartupFolder = [Environment]::GetFolderPath("Startup")
 $StartupShortcut = Join-Path $StartupFolder "HikStatus.lnk"
 
-# توابع چاپ دو زبانه و شکیل
-function Write-LogInfo ($fa, $en) {
-    Write-Host "[HikStatus] " -NoNewline -ForegroundColor Cyan
-    Write-Host "$fa " -NoNewline -ForegroundColor White
-    Write-Host "| $en" -ForegroundColor Gray
+# توابع چاپ دو زبانه و شکیل با هم‌ترازی تمیز
+function Write-LogInfo ($label, $en, $fa) {
+    Write-Host "  [$label] " -NoNewline -ForegroundColor Cyan
+    Write-Host "$en " -NoNewline -ForegroundColor White
+    Write-Host "| $fa" -ForegroundColor Gray
 }
 
-function Write-LogOk ($fa, $en) {
+function Write-LogOk ($label, $en, $fa) {
     Write-Host "  [OK] " -NoNewline -ForegroundColor Green
-    Write-Host "$fa " -NoNewline -ForegroundColor White
-    Write-Host "| $en" -ForegroundColor Gray
+    Write-Host "${label}: " -NoNewline -ForegroundColor White
+    Write-Host "$en " -NoNewline -ForegroundColor White
+    Write-Host "| $fa" -ForegroundColor Gray
 }
 
-function Write-LogWarn ($fa, $en) {
+function Write-LogWarn ($label, $en, $fa) {
     Write-Host "  [WARN] " -NoNewline -ForegroundColor Yellow
-    Write-Host "$fa " -NoNewline -ForegroundColor White
-    Write-Host "| $en" -ForegroundColor Gray
+    Write-Host "${label}: " -NoNewline -ForegroundColor White
+    Write-Host "$en " -NoNewline -ForegroundColor White
+    Write-Host "| $fa" -ForegroundColor Gray
 }
 
-function Write-LogErr ($fa, $en) {
+function Write-LogErr ($label, $en, $fa) {
     Write-Host "  [ERROR] " -NoNewline -ForegroundColor Red
-    Write-Host "$fa " -NoNewline -ForegroundColor White
-    Write-Host "| $en" -ForegroundColor Gray
+    Write-Host "${label}: " -NoNewline -ForegroundColor White
+    Write-Host "$en " -NoNewline -ForegroundColor White
+    Write-Host "| $fa" -ForegroundColor Gray
 }
 
 function Ensure-Uv {
     if (Get-Command uv -ErrorAction SilentlyContinue) {
         return $true
     }
-    Write-LogWarn "ابزار Astral uv یافت نشد. در حال نصب uv..." "Astral uv tool not found. Installing uv..."
+    Write-LogWarn "Astral uv" "Astral uv tool not found. Installing..." "ابزار uv یافت نشد. در حال نصب..."
     try {
         python -m pip install -q uv 2>$null
         if (Get-Command uv -ErrorAction SilentlyContinue) {
-            Write-LogOk "ابزار uv با موفقیت نصب شد." "Astral uv installed successfully."
+            Write-LogOk "Astral uv" "Installed successfully." "با موفقیت نصب شد."
             return $true
         }
     } catch { }
-    Write-LogWarn "نصب uv ناموفق بود. از pip استفاده خواهد شد." "uv installation failed. Falling back to pip."
+    Write-LogWarn "Astral uv" "Installation failed. Falling back to pip." "نصب uv ناموفق بود؛ استفاده از pip."
     return $false
 }
 
 function Ensure-Venv {
     $hasUv = Ensure-Uv
     if (-not (Test-Path ".venv\Scripts\python.exe")) {
-        Write-LogInfo "در حال ساخت محیط مجازی (.venv)..." "Creating virtual environment (.venv)..."
+        Write-LogInfo "SETUP" "Creating virtual environment (.venv)..." "در حال ساخت محیط مجازی (.venv)..."
         if ($hasUv) {
             uv venv .venv
         } else {
             python -m venv .venv
         }
         if ($LASTEXITCODE -ne 0) {
-            Write-LogErr "ساخت محیط مجازی با خطا مواجه شد." "Failed to create virtual environment."
+            Write-LogErr "VENV" "Failed to create virtual environment." "ساخت محیط مجازی با خطا مواجه شد."
             return $false
         }
-        Write-LogOk "محیط مجازی ساخته شد." "Virtual environment created successfully."
+        Write-LogOk "VENV" "Virtual environment created." "محیط مجازی ساخته شد."
     }
     return $true
 }
@@ -97,7 +100,7 @@ function Ensure-EnvFiles {
     if (-not (Test-Path ".env")) {
         if (Test-Path ".env.example") {
             Copy-Item ".env.example" ".env"
-            Write-LogWarn "فایل .env از روی .env.example ساخته شد. لطفاً آن را تنظیم کنید." "Created .env from .env.example. Please update settings."
+            Write-LogWarn ".env" "Created from .env.example. Please review." "فایل .env از نمونه ساخته شد."
         }
     }
 }
@@ -105,7 +108,7 @@ function Ensure-EnvFiles {
 function Install-Dependencies {
     $venvOk = Ensure-Venv
     if (-not $venvOk) { return }
-    Write-LogInfo "در حال نصب وابستگی‌ها..." "Installing dependencies..."
+    Write-LogInfo "PACKAGES" "Installing dependencies..." "در حال نصب وابستگی‌ها..."
     if (Get-Command uv -ErrorAction SilentlyContinue) {
         uv pip install -r requirements.txt --python .venv\Scripts\python.exe
     } else {
@@ -113,19 +116,19 @@ function Install-Dependencies {
         & .venv\Scripts\python.exe -m pip install -q -r requirements.txt
     }
     Ensure-EnvFiles
-    Write-LogOk "تمامی وابستگی‌ها با موفقیت نصب شدند." "All dependencies installed successfully."
+    Write-LogOk "PACKAGES" "All dependencies installed successfully." "تمامی وابستگی‌ها نصب شدند."
 }
 
 function Update-Dependencies {
     $venvOk = Ensure-Venv
     if (-not $venvOk) { return }
-    Write-LogInfo "در حال بروزرسانی بسته‌ها..." "Updating packages..."
+    Write-LogInfo "PACKAGES" "Updating packages..." "در حال بروزرسانی بسته‌ها..."
     if (Get-Command uv -ErrorAction SilentlyContinue) {
         uv pip install --upgrade -r requirements.txt --python .venv\Scripts\python.exe
     } else {
         & .venv\Scripts\python.exe -m pip install -q --upgrade -r requirements.txt
     }
-    Write-LogOk "تمامی بسته‌ها بروزرسانی شدند." "All packages updated successfully."
+    Write-LogOk "PACKAGES" "All packages updated successfully." "تمامی بسته‌ها بروزرسانی شدند."
 }
 
 function Get-ActiveServerProcess {
@@ -144,118 +147,118 @@ function Get-ActiveServerProcess {
 function Get-ServerStatus {
     $proc = Get-ActiveServerProcess
     if ($proc) {
-        Write-LogOk "سرویس پس‌زمینه HikStatus فعال است. (PID: $($proc.Id))" "Background service is active. (PID: $($proc.Id))"
-        Write-Host "     🌐 " -NoNewline -ForegroundColor Cyan
-        Write-Host "آدرس پنل | Panel URL: " -NoNewline -ForegroundColor White
-        Write-Host "http://localhost:$Port" -ForegroundColor Green
+        Write-Host "  [OK] " -NoNewline -ForegroundColor Green
+        Write-Host "Background Service: " -NoNewline -ForegroundColor White
+        Write-Host "ACTIVE (PID: $($proc.Id)) " -NoNewline -ForegroundColor Green
+        Write-Host "| سرویس پس‌زمینه فعال است" -ForegroundColor Gray
+        Write-Host "       Panel URL: " -NoNewline -ForegroundColor White
+        Write-Host "http://localhost:$Port" -ForegroundColor Cyan
         return $true
     } else {
         Write-Host "  [INFO] " -NoNewline -ForegroundColor Yellow
-        Write-Host "سرویس پس‌زمینه در حال اجرا نیست. " -NoNewline -ForegroundColor White
-        Write-Host "| Background service is inactive." -ForegroundColor Gray
+        Write-Host "Background Service: " -NoNewline -ForegroundColor White
+        Write-Host "INACTIVE " -NoNewline -ForegroundColor Yellow
+        Write-Host "| سرویس پس‌زمینه فعال نیست" -ForegroundColor Gray
         return $false
     }
 }
 
 function Test-HealthCheck {
     Write-Host "`n══════════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-    Write-Host "   🔍 پایش سلامت سیستم | System Health Check" -ForegroundColor Cyan
+    Write-Host "  System Health Check | پایش سلامت سیستم" -ForegroundColor Cyan
     Write-Host "══════════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
     
     # Python
     $py = Get-Command python -ErrorAction SilentlyContinue
     if ($py) {
         $pyVer = & python --version 2>&1
-        Write-LogOk "پایتون: $pyVer" "Python: $pyVer"
+        Write-LogOk "Python" "$pyVer" "پایتون آماده است"
     } else {
-        Write-LogErr "پایتون نصب نیست!" "Python is not installed!"
+        Write-LogErr "Python" "Not Installed!" "پایتون نصب نیست!"
     }
 
     # uv
     $uv = Get-Command uv -ErrorAction SilentlyContinue
     if ($uv) {
         $uvVer = & uv --version 2>&1
-        Write-LogOk "ابزار uv: $uvVer" "Astral uv tool: $uvVer"
+        Write-LogOk "Astral uv" "$uvVer" "ابزار uv آماده است"
     } else {
-        Write-LogWarn "ابزار uv نصب نیست (استفاده از pip)" "uv tool not found (using pip)"
+        Write-LogWarn "Astral uv" "Not found (using pip)" "ابزار uv یافت نشد"
     }
 
     # .venv
     if (Test-Path ".venv\Scripts\python.exe") {
-        Write-LogOk "محیط مجازی (.venv): آماده است" "Virtual environment (.venv): Ready"
+        Write-LogOk "Virtual Env" "Ready (.venv)" "محیط مجازی آماده است"
     } else {
-        Write-LogErr "محیط مجازی (.venv): موجود نیست" "Virtual environment (.venv): Not found"
+        Write-LogErr "Virtual Env" "Missing (.venv)" "محیط مجازی موجود نیست"
     }
 
     # ffmpeg
     if (Get-Command ffmpeg -ErrorAction SilentlyContinue) {
-        Write-LogOk "ffmpeg (استریم RTSP): نصب است" "ffmpeg (RTSP stream): Installed"
+        Write-LogOk "FFmpeg" "Installed (RTSP Stream)" "ابزار ffmpeg نصب است"
     } else {
-        Write-LogWarn "ffmpeg (استریم RTSP): یافت نشد!" "ffmpeg (RTSP stream): Not found!"
+        Write-LogWarn "FFmpeg" "Not found (RTSP disabled)" "ابزار ffmpeg یافت نشد"
     }
 
     # .env
     if (Test-Path ".env") {
-        Write-LogOk "فایل پیکربندی (.env): موجود است" "Configuration file (.env): Exists"
+        Write-LogOk "Config File" "Exists (.env)" "فایل پیکربندی موجود است"
     } else {
-        Write-LogWarn "فایل پیکربندی (.env): موجود نیست" "Configuration file (.env): Missing"
+        Write-LogWarn "Config File" "Missing (.env)" "فایل پیکربندی ساخته نشده"
     }
 
     # data/
     if (Test-Path "data") {
-        Write-LogOk "دایرکتوری داده (data/): موجود است" "Data directory (data/): Exists"
+        Write-LogOk "Data Dir" "Exists (data/)" "دایرکتوری داده موجود است"
     } else {
-        Write-LogWarn "دایرکتوری داده (data/): موجود نیست" "Data directory (data/): Missing"
+        Write-LogWarn "Data Dir" "Missing (data/)" "دایرکتوری داده موجود نیست"
     }
 
-    # وضعیت پس‌زمینه و Startup
     Write-Host "──────────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
-    Write-Host "  📌 وضعیت سرویس پس‌زمینه | Background Status:" -ForegroundColor White
+    Write-Host "  Service & System Status:" -ForegroundColor White
     Get-ServerStatus | Out-Null
 
-    Write-Host "  📌 راه‌اندازی خودکار | Windows Startup:" -ForegroundColor White
+    Write-Host "  Windows Auto-Start: " -NoNewline -ForegroundColor White
     if (Test-Path $StartupShortcut) {
-        Write-LogOk "فعال است" "Enabled"
+        Write-Host "ENABLED | فعال است" -ForegroundColor Green
     } else {
-        Write-Host "  [INFO] " -NoNewline -ForegroundColor Yellow
-        Write-Host "غیرفعال است " -NoNewline -ForegroundColor White
-        Write-Host "| Disabled" -ForegroundColor Gray
+        Write-Host "DISABLED | غیرفعال است" -ForegroundColor Yellow
     }
     Write-Host "══════════════════════════════════════════════════════════════════════`n" -ForegroundColor Cyan
 }
 
 function Start-Server {
     if (-not (Test-Path ".venv\Scripts\python.exe")) {
-        Write-LogWarn "محیط مجازی یافت نشد. ابتدا نصب انجام می‌شود..." "Virtual env not found. Running setup..."
+        Write-LogWarn "Server" "Virtual env missing. Installing..." "محیط مجازی یافت نشد..."
         Install-Dependencies
     }
     Ensure-EnvFiles
 
-    Write-Host "`n╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
-    Write-Host "║  🚀 HikStatus در حال اجراست (کنسول) | Running (Console Foreground)    ║" -ForegroundColor Green
-    Write-Host "║  🌐 آدرس پنل | Panel URL: http://localhost:$Port                       ║" -ForegroundColor Cyan
-    Write-Host "║  🛑 برای توقف کلید Ctrl+C را بزنید | Press Ctrl+C to stop           ║" -ForegroundColor Yellow
-    Write-Host "╚══════════════════════════════════════════════════════════════════════╝`n" -ForegroundColor Green
+    Write-Host "`n══════════════════════════════════════════════════════════════════════" -ForegroundColor Green
+    Write-Host "  HikStatus Server Running (Console Foreground)" -ForegroundColor Green
+    Write-Host "  Panel URL: http://localhost:$Port" -ForegroundColor Cyan
+    Write-Host "  Press Ctrl+C to Stop" -ForegroundColor Yellow
+    Write-Host "══════════════════════════════════════════════════════════════════════`n" -ForegroundColor Green
 
     & .venv\Scripts\uvicorn.exe main:app --host 0.0.0.0 --port $Port
 }
 
 function Start-ServerBackground {
     if (-not (Test-Path ".venv\Scripts\python.exe")) {
-        Write-LogWarn "محیط مجازی یافت نشد. ابتدا نصب انجام می‌شود..." "Virtual env not found. Running setup..."
+        Write-LogWarn "Server" "Virtual env missing. Installing..." "محیط مجازی یافت نشد..."
         Install-Dependencies
     }
     Ensure-EnvFiles
 
     $activeProc = Get-ActiveServerProcess
     if ($activeProc) {
-        Write-LogWarn "سرویس پس‌زمینه قبلاً با PID $($activeProc.Id) راه‌اندازی شده است." "Background service is already running with PID $($activeProc.Id)."
-        Write-Host "     🌐 آدرس پنل | Dashboard URL: http://localhost:$Port" -ForegroundColor Cyan
+        Write-LogWarn "Server" "Background service already running (PID $($activeProc.Id))" "سرویس پس‌زمینه قبلاً راه‌اندازی شده"
+        Write-Host "  Panel URL: http://localhost:$Port" -ForegroundColor Cyan
         return
     }
 
     $uvicornPath = Join-Path $ScriptDir ".venv\Scripts\uvicorn.exe"
-    Write-LogInfo "در حال راه‌اندازی سرویس در پس‌زمینه..." "Launching background service..."
+    Write-LogInfo "Server" "Launching background service..." "در حال راه‌اندازی پس‌زمینه..."
     
     $proc = Start-Process -FilePath $uvicornPath -ArgumentList "main:app --host 0.0.0.0 --port $Port" -WorkingDirectory $ScriptDir -WindowStyle Hidden -PassThru
 
@@ -263,17 +266,16 @@ function Start-ServerBackground {
         Ensure-EnvFiles
         $proc.Id | Out-File -FilePath $PidFile -Encoding utf8
         Start-Sleep -Seconds 1
-        Write-LogOk "سرویس پس‌زمینه با موفقیت راه‌اندازی شد. (PID: $($proc.Id))" "Background service started successfully. (PID: $($proc.Id))"
-        Write-Host "     🌐 آدرس پنل | Panel URL: " -NoNewline -ForegroundColor White
-        Write-Host "http://localhost:$Port" -ForegroundColor Green
-        Write-Host "     💡 می‌توانید بدون متوقف شدن پروژه، این ترمینال را ببندید. | You can safely close this terminal." -ForegroundColor Yellow
+        Write-LogOk "Server" "Background service started (PID $($proc.Id))" "سرویس پس‌زمینه با موفقیت اجرا شد"
+        Write-Host "  Panel URL: http://localhost:$Port" -ForegroundColor Green
+        Write-Host "  Note: You can safely close this terminal." -ForegroundColor Yellow
     } else {
-        Write-LogErr "راه‌اندازی سرویس پس‌زمینه ناموفق بود." "Failed to start background service."
+        Write-LogErr "Server" "Failed to start background service." "راه‌اندازی سرویس پس‌زمینه ناموفق بود."
     }
 }
 
 function Stop-Server {
-    Write-LogInfo "در حال توقف سرویس پس‌زمینه..." "Stopping background service..."
+    Write-LogInfo "Server" "Stopping background service..." "در حال توقف سرویس پس‌زمینه..."
     $stopped = $false
 
     if (Test-Path $PidFile) {
@@ -282,7 +284,7 @@ function Stop-Server {
             $proc = Get-Process -Id $savedPid -ErrorAction SilentlyContinue
             if ($proc) {
                 Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
-                Write-LogOk "پردازش سرویس (PID: $savedPid) متوقف شد." "Service process (PID: $savedPid) terminated."
+                Write-LogOk "Server" "Stopped background service (PID $savedPid)" "سرویس پس‌زمینه متوقف شد"
                 $stopped = $true
             }
         }
@@ -294,21 +296,19 @@ function Stop-Server {
         if ($procs) {
             foreach ($p in $procs) {
                 Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
-                Write-LogOk "پروسه uvicorn (PID: $($p.Id)) متوقف شد." "uvicorn process (PID: $($p.Id)) terminated."
+                Write-LogOk "Server" "Terminated uvicorn process (PID $($p.Id))" "پروسه uvicorn متوقف شد"
                 $stopped = $true
             }
         }
     }
 
     if (-not $stopped) {
-        Write-Host "  [INFO] " -NoNewline -ForegroundColor Yellow
-        Write-Host "هیچ سرویس پس‌زمینه‌ای فعال نبود. " -NoNewline -ForegroundColor White
-        Write-Host "| No active background service was found." -ForegroundColor Gray
+        Write-Host "  [INFO] No active background service found | هیچ سرویس پس‌زمینه‌ای فعال نبود" -ForegroundColor Yellow
     }
 }
 
 function Enable-Startup {
-    Write-LogInfo "در حال تنظیم راه‌اندازی خودکار ویندوز..." "Setting up Windows Auto-Start..."
+    Write-LogInfo "Startup" "Enabling Windows Auto-Start..." "در حال تنظیم راه‌اندازی خودکار..."
     try {
         $wshShell = New-Object -ComObject WScript.Shell
         $shortcut = $wshShell.CreateShortcut($StartupShortcut)
@@ -318,21 +318,18 @@ function Enable-Startup {
         $shortcut.Description = "HikStatus Auto-Start Background Service"
         $shortcut.Save()
 
-        Write-LogOk "راه‌اندازی خودکار با موفقیت فعال شد." "Windows Auto-Start enabled successfully."
-        Write-Host "     💡 با ورود به ویندوز، سرویس خودکار اجرا می‌شود. | Service will auto-start upon Windows login." -ForegroundColor Green
+        Write-LogOk "Startup" "Auto-Start enabled successfully." "راه‌اندازی خودکار فعال شد."
     } catch {
-        Write-LogErr "خطا در فعال‌سازی راه‌اندازی خودکار: $_" "Error enabling Auto-Start: $_"
+        Write-LogErr "Startup" "Failed to enable Auto-Start: $_" "خطا در فعال‌سازی استارت‌آپ"
     }
 }
 
 function Disable-Startup {
     if (Test-Path $StartupShortcut) {
         Remove-Item $StartupShortcut -Force
-        Write-LogOk "راه‌اندازی خودکار غیرفعال شد." "Windows Auto-Start disabled successfully."
+        Write-LogOk "Startup" "Auto-Start disabled." "راه‌اندازی خودکار غیرفعال شد."
     } else {
-        Write-Host "  [INFO] " -NoNewline -ForegroundColor Yellow
-        Write-Host "راه‌اندازی خودکار قبلاً فعال نشده بود. " -NoNewline -ForegroundColor White
-        Write-Host "| Windows Auto-Start was not enabled." -ForegroundColor Gray
+        Write-Host "  [INFO] Auto-Start was not enabled | راه‌اندازی خودکار فعال نبود" -ForegroundColor Yellow
     }
 }
 
@@ -340,40 +337,46 @@ function Show-Menu {
     while ($true) {
         Clear-Host
         $activeProc = Get-ActiveServerProcess
-        $bgStatus = if ($activeProc) { " [فعال 🟢 | Active]" } else { " [غیرفعال 🔴 | Inactive]" }
+        $bgStatus = if ($activeProc) { " [ACTIVE]" } else { " [INACTIVE]" }
         $hasStartup = Test-Path $StartupShortcut
-        $startupStatus = if ($hasStartup) { " [فعال 🟢 | Active]" } else { " [غیرفعال 🔴 | Inactive]" }
+        $startupStatus = if ($hasStartup) { " [ENABLED]" } else { " [DISABLED]" }
 
-        Write-Host "╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor DarkCyan
-        Write-Host "║               HikStatus Native Manager (TUI)                         ║" -ForegroundColor Cyan
-        Write-Host "║         مدیریت بومی و استقرار سامانه پایش | Native System Manager        ║" -ForegroundColor DarkGray
-        Write-Host "╠══════════════════════════════════════════════════════════════════════╣" -ForegroundColor DarkCyan
-        Write-Host "║  1. 🚀 اجرای مستقیم در کنسول  | Start Foreground (Direct Console)   ║" -ForegroundColor White
-        Write-Host "║  2. 👻 اجرای سرویس در پس‌زمینه | Start Background Service$bgStatus ║" -ForegroundColor White
-        Write-Host "║  3. 🛑 توقف سرویس پس‌زمینه      | Stop Background Service            ║" -ForegroundColor White
-        Write-Host "║  4. 📊 مشاهده وضعیت سرویس       | Check Service Status               ║" -ForegroundColor White
-        Write-Host "║  5. ⏰ فعال‌سازی اجرا خودکار   | Enable Windows Startup$startupStatus  ║" -ForegroundColor White
-        Write-Host "║  6. ❌ غیرفعال‌سازی اجرا خودکار | Disable Windows Startup             ║" -ForegroundColor White
-        Write-Host "║  7. 📦 نصب و پیکربندی اولیه    | Full Setup and Install             ║" -ForegroundColor White
-        Write-Host "║  8. 🔄 به‌روزرسانی بسته‌ها       | Update Packages                    ║" -ForegroundColor White
-        Write-Host "║  9. 🔍 بررسی سلامت سیستم        | System Health Check                ║" -ForegroundColor White
-        Write-Host "║  0. 🚪 خروج                    | Exit                               ║" -ForegroundColor White
-        Write-Host "╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor DarkCyan
+        Write-Host "══════════════════════════════════════════════════════════════════════" -ForegroundColor DarkCyan
+        Write-Host "               HikStatus Native Manager (TUI)" -ForegroundColor Cyan
+        Write-Host "        مدیریت بومی و استقرار سامانه پایش | System Management" -ForegroundColor Gray
+        Write-Host "══════════════════════════════════════════════════════════════════════" -ForegroundColor DarkCyan
+        Write-Host "  [1] Start Foreground Console    | اجرای مستقیم در کنسول" -ForegroundColor White
         
-        $choice = Read-Host "لطفاً یک گزینه انتخاب کنید | Please select an option [0-9]"
+        Write-Host "  [2] Start Background Service   | اجرای سرویس پس‌زمینه" -NoNewline -ForegroundColor White
+        if ($activeProc) { Write-Host "$bgStatus" -ForegroundColor Green } else { Write-Host "$bgStatus" -ForegroundColor DarkGray }
+
+        Write-Host "  [3] Stop Background Service    | توقف سرویس پس‌زمینه" -ForegroundColor White
+        Write-Host "  [4] Check Service Status       | مشاهده وضعیت سرویس" -ForegroundColor White
+        
+        Write-Host "  [5] Enable Windows Startup     | فعال‌سازی اجرا خودکار" -NoNewline -ForegroundColor White
+        if ($hasStartup) { Write-Host "$startupStatus" -ForegroundColor Green } else { Write-Host "$startupStatus" -ForegroundColor DarkGray }
+
+        Write-Host "  [6] Disable Windows Startup    | غیرفعال‌سازی اجرا خودکار" -ForegroundColor White
+        Write-Host "  [7] Full Setup and Install     | نصب و پیکربندی اولیه" -ForegroundColor White
+        Write-Host "  [8] Update Packages            | به‌روزرسانی بسته‌ها" -ForegroundColor White
+        Write-Host "  [9] System Health Check        | بررسی سلامت سیستم" -ForegroundColor White
+        Write-Host "  [0] Exit                       | خروج" -ForegroundColor White
+        Write-Host "══════════════════════════════════════════════════════════════════════" -ForegroundColor DarkCyan
+        
+        $choice = Read-Host "Select Option [0-9] | انتخاب گزینه"
 
         switch ($choice) {
             "1" { Start-Server; break }
-            "2" { Start-ServerBackground; Read-Host "`nجهت بازگشت Enter را بزنید | Press Enter to return..."; break }
-            "3" { Stop-Server; Read-Host "`nجهت بازگشت Enter را بزنید | Press Enter to return..."; break }
-            "4" { Test-HealthCheck; Read-Host "`nجهت بازگشت Enter را بزنید | Press Enter to return..."; break }
-            "5" { Enable-Startup; Read-Host "`nجهت بازگشت Enter را بزنید | Press Enter to return..."; break }
-            "6" { Disable-Startup; Read-Host "`nجهت بازگشت Enter را بزنید | Press Enter to return..."; break }
-            "7" { Install-Dependencies; Read-Host "`nجهت بازگشت Enter را بزنید | Press Enter to return..."; break }
-            "8" { Update-Dependencies; Read-Host "`nجهت بازگشت Enter را بزنید | Press Enter to return..."; break }
-            "9" { Test-HealthCheck; Read-Host "`nجهت بازگشت Enter را بزنید | Press Enter to return..."; break }
-            "0" { Write-Host "خداحافظ! | Goodbye!" -ForegroundColor Green; return }
-            default { Write-Host "گزینه نامعتبر است | Invalid choice." -ForegroundColor Red; Start-Sleep -Seconds 1 }
+            "2" { Start-ServerBackground; Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."; break }
+            "3" { Stop-Server; Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."; break }
+            "4" { Test-HealthCheck; Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."; break }
+            "5" { Enable-Startup; Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."; break }
+            "6" { Disable-Startup; Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."; break }
+            "7" { Install-Dependencies; Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."; break }
+            "8" { Update-Dependencies; Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."; break }
+            "9" { Test-HealthCheck; Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."; break }
+            "0" { Write-Host "Goodbye! | خداحافظ!" -ForegroundColor Green; return }
+            default { Write-Host "Invalid choice | گزینه نامعتبر است." -ForegroundColor Red; Start-Sleep -Seconds 1 }
         }
     }
 }
@@ -389,17 +392,17 @@ switch ($Action.ToLower()) {
     "update"          { Update-Dependencies }
     "check"           { Test-HealthCheck }
     "help"            {
-        Write-Host "HikStatus Dual-Language Help:"
-        Write-Host "  .\start.ps1                           منوی تعاملی | Interactive TUI Menu"
-        Write-Host "  .\start.ps1 -Action start -Port 28888  اجرای مستقیم | Start Foreground"
-        Write-Host "  .\start.ps1 -Action start-bg          اجرا در پس‌زمینه | Start Background Service"
-        Write-Host "  .\start.ps1 -Action stop              توقف سرویس | Stop Background Service"
-        Write-Host "  .\start.ps1 -Action status            مشاهده وضعیت | Check Background Status"
-        Write-Host "  .\start.ps1 -Action enable-startup    فعال‌سازی استارت‌آپ | Enable Auto-Start"
-        Write-Host "  .\start.ps1 -Action disable-startup   غیرفعال‌سازی استارت‌آپ | Disable Auto-Start"
-        Write-Host "  .\start.ps1 -Action install           نصب وابستگی‌ها | Install Dependencies"
-        Write-Host "  .\start.ps1 -Action update            بروزرسانی بسته‌ها | Update Packages"
-        Write-Host "  .\start.ps1 -Action check             پایش سلامت | System Health Check"
+        Write-Host "HikStatus Help:"
+        Write-Host "  .\start.ps1                           Interactive TUI Menu"
+        Write-Host "  .\start.ps1 -Action start -Port 28888  Start Foreground"
+        Write-Host "  .\start.ps1 -Action start-bg          Start Background Service"
+        Write-Host "  .\start.ps1 -Action stop              Stop Background Service"
+        Write-Host "  .\start.ps1 -Action status            Check Background Status"
+        Write-Host "  .\start.ps1 -Action enable-startup    Enable Auto-Start"
+        Write-Host "  .\start.ps1 -Action disable-startup   Disable Auto-Start"
+        Write-Host "  .\start.ps1 -Action install           Install Dependencies"
+        Write-Host "  .\start.ps1 -Action update            Update Packages"
+        Write-Host "  .\start.ps1 -Action check             System Health Check"
     }
     default           { Show-Menu }
 }
