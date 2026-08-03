@@ -7,7 +7,7 @@ WORKDIR /app
 # افزودن ابزار uv جهت سرعت فوق‌العاده در نصب پکیج‌ها
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-COPY requirements.txt pyproject.toml README.md ./
+COPY requirements.txt pyproject.toml ./
 
 # نصب نیازمندی‌ها به صورت سیستمی در کانتینر با uv
 RUN uv pip install --system --no-cache -r requirements.txt
