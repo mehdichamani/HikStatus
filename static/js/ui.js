@@ -164,7 +164,7 @@ export function renderDash() {
                         <div class="nvr-header-left" style="display: flex; align-items: center; gap: 6px;">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${window.getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
-                            <button class="nvr-health-btn" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 4px; color: var(--primary); padding: 2px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; margin-right: 2px;" onclick="window.showNvrHealthModal(event, '${ip}')" title="مشاهده وضعیت سلامت NVR">
+                            <button class="nvr-health-btn" style="background: var(--primary-glow); border: 1px solid var(--border-light); border-radius: 4px; color: var(--primary); padding: 2px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; margin-right: 2px;" onclick="window.showNvrHealthModal(event, '${ip}')" title="مشاهده وضعیت سلامت NVR">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
                                 </svg>
@@ -216,7 +216,7 @@ export function renderDash() {
                         <div class="nvr-header-left" style="display: flex; align-items: center; gap: 6px;">
                             <span class="nvr-badge ${isNvrOffline ? 'offline' : ''}">${window.getNvrDisplayName(ip)}</span>
                             <span class="nvr-ip">${ip}</span>
-                            <button class="nvr-health-btn" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 4px; color: var(--primary); padding: 2px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; margin-right: 2px;" onclick="window.showNvrHealthModal(event, '${ip}')" title="مشاهده وضعیت سلامت NVR">
+                            <button class="nvr-health-btn" style="background: var(--primary-glow); border: 1px solid var(--border-light); border-radius: 4px; color: var(--primary); padding: 2px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; margin-right: 2px;" onclick="window.showNvrHealthModal(event, '${ip}')" title="مشاهده وضعیت سلامت NVR">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
                                 </svg>
@@ -805,8 +805,8 @@ export function renderTrendChart(chartData) {
             datasets: [{
                 label: 'مجموع ساعت قطعی روزانه',
                 data: chartData.data,
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                borderColor: window.getChartColor('--primary', '#3b82f6'),
+                backgroundColor: window.getChartColor('--primary-glow', 'rgba(59, 130, 246, 0.15)'),
                 borderWidth: 2,
                 fill: true,
                 tension: 0.3
@@ -907,8 +907,8 @@ export function renderGroupsChart(chartData) {
             datasets: [{
                 label: 'مجموع ساعت قطعی',
                 data: chartData.data,
-                backgroundColor: 'rgba(59, 130, 246, 0.75)',
-                borderColor: '#3b82f6',
+                backgroundColor: window.getChartColor('--primary-glow', 'rgba(59, 130, 246, 0.75)'),
+                borderColor: window.getChartColor('--primary', '#3b82f6'),
                 borderWidth: 1,
                 borderRadius: 4
             }]
@@ -2951,14 +2951,14 @@ export function renderOutagesList() {
         if (o.status === 'explained') {
             statusBadge = '<span class="badge badge-success" style="background:#10b981; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">رفع ابهام شده</span>';
             if (role === 'admin') {
-                actionBtn = `<button class="btn btn-primary" onclick="window.openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; background: #6366f1; border-color: #6366f1; cursor: pointer;">ویرایش</button>`;
+                actionBtn = `<button class="btn btn-primary" onclick="window.openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; cursor: pointer;">ویرایش</button>`;
             } else {
                 actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">غیر قابل ویرایش</span>';
             }
         } else if (o.status === 'expired') {
             statusBadge = '<span class="badge badge-danger" style="background:#ef4444; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">منقضی شده</span>';
             if (role === 'admin') {
-                actionBtn = `<button class="btn btn-primary" onclick="window.openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; background: #6366f1; border-color: #6366f1; cursor: pointer;">رفع ابهام (ادمین)</button>`;
+                actionBtn = `<button class="btn btn-primary" onclick="window.openExplanationModal(${o.id})" style="padding: 4px 8px; font-size: 12px; cursor: pointer;">رفع ابهام (ادمین)</button>`;
             } else {
                 actionBtn = '<span style="font-size: 12px; color: var(--danger);">پایان مهلت</span>';
             }
@@ -3515,7 +3515,7 @@ export function formatHddInfo(hddJsonStr) {
             const usedPercent = capVal > 0 ? Math.min(100, Math.round((usedVal / capVal) * 100)) : 0;
             
             const isFullAndRecording = isOk && (freeVal < 5120 || usedPercent >= 99);
-            const overwriteBadge = isFullAndRecording ? '<span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: bold; margin-right: 4px;">ضبط مداوم</span>' : '';
+            const overwriteBadge = isFullAndRecording ? '<span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: var(--primary-glow); color: var(--primary); border: 1px solid var(--border); font-weight: bold; margin-right: 4px;">ضبط مداوم</span>' : '';
 
             return `
                 <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
@@ -3594,7 +3594,7 @@ export function renderDashboardCharts() {
                     datasets: [{
                         label: 'تعداد قطعی‌ها',
                         data: values,
-                        backgroundColor: '#6366f1',
+                        backgroundColor: window.getChartColor('--primary', '#6366f1'),
                         borderRadius: 6
                     }]
                 },
@@ -3605,8 +3605,8 @@ export function renderDashboardCharts() {
                         legend: { display: false }
                     },
                     scales: {
-                        x: { ticks: { color: '#94a3b8', font: { family: 'Vazirmatn' } }, grid: { display: false } },
-                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#2a2a36' } }
+                        x: { ticks: { color: window.getChartColor('--text-secondary', '#94a3b8'), font: { family: 'Vazirmatn' } }, grid: { display: false } },
+                        y: { ticks: { color: window.getChartColor('--text-secondary', '#94a3b8') }, grid: { color: window.getChartColor('--border', '#2a2a36') } }
                     }
                 }
             });

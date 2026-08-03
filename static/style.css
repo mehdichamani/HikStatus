@@ -622,7 +622,7 @@ body {
 }
 
 .cam-record-dot.not-recording {
-    background: #64748b;
+    background: var(--text-muted);
 }
 
 @media (max-width: 767px) {
@@ -671,12 +671,12 @@ body {
 }
 
 .badge.warning {
-    background: rgba(245, 158, 11, 0.1);
+    background: var(--warning-bg);
     color: var(--warning);
 }
 
 .badge.info {
-    background: rgba(99, 102, 241, 0.1);
+    background: var(--primary-glow);
     color: var(--primary);
 }
 
@@ -2173,8 +2173,8 @@ body {
     left: 50%;
     transform: translateX(-50%);
     z-index: 9999;
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: var(--danger-bg);
+    border: 1px solid var(--danger);
     border-radius: var(--radius);
     padding: 12px 24px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -2195,7 +2195,7 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    color: #fca5a5;
+    color: var(--danger);
     font-size: 14px;
     font-weight: 500;
 }
@@ -2209,8 +2209,8 @@ body {
 .warning-spinner {
     width: 16px;
     height: 16px;
-    border: 2px solid rgba(252, 165, 165, 0.2);
-    border-top-color: #fca5a5;
+    border: 2px solid var(--danger-bg);
+    border-top-color: var(--danger);
     border-radius: 50%;
     animation: warning-spin 0.8s linear infinite;
     flex-shrink: 0;
@@ -2565,7 +2565,7 @@ body {
     border-radius: 50%;
     background: var(--primary) !important;
     cursor: pointer;
-    box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+    box-shadow: 0 0 8px var(--primary-glow);
     transition: transform 0.15s, background-color 0.2s;
     border: none !important;
 }
@@ -2582,7 +2582,7 @@ body {
     border-radius: 50%;
     background: var(--primary) !important;
     cursor: pointer;
-    box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+    box-shadow: 0 0 8px var(--primary-glow);
     transition: transform 0.15s, background-color 0.2s;
 }
 
@@ -3125,7 +3125,7 @@ jdp-container .jdp-btn-close:hover {
     justify-content: center;
     width: 40px;
     height: 40px;
-    background: rgba(99, 102, 241, 0.1);
+    background: var(--primary-glow);
     border-radius: 50%;
     flex-shrink: 0;
 }
@@ -3471,7 +3471,7 @@ body.kiosk-mode #kiosk-exit-btn {
 .dash-widget.dragging {
     opacity: 0.4;
     transform: scale(0.98);
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 8px 32px var(--primary-glow);
 }
 
 #btn-edit-dash.active {
