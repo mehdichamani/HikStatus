@@ -4,11 +4,13 @@ RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY requirements.txt .
+# افزودن ابزار uv جهت سرعت فوق‌العاده در نصب پکیج‌ها
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# نصب بسته‌ها بدون استفاده از کش پیپ (پیشنهاد استاندارد برای اکثر محیط‌ها)
-# این خط می‌تواند در محیط‌های CI/CD مانند Railway یا DigitalOcean به‌صورت مستقیم استفاده شود.
-RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
+COPY requirements.txt pyproject.toml README.md ./
+
+# نصب نیازمندی‌ها به صورت سیستمی در کانتینر با uv
+RUN uv pip install --system --no-cache -r requirements.txt
 
 RUN useradd -m -s /bin/bash appuser
 

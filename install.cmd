@@ -44,10 +44,27 @@ if not defined PY_VER (
 )
 echo [OK] Found !PY_VER!
 
+:: ── Ensure uv is installed ──────────────────────────────────────────────────
+where uv >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] Installing Astral uv package manager...
+    python -m pip install -q uv
+    if errorlevel 1 (
+        echo [WARN] Could not install uv via pip. Will fall back to standard python tools if needed.
+    ) else (
+        echo [OK] uv installed successfully.
+    )
+)
+
 :: ── Create virtual environment ───────────────────────────────────────────────
 if not exist ".venv\Scripts\python.exe" (
-    echo [INFO] Creating virtual environment...
-    python -m venv .venv
+    echo [INFO] Creating virtual environment with uv...
+    where uv >nul 2>&1
+    if not errorlevel 1 (
+        uv venv .venv
+    ) else (
+        python -m venv .venv
+    )
     if errorlevel 1 (
         echo [ERROR] Failed to create virtual environment.
         pause
@@ -59,15 +76,20 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 :: ── Install dependencies ─────────────────────────────────────────────────────
-echo [INFO] Installing dependencies (this may take a moment)...
-.venv\Scripts\pip install -q --upgrade pip
-.venv\Scripts\pip install -q -r requirements.txt
+echo [INFO] Installing dependencies with uv...
+where uv >nul 2>&1
+if not errorlevel 1 (
+    uv pip install -r requirements.txt --python .venv\Scripts\python.exe
+) else (
+    .venv\Scripts\pip install -q --upgrade pip
+    .venv\Scripts\pip install -q -r requirements.txt
+)
 if errorlevel 1 (
     echo [ERROR] Failed to install dependencies.
     pause
     exit /b 1
 )
-echo [OK] Dependencies installed.
+echo [OK] Dependencies installed successfully.
 
 :: ── Check & install ffmpeg ───────────────────────────────────────────────────
 where ffmpeg >nul 2>&1
