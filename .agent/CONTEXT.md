@@ -41,7 +41,7 @@ from collections import defaultdict
 events = session.exec(
     select(DowntimeEvent).where(
         DowntimeEvent.start_time < end_dt,
-        (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time > start_dt)
+        (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time > start_dt),
     )
 ).all()
 
@@ -87,6 +87,6 @@ for e in events:
 * **چالش تداخل فضای نام (xmlns):** وجود ویژگی `xmlns` در المنت ریشه فایل‌های XML هایک‌ویژن، کوئری زدن بر روی نودها را بسیار دشوار می‌سازد.
 * **راهکار پروژه:** از تابع اختصاصی `_parse_xml(content_str)` استفاده کنید. این تابع با کمک عبارات باقاعده (Regex) فضای نام را به صورت زیر حذف و پاک‌سازی می‌کند:
   ```python
-  re.sub(r'xmlns="[^"]+"', '', content_str, count=1)
+  re.sub(r'xmlns="[^"]+"', "", content_str, count=1)
   ```
   با این کار، المنت‌ها به سادگی و بدون نیاز به تعریف نیم‌اسپیس‌ها قابل کوئری هستند.

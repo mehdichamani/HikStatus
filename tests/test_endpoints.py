@@ -1,23 +1,28 @@
-# -*- coding: utf-8 -*-
+from datetime import datetime
+from unittest import mock
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import SQLModel, create_engine, Session, select
-from datetime import datetime, timedelta
-import unittest.mock as mock
+from sqlmodel import Session, SQLModel, create_engine
 
 import main
 from app import database
-from main import get_session, require_auth, require_control, require_admin
 from app.database import (
-    Camera, DowntimeEvent, OutageExplanation, OutageCause, User,
-    NVRGroup, NVR, Settings, UserSession, MapPlan, ScheduledTask, hash_password
+    NVR,
+    Camera,
+    NVRGroup,
+    ScheduledTask,
+    Settings,
+    User,
+    hash_password,
 )
-from app.services import monitor
-from app.services import scheduler
+from app.services import monitor, scheduler
+from main import get_session, require_admin, require_auth, require_control
 
 # پایگاه‌داده تست موقت در دایرکتوری داده
 test_sqlite_url = "sqlite:///data/test_endpoints_temp.db"
 test_engine = create_engine(test_sqlite_url, connect_args={"check_same_thread": False})
+
 
 @pytest.fixture(name="session")
 def session_fixture():
@@ -41,8 +46,26 @@ def session_fixture():
         session.add(Settings(key="OUTAGE_EXPLANATION_DEADLINE_HOURS", value="24"))
 
         # مقداردهی وظایف زمان‌بندی‌شده
-        session.add(ScheduledTask(id="task_sync_nvr_health", name="Sync NVR Health", description="Sync NVR Health Task", interval=300, is_enabled=True, status="Idle"))
-        session.add(ScheduledTask(id="task_analyze_outages", name="Analyze Outages", description="Analyze Outages Task", interval=3600, is_enabled=True, status="Idle"))
+        session.add(
+            ScheduledTask(
+                id="task_sync_nvr_health",
+                name="Sync NVR Health",
+                description="Sync NVR Health Task",
+                interval=300,
+                is_enabled=True,
+                status="Idle",
+            )
+        )
+        session.add(
+            ScheduledTask(
+                id="task_analyze_outages",
+                name="Analyze Outages",
+                description="Analyze Outages Task",
+                interval=3600,
+                is_enabled=True,
+                status="Idle",
+            )
+        )
 
         # ثبت کاربر مدیر با شناسه ۱ جهت جلوگیری از تداخل شناسه در تغییر رمز و CRUD کاربر
         admin_user = User(
@@ -50,7 +73,7 @@ def session_fixture():
             username="admin",
             password_hash=hash_password("admin"),
             role="admin",
-            is_active=True
+            is_active=True,
         )
         session.add(admin_user)
 
@@ -61,6 +84,7 @@ def session_fixture():
     monitor.engine = old_monitor_engine
     scheduler.engine = old_scheduler_engine
     SQLModel.metadata.drop_all(test_engine)
+
 
 @pytest.fixture(name="client")
 def client_fixture(session):
@@ -88,22 +112,27 @@ def client_fixture(session):
 
 # ==================== ۱. تست‌های اندپوئینت‌های عمومی و سیستمی ====================
 
+
 def test_endpoint_health(client):
     response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
+
 def test_endpoint_service_worker(client):
     response = client.get("/service-worker.js")
     assert response.status_code == 200
+
 
 def test_endpoint_manifest(client):
     response = client.get("/manifest.json")
     assert response.status_code == 200
 
+
 def test_endpoint_login_page(client):
     response = client.get("/login")
     assert response.status_code == 200
+
 
 def test_endpoint_root_page(client):
     response = client.get("/")
@@ -112,6 +141,7 @@ def test_endpoint_root_page(client):
 
 # ==================== ۲. تست‌های احراز هویت و امنیت ====================
 
+
 def test_endpoint_auth_me(client):
     response = client.get("/api/auth/me")
     assert response.status_code == 200
@@ -119,11 +149,13 @@ def test_endpoint_auth_me(client):
     assert data["username"] == "admin"
     assert data["role"] == "admin"
 
+
 def test_endpoint_auth_login_fail(client):
     # تست ورود ناموفق
     payload = {"username": "wronguser", "password": "wrongpassword"}
     response = client.post("/api/auth/login", json=payload)
     assert response.status_code == 401
+
 
 def test_endpoint_auth_login_success(session, client):
     # شبیه‌سازی کاربر تستی در دیتابیس برای لاگین
@@ -132,7 +164,7 @@ def test_endpoint_auth_login_success(session, client):
         username="test_login_user",
         password_hash=hash_password("correct_pass"),
         role="admin",
-        is_active=True
+        is_active=True,
     )
     session.add(user)
     session.commit()
@@ -146,21 +178,22 @@ def test_endpoint_auth_login_success(session, client):
     data = response.json()
     assert data["status"] == "ok"
 
+
 def test_endpoint_auth_logout(client):
     response = client.post("/api/auth/logout")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
+
 def test_endpoint_auth_change_password(session, client):
-    payload = {
-        "new_password": "new_secure_pass"
-    }
+    payload = {"new_password": "new_secure_pass"}
     response = client.post("/api/me/change-password", json=payload)
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
 
 # ==================== ۳. تست‌های مدیریت دستگاه‌های ضبط (NVRs) ====================
+
 
 def test_endpoint_nvrs_crud(session, client):
     # ۱. ایجاد گروه تستی
@@ -176,7 +209,7 @@ def test_endpoint_nvrs_crud(session, client):
         "password": "encrypted_pass_mock",
         "enabled": True,
         "group_id": 1,
-        "rtsp_port": 554
+        "rtsp_port": 554,
     }
     response = client.post("/api/nvrs", json=nvr_payload)
     assert response.status_code in [200, 201]
@@ -202,6 +235,7 @@ def test_endpoint_nvrs_crud(session, client):
 
 # ==================== ۴. تست‌های مدیریت گروه‌ها و پلان‌ها ====================
 
+
 def test_endpoint_groups_crud(session, client):
     # ۱. ثبت گروه جدید
     group_payload = {
@@ -209,7 +243,7 @@ def test_endpoint_groups_crud(session, client):
         "description": "توضیحات تستی گروه",
         "map_center_lat": 35.7,
         "map_center_lng": 51.4,
-        "map_zoom": 12
+        "map_zoom": 12,
     }
     response = client.post("/api/groups", json=group_payload)
     assert response.status_code in [200, 201]
@@ -239,6 +273,7 @@ def test_endpoint_groups_crud(session, client):
 
 # ==================== ۵. تست‌های دوربین‌ها ====================
 
+
 def test_endpoint_cameras(session, client):
     # ایجاد فرضی NVR و دوربین
     n = NVR(ip="10.10.10.10", name="NVR تستی", status="Online", user="admin")
@@ -251,7 +286,7 @@ def test_endpoint_cameras(session, client):
         nvr_ip="10.10.10.10",
         channel_id="1",
         importance=2,
-        status="Online"
+        status="Online",
     )
     session.add(c)
     session.commit()
@@ -278,6 +313,7 @@ def test_endpoint_cameras(session, client):
 
 # ==================== ۶. تست شبیه‌سازی snapshot و stream دوربین ====================
 
+
 @mock.patch("requests.get")
 def test_endpoint_camera_snapshot_mocked(mock_get, session, client):
     # شبیه‌سازی پاسخ پاسخ موفق هایک‌ویژن
@@ -286,15 +322,22 @@ def test_endpoint_camera_snapshot_mocked(mock_get, session, client):
 
     n = NVR(ip="10.10.10.10", name="NVR تستی", status="Online", user="admin")
     session.add(n)
-    c = Camera(id=888, name="دوربین تست", ip="10.10.10.20", nvr_ip="10.10.10.10", channel_id="1")
+    c = Camera(
+        id=888,
+        name="دوربین تست",
+        ip="10.10.10.20",
+        nvr_ip="10.10.10.10",
+        channel_id="1",
+    )
     session.add(c)
     session.commit()
 
     response = client.get("/api/cameras/888/snapshot")
-    assert response.status_code in [200, 500, 404] # در صورت شبیه‌سازی یا عدم دسترسی
+    assert response.status_code in [200, 500, 404]  # در صورت شبیه‌سازی یا عدم دسترسی
 
 
 # ==================== ۷. تست‌های تنظیمات، لاگ‌ها و آمارها ====================
+
 
 def test_endpoint_settings(client):
     response = client.get("/api/settings")
@@ -304,9 +347,11 @@ def test_endpoint_settings(client):
     response = client.put("/api/settings/MAIL_ENABLED", json=update_payload)
     assert response.status_code == 200
 
+
 def test_endpoint_logs(client):
     response = client.get("/api/logs")
     assert response.status_code == 200
+
 
 def test_endpoint_heatmap_stats(client):
     response = client.get("/api/stats/heatmap")
@@ -314,6 +359,7 @@ def test_endpoint_heatmap_stats(client):
 
 
 # ==================== ۸. تست‌های گزارش‌گیری پایداری (Reports) ====================
+
 
 def test_endpoint_reports_generation(client):
     # تست تولید گزارش متنی/اکسل برای یک بازه زمانی
@@ -323,11 +369,13 @@ def test_endpoint_reports_generation(client):
     response = client.get(f"/api/reports/generate?start={past_ts}&end={now_ts}")
     assert response.status_code == 200
 
+
 def test_endpoint_reports_charts(client):
     now_ts = datetime.now().timestamp()
     past_ts = now_ts - 86400
     response = client.get(f"/api/reports/charts?start={past_ts}&end={now_ts}")
     assert response.status_code == 200
+
 
 def test_endpoint_reports_causes(client):
     response = client.get("/api/reports/causes?period=30d")
@@ -336,6 +384,7 @@ def test_endpoint_reports_causes(client):
 
 # ==================== ۹. تست‌های کاربران و تنظیمات هشدار اختصاصی ====================
 
+
 def test_endpoint_users_crud(session, client):
     user_payload = {
         "username": "new_it_user",
@@ -343,7 +392,7 @@ def test_endpoint_users_crud(session, client):
         "role": "it_manager",
         "group_id": None,
         "accessible_group_ids": "",
-        "is_active": True
+        "is_active": True,
     }
     # ایجاد کاربر
     response = client.post("/api/users", json=user_payload)
@@ -365,6 +414,7 @@ def test_endpoint_users_crud(session, client):
     response = client.delete(f"/api/users/{uid}")
     assert response.status_code == 200
 
+
 def test_endpoint_me_alerts(client):
     response = client.get("/api/me/alerts")
     assert response.status_code == 200
@@ -373,13 +423,14 @@ def test_endpoint_me_alerts(client):
         "mail_enabled": True,
         "mail_recipients": "admin@example.com",
         "telegram_enabled": False,
-        "telegram_chat_ids": ""
+        "telegram_chat_ids": "",
     }
     response = client.put("/api/me/alerts", json=update_payload)
     assert response.status_code == 200
 
 
 # ==================== ۱۰. تست‌های علل قطعی دوربین‌ها (Outage Causes) ====================
+
 
 def test_endpoint_outage_causes_crud(session, client):
     cause_payload = {"name": "قطع موقت کابل فیبر نوری"}
@@ -397,6 +448,7 @@ def test_endpoint_outage_causes_crud(session, client):
 
 # ==================== ۱۱. تست مانیتور و زمان‌بند (Scheduler Tasks) ====================
 
+
 def test_endpoint_scheduler_tasks_and_control(client):
     # لیست کردن وظایف زمان‌بندی‌شده
     response = client.get("/api/scheduler/tasks")
@@ -404,12 +456,16 @@ def test_endpoint_scheduler_tasks_and_control(client):
 
     # ویرایش اینتروال یک کار
     update_payload = {"interval": 600}
-    response = client.put("/api/scheduler/tasks/task_sync_nvr_health/interval", json=update_payload)
+    response = client.put(
+        "/api/scheduler/tasks/task_sync_nvr_health/interval", json=update_payload
+    )
     assert response.status_code == 200
 
     # فعال/غیرفعال کردن کار زمان‌بندی‌شده
     toggle_payload = {"is_enabled": False}
-    response = client.put("/api/scheduler/tasks/task_sync_nvr_health/toggle", json=toggle_payload)
+    response = client.put(
+        "/api/scheduler/tasks/task_sync_nvr_health/toggle", json=toggle_payload
+    )
     assert response.status_code == 200
 
     # اجرای زمان‌بندی دستی
@@ -419,6 +475,7 @@ def test_endpoint_scheduler_tasks_and_control(client):
 
 
 # ==================== ۱۲. تست بازیابی و پاک‌سازی داده‌ها (Data & Import/Export) ====================
+
 
 def test_endpoint_config_export(client):
     response = client.get("/api/config/export")

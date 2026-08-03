@@ -1,17 +1,25 @@
-# -*- coding: utf-8 -*-
-import pytest
-from fastapi.testclient import TestClient
-from sqlmodel import SQLModel, create_engine, Session, select
 from datetime import datetime, timedelta
 
+import pytest
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine, select
+
 import main
-from main import get_session, require_auth, require_control, require_admin
-from app.database import Camera, DowntimeEvent, OutageExplanation, OutageCause, User, NVRGroup, NVR
+from app.database import (
+    NVR,
+    Camera,
+    DowntimeEvent,
+    NVRGroup,
+    OutageCause,
+    OutageExplanation,
+)
 from app.services import monitor
+from main import get_session, require_admin, require_auth, require_control
 
 # ایجاد پایگاه‌داده تست جداگانه در دایرکتوری داده
 test_sqlite_url = "sqlite:///data/test_monitor_temp.db"
 test_engine = create_engine(test_sqlite_url, connect_args={"check_same_thread": False})
+
 
 @pytest.fixture(name="session")
 def session_fixture():
@@ -28,6 +36,7 @@ def session_fixture():
     # بازگردانی موتور دیتابیس
     monitor.engine = old_engine
     SQLModel.metadata.drop_all(test_engine)
+
 
 @pytest.fixture(name="client")
 def client_fixture(session):
@@ -52,22 +61,41 @@ def client_fixture(session):
     yield TestClient(main.app)
     main.app.dependency_overrides.clear()
 
+
 def test_task_analyze_outages_and_auto_classification(session, client):
     # ۱. تعریف ساختار کارخانه، NVR و دوربین‌ها برای تست پیشنهاد هوشمند
     group = NVRGroup(id=1, name="کارخانه تست")
     session.add(group)
 
-    nvr = NVR(ip="192.168.1.100", name="NVR تست", group_id=1, status="Online", user="admin")
+    nvr = NVR(
+        ip="192.168.1.100", name="NVR تست", group_id=1, status="Online", user="admin"
+    )
     session.add(nvr)
 
     # ساخت دو دوربین روی این NVR
-    cam1 = Camera(id=101, name="دوربین ۱", ip="192.168.1.101", nvr_ip="192.168.1.100", channel_id="1", status="Offline")
-    cam2 = Camera(id=102, name="دوربین ۲", ip="192.168.1.102", nvr_ip="192.168.1.100", channel_id="2", status="Offline")
+    cam1 = Camera(
+        id=101,
+        name="دوربین ۱",
+        ip="192.168.1.101",
+        nvr_ip="192.168.1.100",
+        channel_id="1",
+        status="Offline",
+    )
+    cam2 = Camera(
+        id=102,
+        name="دوربین ۲",
+        ip="192.168.1.102",
+        nvr_ip="192.168.1.100",
+        channel_id="2",
+        status="Offline",
+    )
     session.add(cam1)
     session.add(cam2)
 
     # تعریف علت‌های پیش‌فرض دیتابیس
-    cause_net = OutageCause(id=1, name="قطع ارتباط با سوئیچ مرکزی / خاموشی NVR", is_active=True)
+    cause_net = OutageCause(
+        id=1, name="قطع ارتباط با سوئیچ مرکزی / خاموشی NVR", is_active=True
+    )
     cause_other = OutageCause(id=2, name="مشکلات دیگر", is_active=True)
     session.add(cause_net)
     session.add(cause_other)
@@ -77,17 +105,24 @@ def test_task_analyze_outages_and_auto_classification(session, client):
     # ۲. ثبت رویداد خاموشی به مدت ۳ ساعت برای هر دو دوربین (۱۰۰٪ دوربین‌های این NVR قطع هستند)
     now = datetime.now().replace(second=0, microsecond=0)
     yesterday = now - timedelta(days=1)
-    start_dt = datetime.combine(yesterday.date(), datetime.min.time()).replace(microsecond=0)
+    start_dt = datetime.combine(yesterday.date(), datetime.min.time()).replace(
+        microsecond=0
+    )
 
     # ثبت رکوردهای خاموشی
-    event1 = DowntimeEvent(camera_id=101, start_time=start_dt, end_time=start_dt + timedelta(hours=3))
-    event2 = DowntimeEvent(camera_id=102, start_time=start_dt, end_time=start_dt + timedelta(hours=3))
+    event1 = DowntimeEvent(
+        camera_id=101, start_time=start_dt, end_time=start_dt + timedelta(hours=3)
+    )
+    event2 = DowntimeEvent(
+        camera_id=102, start_time=start_dt, end_time=start_dt + timedelta(hours=3)
+    )
     session.add(event1)
     session.add(event2)
     session.commit()
 
     # ۳. اجرای تسک پس‌زمینه تحلیل قطعی‌ها به صورت مستقیم
     import asyncio
+
     asyncio.run(monitor.task_analyze_outages(override_now=now))
 
     # واکشی قطعی‌های ثبت‌شده
@@ -105,9 +140,16 @@ def test_task_analyze_outages_and_auto_classification(session, client):
         assert o["suggested_cause"] == "قطع ارتباط با سوئیچ مرکزی / خاموشی NVR"
         assert "همزمان قطع شده‌اند" in o["suggested_detail"]
 
+
 def test_bulk_outage_explanations(session, client):
     # ۱. ایجاد رکوردهای تستی
-    cam = Camera(id=201, name="دوربین تستی", ip="192.168.2.201", nvr_ip="192.168.2.100", channel_id="1")
+    cam = Camera(
+        id=201,
+        name="دوربین تستی",
+        ip="192.168.2.201",
+        nvr_ip="192.168.2.100",
+        channel_id="1",
+    )
     session.add(cam)
 
     cause = OutageCause(id=5, name="قطعی برق", is_active=True)
@@ -120,7 +162,7 @@ def test_bulk_outage_explanations(session, client):
         start_time=now - timedelta(days=2),
         end_time=now - timedelta(days=1),
         created_at=now,
-        assigned_deadline=now + timedelta(hours=24)
+        assigned_deadline=now + timedelta(hours=24),
     )
     o2 = OutageExplanation(
         id=502,
@@ -128,7 +170,7 @@ def test_bulk_outage_explanations(session, client):
         start_time=now - timedelta(days=3),
         end_time=now - timedelta(days=2),
         created_at=now,
-        assigned_deadline=now + timedelta(hours=24)
+        assigned_deadline=now + timedelta(hours=24),
     )
     session.add(o1)
     session.add(o2)
@@ -138,7 +180,7 @@ def test_bulk_outage_explanations(session, client):
     payload = {
         "ids": [501, 502],
         "explanation_type": "قطعی برق",
-        "explanation_detail": "تست ثبت گروهی قطعی برق برای کارخانه‌ها"
+        "explanation_detail": "تست ثبت گروهی قطعی برق برای کارخانه‌ها",
     }
     response = client.post("/api/outage-explanations/bulk", json=payload)
     assert response.status_code == 200

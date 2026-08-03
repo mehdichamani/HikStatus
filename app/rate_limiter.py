@@ -6,7 +6,6 @@ import threading
 import time
 from collections import defaultdict
 from functools import wraps
-from typing import Optional
 
 from fastapi import HTTPException, Request
 from starlette.responses import StreamingResponse
@@ -77,7 +76,7 @@ class RateLimiter:
 limiter = RateLimiter()
 
 
-def _find_request(args: tuple, kwargs: dict) -> Optional[Request]:
+def _find_request(args: tuple, kwargs: dict) -> Request | None:
     """Extract the FastAPI Request from function arguments."""
     if "request" in kwargs and isinstance(kwargs["request"], Request):
         return kwargs["request"]
@@ -90,7 +89,7 @@ def _find_request(args: tuple, kwargs: dict) -> Optional[Request]:
     return None
 
 
-def _get_client_ip(request: Optional[Request]) -> str:
+def _get_client_ip(request: Request | None) -> str:
     if request and request.client:
         return request.client.host
     return "unknown"

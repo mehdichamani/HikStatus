@@ -1,169 +1,184 @@
 from __future__ import annotations
-from sqlmodel import SQLModel, Field, create_engine, Session
+
+import hashlib
+import secrets
 from datetime import datetime
-from typing import Optional
-import hashlib, secrets
+
 from loguru import logger
+from sqlmodel import Field, Session, SQLModel, create_engine
+
 
 class NVRGroup(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
-    description: Optional[str] = None
-    map_center_lat: Optional[float] = None
-    map_center_lng: Optional[float] = None
-    map_zoom: Optional[int] = None
+    description: str | None = None
+    map_center_lat: float | None = None
+    map_center_lng: float | None = None
+    map_zoom: int | None = None
+
 
 class MapPlan(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     group_id: int = Field(foreign_key="nvrgroup.id", index=True)
     name: str
     image_url: str
     sort_order: int = 0
 
+
 class NVR(SQLModel, table=True):
     ip: str = Field(primary_key=True)
-    name: Optional[str] = None
+    name: str | None = None
     user: str
-    password: Optional[str] = None
+    password: str | None = None
     enabled: bool = True
     status: str = "Unknown"
-    last_online: Optional[datetime] = None
+    last_online: datetime | None = None
     mail_alert_count: int = 0
-    mail_last_alert: Optional[datetime] = None
+    mail_last_alert: datetime | None = None
     telegram_alert_count: int = 0
-    telegram_last_alert: Optional[datetime] = None
-    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
+    telegram_last_alert: datetime | None = None
+    group_id: int | None = Field(default=None, foreign_key="nvrgroup.id")
     rtsp_port: int = Field(default=554)
 
     # اطلاعات پیشرفته NVR
-    model: Optional[str] = None
-    firmware_version: Optional[str] = None
-    serial_number: Optional[str] = None
-    mac_address: Optional[str] = None
-    uptime: Optional[int] = None
-    cpu_usage: Optional[int] = None
-    memory_usage: Optional[int] = None
-    hdd_status: Optional[str] = None  # JSON string to store HDD info
-    device_time: Optional[datetime] = None
+    model: str | None = None
+    firmware_version: str | None = None
+    serial_number: str | None = None
+    mac_address: str | None = None
+    uptime: int | None = None
+    cpu_usage: int | None = None
+    memory_usage: int | None = None
+    hdd_status: str | None = None  # JSON string to store HDD info
+    device_time: datetime | None = None
+
 
 class Camera(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str
     ip: str
     nvr_ip: str = Field(index=True)
     channel_id: str
     importance: int = Field(default=2)
-    last_online: Optional[datetime] = None
+    last_online: datetime | None = None
     status: str = "Unknown"
-    
+
     mail_alert_count: int = 0
-    mail_last_alert: Optional[datetime] = None
+    mail_last_alert: datetime | None = None
     telegram_alert_count: int = 0
-    telegram_last_alert: Optional[datetime] = None
+    telegram_last_alert: datetime | None = None
 
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    x_pos: Optional[float] = None
-    y_pos: Optional[float] = None
-    fov_angle: Optional[float] = None
-    fov_radius: Optional[float] = None
-    fov_spread: Optional[float] = None
-    plan_id: Optional[int] = Field(default=None, foreign_key="mapplan.id")
+    latitude: float | None = None
+    longitude: float | None = None
+    x_pos: float | None = None
+    y_pos: float | None = None
+    fov_angle: float | None = None
+    fov_radius: float | None = None
+    fov_spread: float | None = None
+    plan_id: int | None = Field(default=None, foreign_key="mapplan.id")
 
-    model: Optional[str] = None
-    recording_scheduled: Optional[bool] = None
-    recording_schedule_type: Optional[str] = None
-    oldest_record: Optional[datetime] = None
-    total_record_size_gb: Optional[float] = None
-    total_record_duration_hours: Optional[float] = None
-    recording_hours_24h: Optional[float] = None
-    stats_last_updated: Optional[datetime] = None
+    model: str | None = None
+    recording_scheduled: bool | None = None
+    recording_schedule_type: str | None = None
+    oldest_record: datetime | None = None
+    total_record_size_gb: float | None = None
+    total_record_duration_hours: float | None = None
+    recording_hours_24h: float | None = None
+    stats_last_updated: datetime | None = None
+
 
 class CameraChangeEvent(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     nvr_ip: str = Field(index=True)
-    camera_name: Optional[str] = None
-    camera_channel_id: Optional[str] = None
+    camera_name: str | None = None
+    camera_channel_id: str | None = None
     change_type: str  # "camera_added" | "camera_removed" | "recording_changed"
-    old_value: Optional[str] = None
-    new_value: Optional[str] = None
+    old_value: str | None = None
+    new_value: str | None = None
     detected_at: datetime = Field(default_factory=datetime.now)
-    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
+    group_id: int | None = Field(default=None, foreign_key="nvrgroup.id")
+
 
 class DowntimeEvent(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     camera_id: int = Field(foreign_key="camera.id")
     start_time: datetime = Field(default_factory=datetime.now)
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
+
 
 class OutageExplanation(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     camera_id: int = Field(foreign_key="camera.id")
-    downtime_event_id: Optional[int] = Field(default=None, foreign_key="downtimeevent.id")
-    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
+    downtime_event_id: int | None = Field(default=None, foreign_key="downtimeevent.id")
+    group_id: int | None = Field(default=None, foreign_key="nvrgroup.id")
     start_time: datetime
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
     created_at: datetime = Field(default_factory=datetime.now)
     assigned_deadline: datetime
-    explanation_type: Optional[str] = None
-    explanation_detail: Optional[str] = None
-    explained_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    explained_at: Optional[datetime] = None
+    explanation_type: str | None = None
+    explanation_detail: str | None = None
+    explained_by_user_id: int | None = Field(default=None, foreign_key="user.id")
+    explained_at: datetime | None = None
+
 
 class OutageCause(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
     is_active: bool = Field(default=True)
 
+
 class Log(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     timestamp: datetime = Field(default_factory=datetime.now, index=True)
     category: str = Field(default="System", index=True)
     level: str = Field(default="INFO", index=True)
-    action: Optional[str] = Field(default=None, index=True)
-    actor_username: Optional[str] = Field(default="system", index=True)
-    actor_ip: Optional[str] = None
-    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id", index=True)
-    target_type: Optional[str] = None
-    target_id: Optional[str] = None
+    action: str | None = Field(default=None, index=True)
+    actor_username: str | None = Field(default="system", index=True)
+    actor_ip: str | None = None
+    group_id: int | None = Field(default=None, foreign_key="nvrgroup.id", index=True)
+    target_type: str | None = None
+    target_id: str | None = None
     details: str
-    log_type: Optional[str] = Field(default=None)
-    state: Optional[str] = Field(default=None)
+    log_type: str | None = Field(default=None)
+    state: str | None = Field(default=None)
 
 
 class Settings(SQLModel, table=True):
     key: str = Field(primary_key=True)
     value: str
-    description: Optional[str] = None
+    description: str | None = None
+
 
 class User(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)
-    password_hash: str           # sha256 hex (simple, no extra deps)
-    role: str = "group_view"     # "admin" | "it_manager" | "inspector" | "group_view"
-    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
-    accessible_group_ids: Optional[str] = Field(default=None)
+    password_hash: str  # sha256 hex (simple, no extra deps)
+    role: str = "group_view"  # "admin" | "it_manager" | "inspector" | "group_view"
+    group_id: int | None = Field(default=None, foreign_key="nvrgroup.id")
+    accessible_group_ids: str | None = Field(default=None)
     is_active: bool = True
-    two_factor_secret: Optional[str] = None
+    two_factor_secret: str | None = None
     two_factor_enabled: bool = False
 
+
 class UserAlertSettings(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", unique=True)
     mail_enabled: bool = False
-    mail_recipients: Optional[str] = None   # comma-separated
+    mail_recipients: str | None = None  # comma-separated
     telegram_enabled: bool = False
-    telegram_chat_ids: Optional[str] = None  # comma-separated
+    telegram_chat_ids: str | None = None  # comma-separated
+
 
 class UserSession(SQLModel, table=True):
     token: str = Field(primary_key=True)
     username: str
     role: str
-    group_id: Optional[int] = Field(default=None, foreign_key="nvrgroup.id")
-    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    group_id: int | None = Field(default=None, foreign_key="nvrgroup.id")
+    user_id: int | None = Field(default=None, foreign_key="user.id")
     created_at: datetime = Field(default_factory=datetime.now)
     expires_at: datetime
     last_activity: datetime = Field(default_factory=datetime.now)
+
 
 class ScheduledTask(SQLModel, table=True):
     id: str = Field(primary_key=True)
@@ -172,16 +187,18 @@ class ScheduledTask(SQLModel, table=True):
     interval: int
     is_enabled: bool = True
     status: str = "Idle"
-    last_run: Optional[datetime] = None
-    last_duration: Optional[float] = None
-    last_status: Optional[str] = None
-    last_error: Optional[str] = None
-    next_run: Optional[datetime] = None
+    last_run: datetime | None = None
+    last_duration: float | None = None
+    last_status: str | None = None
+    last_error: str | None = None
+    next_run: datetime | None = None
+
 
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
-    hash_bytes = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100_000)
+    hash_bytes = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100_000)
     return f"{salt.hex()}:{hash_bytes.hex()}"
+
 
 def verify_password(password: str, hashed: str) -> bool:
     try:
@@ -189,21 +206,23 @@ def verify_password(password: str, hashed: str) -> bool:
             # Legacy SHA-256 fallback for compatibility
             legacy_hash = hashlib.sha256(password.encode()).hexdigest()
             return secrets.compare_digest(legacy_hash, hashed)
-            
+
         salt_hex, hash_hex = hashed.split(":")
         salt = bytes.fromhex(salt_hex)
         expected_hash = bytes.fromhex(hash_hex)
-        actual_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100_000)
+        actual_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100_000)
         return secrets.compare_digest(actual_hash, expected_hash)
     except Exception:
         return False
 
+
 def get_encryption_key() -> bytes:
     import os
+
     key_str = os.environ.get("ENCRYPTION_KEY")
     if key_str:
         return key_str.encode()
-        
+
     key_file = "data/encryption.key"
     if os.path.exists(key_file):
         try:
@@ -213,23 +232,28 @@ def get_encryption_key() -> bytes:
                     return content.encode()
         except Exception:
             pass
-            
+
     try:
         from cryptography.fernet import Fernet
+
         new_key = Fernet.generate_key().decode()
         os.makedirs("data", exist_ok=True)
         with open(key_file, "w") as f:
             f.write(new_key)
-        logger.info("Generated a new secure persistent ENCRYPTION_KEY in data/encryption.key")
+        logger.info(
+            "Generated a new secure persistent ENCRYPTION_KEY in data/encryption.key"
+        )
         return new_key.encode()
     except Exception as e:
         logger.error(f"Failed to generate persistent ENCRYPTION_KEY: {e}")
         raise RuntimeError("Failed to generate encryption key") from e
 
+
 def encrypt_password(password: str) -> str:
     if not password:
         return password
     from cryptography.fernet import Fernet
+
     try:
         f = Fernet(get_encryption_key())
         return f.encrypt(password.encode()).decode()
@@ -237,10 +261,12 @@ def encrypt_password(password: str) -> str:
         logger.error(f"Encryption error: {e}")
         return password
 
+
 def decrypt_password(encrypted_password: str) -> str:
     if not encrypted_password:
         return encrypted_password
     from cryptography.fernet import Fernet, InvalidToken
+
     try:
         f = Fernet(get_encryption_key())
         return f.decrypt(encrypted_password.encode()).decode()
@@ -251,19 +277,19 @@ def decrypt_password(encrypted_password: str) -> str:
 sqlite_file_name = "data/monitor.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
-engine = create_engine(
-    sqlite_url, 
-    connect_args={"check_same_thread": False}
-)
+engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
 
 # Add this to execute PRAGMA journal_mode=WAL on connection
 from sqlalchemy import event
+
+
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.close()
+
 
 # Index creation on connection for performance
 @event.listens_for(engine, "connect")
@@ -278,7 +304,9 @@ def create_performance_indexes(dbapi_connection, connection_record):
     ]
     for idx_name, table, column in indexes:
         try:
-            cursor.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})")
+            cursor.execute(
+                f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})"
+            )
         except Exception:
             # Table might not exist yet during initial SQLModel metadata creation
             pass
@@ -288,9 +316,10 @@ def create_performance_indexes(dbapi_connection, connection_record):
 def init_db():
     import os
     import sqlite3
+
     os.makedirs("data", exist_ok=True)
     SQLModel.metadata.create_all(engine)
-    
+
     try:
         conn = sqlite3.connect(sqlite_file_name)
         run_migrations(conn)
@@ -339,6 +368,7 @@ def _column_exists(conn: sqlite3.Connection, table_name: str, col_name: str) -> 
 # Migration 001 – Camera geo & FOV fields
 # ---------------------------------------------------------------------------
 
+
 def migration_001_add_camera_geo_fields(conn: sqlite3.Connection):
     """Add latitude, longitude, x_pos, y_pos, fov_angle, fov_radius, fov_spread to camera."""
     cols = _get_columns(conn, "camera")
@@ -365,6 +395,7 @@ def rollback_001_add_camera_geo_fields(conn: sqlite3.Connection):
 # ---------------------------------------------------------------------------
 # Migration 002 – Camera model & recording fields
 # ---------------------------------------------------------------------------
+
 
 def migration_002_add_camera_recording_fields(conn: sqlite3.Connection):
     """Add model, recording_scheduled, recording_schedule_type, oldest_record, etc. to camera."""
@@ -393,6 +424,7 @@ def rollback_002_add_camera_recording_fields(conn: sqlite3.Connection):
 # Migration 003 – NVR name field
 # ---------------------------------------------------------------------------
 
+
 def migration_003_add_nvr_name(conn: sqlite3.Connection):
     """Add 'name' column to nvr."""
     if not _column_exists(conn, "nvr", "name"):
@@ -407,6 +439,7 @@ def rollback_003_add_nvr_name(conn: sqlite3.Connection):
 # ---------------------------------------------------------------------------
 # Migration 004 – NVR status & alert fields
 # ---------------------------------------------------------------------------
+
 
 def migration_004_add_nvr_status_fields(conn: sqlite3.Connection):
     """Add status, last_online, mail/telegram alert columns, group_id to nvr."""
@@ -434,6 +467,7 @@ def rollback_004_add_nvr_status_fields(conn: sqlite3.Connection):
 # Migration 005 – User is_active & group_id
 # ---------------------------------------------------------------------------
 
+
 def migration_005_add_user_group_and_active(conn: sqlite3.Connection):
     """Add is_active and group_id to user."""
     cols = _get_columns(conn, "user")
@@ -454,6 +488,7 @@ def rollback_005_add_user_group_and_active(conn: sqlite3.Connection):
 # ---------------------------------------------------------------------------
 # Migration 006 – NVRGroup map fields
 # ---------------------------------------------------------------------------
+
 
 def migration_006_add_nvrgroup_map_fields(conn: sqlite3.Connection):
     """Add map_center_lat, map_center_lng, map_zoom to nvrgroup."""
@@ -477,6 +512,7 @@ def rollback_006_add_nvrgroup_map_fields(conn: sqlite3.Connection):
 # Migration 007 – NVR rtsp_port
 # ---------------------------------------------------------------------------
 
+
 def migration_007_add_nvr_rtsp_port(conn: sqlite3.Connection):
     """Add rtsp_port to nvr."""
     if not _column_exists(conn, "nvr", "rtsp_port"):
@@ -491,6 +527,7 @@ def rollback_007_add_nvr_rtsp_port(conn: sqlite3.Connection):
 # ---------------------------------------------------------------------------
 # Migration 008 – MapPlan table
 # ---------------------------------------------------------------------------
+
 
 def migration_008_create_mapplan(conn: sqlite3.Connection):
     """Create the mapplan table."""
@@ -518,6 +555,7 @@ def rollback_008_create_mapplan(conn: sqlite3.Connection):
 # Migration 009 – Camera plan_id
 # ---------------------------------------------------------------------------
 
+
 def migration_009_add_camera_plan_id(conn: sqlite3.Connection):
     """Add plan_id to camera."""
     if not _column_exists(conn, "camera", "plan_id"):
@@ -533,6 +571,7 @@ def rollback_009_add_camera_plan_id(conn: sqlite3.Connection):
 # Migration 010 – ScheduledTask last_error
 # ---------------------------------------------------------------------------
 
+
 def migration_010_add_scheduledtask_last_error(conn: sqlite3.Connection):
     """Add last_error to scheduledtask."""
     if not _column_exists(conn, "scheduledtask", "last_error"):
@@ -547,6 +586,7 @@ def rollback_010_add_scheduledtask_last_error(conn: sqlite3.Connection):
 # ---------------------------------------------------------------------------
 # Migration 011 – Performance indexes
 # ---------------------------------------------------------------------------
+
 
 def migration_011_add_performance_indexes(conn: sqlite3.Connection):
     """Add performance indexes for common query patterns."""
@@ -580,6 +620,7 @@ def rollback_011_add_performance_indexes(conn: sqlite3.Connection):
 # Migration 012 – User 2FA fields
 # ---------------------------------------------------------------------------
 
+
 def migration_012_add_user_2fa_fields(conn: sqlite3.Connection):
     """Add two_factor_secret and two_factor_enabled to user."""
     cols = _get_columns(conn, "user")
@@ -600,6 +641,7 @@ def rollback_012_add_user_2fa_fields(conn: sqlite3.Connection):
 # ---------------------------------------------------------------------------
 # Migration 013 – OutageExplanation table & User accessible_group_ids
 # ---------------------------------------------------------------------------
+
 
 def migration_013_add_outage_explanation(conn: sqlite3.Connection):
     """Create outageexplanation table and add accessible_group_ids to user."""
@@ -626,7 +668,7 @@ def migration_013_add_outage_explanation(conn: sqlite3.Connection):
             )
         """)
         logger.info("[migration 013] Created outageexplanation table")
-        
+
     # 2. Add accessible_group_ids to user
     if not _column_exists(conn, "user", "accessible_group_ids"):
         conn.execute("ALTER TABLE user ADD COLUMN accessible_group_ids TEXT")
@@ -643,6 +685,7 @@ def rollback_013_add_outage_explanation(conn: sqlite3.Connection):
 # ---------------------------------------------------------------------------
 # Migration 014 – OutageCause table
 # ---------------------------------------------------------------------------
+
 
 def migration_014_add_outage_cause(conn: sqlite3.Connection):
     """Recreate outageexplanation to make downtime_event_id nullable, and create outagecause table."""
@@ -667,7 +710,9 @@ def migration_014_add_outage_cause(conn: sqlite3.Connection):
             FOREIGN KEY(explained_by_user_id) REFERENCES user(id)
         )
     """)
-    logger.info("[migration 014] Recreated outageexplanation table to support nullable downtime_event_id")
+    logger.info(
+        "[migration 014] Recreated outageexplanation table to support nullable downtime_event_id"
+    )
 
     if not _table_exists(conn, "outagecause"):
         conn.execute("""
@@ -678,11 +723,13 @@ def migration_014_add_outage_cause(conn: sqlite3.Connection):
             )
         """)
         logger.info("[migration 014] Created outagecause table")
-        
+
     # Seed default values
     defaults = ["قطعی برق", "تعمیرات", "حوادث عمرانی", "مشکلات دیگر"]
     for d in defaults:
-        conn.execute("INSERT OR IGNORE INTO outagecause (name, is_active) VALUES (?, 1)", (d,))
+        conn.execute(
+            "INSERT OR IGNORE INTO outagecause (name, is_active) VALUES (?, 1)", (d,)
+        )
     conn.commit()
 
 
@@ -695,6 +742,7 @@ def rollback_014_add_outage_cause(conn: sqlite3.Connection):
 # ---------------------------------------------------------------------------
 # Migration 015 – Log table upgrade for audit system
 # ---------------------------------------------------------------------------
+
 
 def migration_015_upgrade_log_table(conn: sqlite3.Connection):
     """Upgrade log table with structured audit fields."""
@@ -721,7 +769,9 @@ def migration_015_upgrade_log_table(conn: sqlite3.Connection):
     conn.execute("CREATE INDEX IF NOT EXISTS ix_log_level ON log (level)")
     conn.execute("CREATE INDEX IF NOT EXISTS ix_log_action ON log (action)")
     conn.execute("CREATE INDEX IF NOT EXISTS ix_log_group_id ON log (group_id)")
-    conn.execute("CREATE INDEX IF NOT EXISTS ix_log_actor_username ON log (actor_username)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS ix_log_actor_username ON log (actor_username)"
+    )
     conn.commit()
 
 
@@ -808,12 +858,16 @@ def rollback_migration(conn: sqlite3.Connection, target_version: int):
     current = get_current_version(conn)
 
     if target_version >= current:
-        logger.info(f"[rollback] Already at or below version {target_version}, nothing to do")
+        logger.info(
+            f"[rollback] Already at or below version {target_version}, nothing to do"
+        )
         return
 
     for ver in range(current, target_version, -1):
         if ver not in ROLLBACKS:
-            logger.warning(f"[rollback] No rollback function for version {ver}, skipping")
+            logger.warning(
+                f"[rollback] No rollback function for version {ver}, skipping"
+            )
             continue
         name = MIGRATIONS[ver][0]
         logger.info(f"[rollback] Rolling back v{ver:03d}: {name}")
@@ -823,6 +877,7 @@ def rollback_migration(conn: sqlite3.Connection, target_version: int):
         logger.info(f"[rollback] v{ver:03d} rolled back successfully")
 
     logger.info(f"[rollback] Database rolled back to version {target_version}")
+
 
 def get_session():
     with Session(engine) as session:

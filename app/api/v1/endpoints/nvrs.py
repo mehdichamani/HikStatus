@@ -1,12 +1,20 @@
-# -*- coding: utf-8 -*-
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlmodel import Session, select
 import re
 
-from app.database import NVR, Camera, DowntimeEvent, get_session, encrypt_password, CameraChangeEvent
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from sqlmodel import Session, select
+
+from app.database import (
+    NVR,
+    Camera,
+    CameraChangeEvent,
+    DowntimeEvent,
+    encrypt_password,
+    get_session,
+)
 from app.logging_config import log_event
 
 router = APIRouter()
+
 
 def is_valid_ip_or_host(value: str) -> bool:
     """
@@ -16,16 +24,16 @@ def is_valid_ip_or_host(value: str) -> bool:
         return False
     # پذیرش آدرس‌های IPv4 معتبر، نام‌های دامنه و هاست‌نیم‌ها، احتمالاً همراه با پورت
     # استفاده از نویسه‌های مجاز استاندارد و ممانعت از کاراکترهای مخرب
-    pattern = r'^[a-zA-Z0-9_\-\.]+(:[0-9]+)?$'
+    pattern = r"^[a-zA-Z0-9_\-\.]+(:[0-9]+)?$"
     return bool(re.match(pattern, value))
+
 
 @router.get("", response_model=list[NVR], response_model_exclude={"password"})
 def get_nvrs(
-    request: Request,
-    response: Response,
-    session: Session = Depends(get_session)
+    request: Request, response: Response, session: Session = Depends(get_session)
 ):
     import main
+
     auth_fn = main.app.dependency_overrides.get(main.require_auth, main.require_auth)
     try:
         user = auth_fn(request, response, session)
@@ -39,14 +47,16 @@ def get_nvrs(
         return []
     return session.exec(select(NVR).where(NVR.group_id.in_(accessible_groups))).all()
 
+
 @router.post("")
 def create_nvr(
     nvr: NVR,
     request: Request,
     response: Response,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     import main
+
     auth_fn = main.app.dependency_overrides.get(main.require_auth, main.require_auth)
     admin_fn = main.app.dependency_overrides.get(main.require_admin, main.require_admin)
     try:
@@ -60,10 +70,14 @@ def create_nvr(
         user = admin_fn()
 
     if not is_valid_ip_or_host(nvr.ip):
-        raise HTTPException(status_code=400, detail="قالب آدرس IP یا میزبان نامعتبر است")
+        raise HTTPException(
+            status_code=400, detail="قالب آدرس IP یا میزبان نامعتبر است"
+        )
 
     if nvr.rtsp_port < 1 or nvr.rtsp_port > 65535:
-        raise HTTPException(status_code=400, detail="پورت RTSP باید عددی بین ۱ تا ۶۵۵۳۵ باشد")
+        raise HTTPException(
+            status_code=400, detail="پورت RTSP باید عددی بین ۱ تا ۶۵۵۳۵ باشد"
+        )
 
     existing = session.get(NVR, nvr.ip)
     if existing:
@@ -79,21 +93,23 @@ def create_nvr(
         action="NVR_CREATE",
         details=f"دستگاه NVR جدید ({nvr.name or nvr.ip}) ایجاد شد",
         level="INFO",
-        actor_username=user.get("username","admin") if user else "admin",
+        actor_username=user.get("username", "admin") if user else "admin",
         group_id=nvr.group_id,
         target_type="NVR",
-        target_id=nvr.ip
+        target_id=nvr.ip,
     )
     return nvr
+
 
 @router.delete("/{ip}")
 def delete_nvr(
     ip: str,
     request: Request,
     response: Response,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     import main
+
     auth_fn = main.app.dependency_overrides.get(main.require_auth, main.require_auth)
     admin_fn = main.app.dependency_overrides.get(main.require_admin, main.require_admin)
     try:
@@ -113,7 +129,9 @@ def delete_nvr(
     g_id = n.group_id
     cams = session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
     for cam in cams:
-        downtimes = session.exec(select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id)).all()
+        downtimes = session.exec(
+            select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id)
+        ).all()
         for dt in downtimes:
             session.delete(dt)
         session.delete(cam)
@@ -125,12 +143,13 @@ def delete_nvr(
         action="NVR_DELETE",
         details=f"دستگاه NVR ({n_name}) حذف شد",
         level="WARNING",
-        actor_username=user.get("username","admin") if user else "admin",
+        actor_username=user.get("username", "admin") if user else "admin",
         group_id=g_id,
         target_type="NVR",
-        target_id=ip
+        target_id=ip,
     )
     return {"ok": True}
+
 
 @router.put("/{ip}")
 def update_nvr(
@@ -138,9 +157,10 @@ def update_nvr(
     p: dict,
     request: Request,
     response: Response,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     import main
+
     auth_fn = main.app.dependency_overrides.get(main.require_auth, main.require_auth)
     admin_fn = main.app.dependency_overrides.get(main.require_admin, main.require_admin)
     try:
@@ -165,7 +185,9 @@ def update_nvr(
     new_ip = p.get("ip")
     if new_ip and new_ip != ip:
         if not is_valid_ip_or_host(new_ip):
-            raise HTTPException(status_code=400, detail="قالب آدرس IP یا میزبان نامعتبر است")
+            raise HTTPException(
+                status_code=400, detail="قالب آدرس IP یا میزبان نامعتبر است"
+            )
 
         # بررسی عدم وجود تداخل آدرس IP جدید با دستگاه‌های دیگر
         existing = session.get(NVR, new_ip)
@@ -177,12 +199,15 @@ def update_nvr(
             ip=new_ip,
             name=p.get("name", n.name),
             user=p.get("user", n.user),
-            password=encrypt_password(p["password"]) if (p.get("password") and p["password"] != n.password) else n.password,
+            password=encrypt_password(p["password"])
+            if (p.get("password") and p["password"] != n.password)
+            else n.password,
             enabled=p.get("enabled", n.enabled),
             status="Unknown",
-            group_id=p.get("group_id", n.group_id) if user["role"] == "admin" else n.group_id,
+            group_id=p.get("group_id", n.group_id)
+            if user["role"] == "admin"
+            else n.group_id,
             rtsp_port=int(p.get("rtsp_port", n.rtsp_port)),
-
             # کپی بقیه مشخصات سخت‌افزاری و اطلاعات پیشرفته
             model=n.model,
             firmware_version=n.firmware_version,
@@ -197,7 +222,7 @@ def update_nvr(
             mail_alert_count=n.mail_alert_count,
             mail_last_alert=n.mail_last_alert,
             telegram_alert_count=n.telegram_alert_count,
-            telegram_last_alert=n.telegram_last_alert
+            telegram_last_alert=n.telegram_last_alert,
         )
 
         session.add(new_nvr)
@@ -209,7 +234,9 @@ def update_nvr(
             session.add(c)
 
         # بروزرسانی ارجاعات در جدول وقایع تغییر دوربین (CameraChangeEvent)
-        events = session.exec(select(CameraChangeEvent).where(CameraChangeEvent.nvr_ip == ip)).all()
+        events = session.exec(
+            select(CameraChangeEvent).where(CameraChangeEvent.nvr_ip == ip)
+        ).all()
         for ev in events:
             ev.nvr_ip = new_ip
             session.add(ev)
@@ -224,10 +251,10 @@ def update_nvr(
             action="NVR_UPDATE",
             details=f"تنظیمات NVR ({new_nvr.name or new_ip}) و آدرس IP آن از {ip} به {new_ip} بروزرسانی گردید",
             level="INFO",
-            actor_username=user.get("username","admin") if user else "admin",
+            actor_username=user.get("username", "admin") if user else "admin",
             group_id=new_nvr.group_id,
             target_type="NVR",
-            target_id=new_ip
+            target_id=new_ip,
         )
         return new_nvr
 
@@ -250,7 +277,9 @@ def update_nvr(
             n.rtsp_port = port_val
             n.status = "Unknown"
         except (ValueError, TypeError):
-            raise HTTPException(status_code=400, detail="پورت RTSP باید عددی بین ۱ تا ۶۵۵۳۵ باشد")
+            raise HTTPException(
+                status_code=400, detail="پورت RTSP باید عددی بین ۱ تا ۶۵۵۳۵ باشد"
+            )
     if "enabled" in p:
         n.enabled = bool(p["enabled"])
         n.status = "Unknown"
@@ -263,9 +292,9 @@ def update_nvr(
         action="NVR_UPDATE",
         details=f"تنظیمات NVR ({n.name or ip}) بروزرسانی گردید",
         level="INFO",
-        actor_username=user.get("username","admin") if user else "admin",
+        actor_username=user.get("username", "admin") if user else "admin",
         group_id=n.group_id,
         target_type="NVR",
-        target_id=ip
+        target_id=ip,
     )
     return n

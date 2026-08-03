@@ -1,11 +1,13 @@
 import smtplib
-import requests
 import threading
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from app.database import Session, engine, Settings, User, UserAlertSettings
-from sqlmodel import select
+from email.mime.text import MIMEText
+
+import requests
 from loguru import logger
+from sqlmodel import select
+
+from app.database import Session, Settings, User, UserAlertSettings, engine
 
 # Central notification policy.  The Settings rows are seeded by main.py and
 # deliberately default to enabled, so upgrading does not silence any existing
@@ -23,9 +25,11 @@ NOTIFICATION_EVENTS = (
 )
 NOTIFICATION_CHANNELS = ("email", "telegram", "browser")
 
+
 def notification_setting_key(event_type, channel=None):
     prefix = f"NOTIFY_{event_type.upper()}"
     return f"{prefix}_{channel.upper()}" if channel else f"{prefix}_ENABLED"
+
 
 def notification_default_settings():
     event_labels = dict(NOTIFICATION_EVENTS)
@@ -33,16 +37,22 @@ def notification_default_settings():
         notification_setting_key(event_type): ("true", f"فعال‌سازی اعلان {label}")
         for event_type, label in NOTIFICATION_EVENTS
     } | {
-        notification_setting_key(event_type, channel): ("true", f"ارسال {event_labels[event_type]} از کانال {channel}")
+        notification_setting_key(event_type, channel): (
+            "true",
+            f"ارسال {event_labels[event_type]} از کانال {channel}",
+        )
         for event_type, _label in NOTIFICATION_EVENTS
         for channel in NOTIFICATION_CHANNELS
     }
+
 
 def format_shamsi_datetime(dt):
     if not dt:
         return "نامشخص"
     import datetime
+
     import jdatetime
+
     if isinstance(dt, datetime.datetime):
         jd = jdatetime.datetime.fromgregorian(datetime=dt)
     elif isinstance(dt, jdatetime.datetime):
@@ -52,7 +62,7 @@ def format_shamsi_datetime(dt):
             jd = jdatetime.datetime.fromgregorian(datetime=dt)
         except Exception:
             return str(dt)
-            
+
     weekdays = {
         0: "شنبه",
         1: "یک‌شنبه",
@@ -60,9 +70,9 @@ def format_shamsi_datetime(dt):
         3: "سه‌شنبه",
         4: "چهارشنبه",
         5: "پنج‌شنبه",
-        6: "جمعه"
+        6: "جمعه",
     }
-    
+
     months = {
         1: "فروردین",
         2: "اردیبهشت",
@@ -75,31 +85,36 @@ def format_shamsi_datetime(dt):
         9: "آذر",
         10: "دی",
         11: "بهمن",
-        12: "اسفند"
+        12: "اسفند",
     }
-    
+
     weekday_str = weekdays.get(jd.weekday(), "")
     day_str = str(jd.day)
     month_str = months.get(jd.month, "")
-    time_str = jd.strftime('%H:%M')
-    
+    time_str = jd.strftime("%H:%M")
+
     res = f"{weekday_str} {day_str} {month_str} {time_str}"
-    
+
     eng = "0123456789"
     per = "۰۱۲۳۴۵۶۷۸۹"
     translation_table = str.maketrans(eng, per)
     return res.translate(translation_table)
 
+
 def get_persian_datetime():
     import datetime
+
     return format_shamsi_datetime(datetime.datetime.now())
+
 
 _config_cache = None
 _config_cache_time = 0
 _CACHE_TTL = 30
 
+
 def get_config_dict():
     import time
+
     global _config_cache, _config_cache_time
     now = time.time()
     if _config_cache and (now - _config_cache_time) < _CACHE_TTL:
@@ -110,10 +125,12 @@ def get_config_dict():
         _config_cache_time = now
         return _config_cache
 
+
 def invalidate_config_cache():
     global _config_cache, _config_cache_time
     _config_cache = None
     _config_cache_time = 0
+
 
 def is_notification_enabled(event_type, channel):
     """Return whether an event may be delivered through a channel.
@@ -124,33 +141,31 @@ def is_notification_enabled(event_type, channel):
         return True
     conf = get_config_dict()
     master = conf.get(notification_setting_key(event_type), "true") == "true"
-    channel_enabled = conf.get(notification_setting_key(event_type, channel), "true") == "true"
+    channel_enabled = (
+        conf.get(notification_setting_key(event_type, channel), "true") == "true"
+    )
     return master and channel_enabled
+
 
 def get_email_body(subject, lines, alert_type):
     colors = {
         "error": "#dc3545",
-        "warning": "#ffc107", 
+        "warning": "#ffc107",
         "success": "#28a745",
-        "info": "#17a2b8"
+        "info": "#17a2b8",
     }
-    icons = {
-        "error": "🚨",
-        "warning": "⚠️",
-        "success": "✅",
-        "info": "ℹ️"
-    }
-    
+    icons = {"error": "🚨", "warning": "⚠️", "success": "✅", "info": "ℹ️"}
+
     color = colors.get(alert_type, "#ffc107")
     icon = icons.get(alert_type, "⚠️")
-    
+
     items_html = ""
     for line in lines:
         items_html += f"""
         <tr>
             <td style="padding:12px 15px;border-bottom:1px solid #eee;font-size:14px;color:#333;">{line}</td>
         </tr>"""
-    
+
     body = f"""
     <!DOCTYPE html>
     <html dir="rtl" lang="fa">
@@ -178,32 +193,43 @@ def get_email_body(subject, lines, alert_type):
     </html>"""
     return body
 
-def send_email_batch(subject, lines, alert_type="warning", group_id=None, event_type=None):
+
+def send_email_batch(
+    subject, lines, alert_type="warning", group_id=None, event_type=None
+):
     if not is_notification_enabled(event_type, "email"):
         return True
     conf = get_config_dict()
     sent_status = True
-    
+
     # 1. Send to admin
     if conf.get("MAIL_ENABLED") == "true" and lines:
         body = get_email_body(subject, lines, alert_type)
-        recipients = [r.strip() for r in conf.get("MAIL_RECIPIENTS", "").split(",") if r.strip()]
+        recipients = [
+            r.strip() for r in conf.get("MAIL_RECIPIENTS", "").split(",") if r.strip()
+        ]
         if recipients:
             res = send_email_raw(conf, subject, body, recipients)
             if res is not True:
                 sent_status = res
-            
+
     # 2. Send to IT manager users
     if group_id is not None and lines:
         with Session(engine) as session:
-            all_it_users = session.exec(select(User).where(User.role == "it_manager", User.is_active == True)).all()
+            all_it_users = session.exec(
+                select(User).where(User.role == "it_manager", User.is_active == True)
+            ).all()
             users = []
             for u in all_it_users:
                 if u.group_id == group_id:
                     users.append(u)
                 elif u.accessible_group_ids:
                     try:
-                        ids = [int(x.strip()) for x in u.accessible_group_ids.split(",") if x.strip().isdigit()]
+                        ids = [
+                            int(x.strip())
+                            for x in u.accessible_group_ids.split(",")
+                            if x.strip().isdigit()
+                        ]
                         if group_id in ids:
                             users.append(u)
                     except Exception:
@@ -211,17 +237,28 @@ def send_email_batch(subject, lines, alert_type="warning", group_id=None, event_
                 elif u.group_id is None and not u.accessible_group_ids:
                     users.append(u)
             for u in users:
-                alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
-                if alert_settings and alert_settings.mail_enabled and alert_settings.mail_recipients:
+                alert_settings = session.exec(
+                    select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)
+                ).first()
+                if (
+                    alert_settings
+                    and alert_settings.mail_enabled
+                    and alert_settings.mail_recipients
+                ):
                     # Pick only the first item in case database still has commas
-                    recipients = [r.strip() for r in alert_settings.mail_recipients.split(",") if r.strip()][:1]
+                    recipients = [
+                        r.strip()
+                        for r in alert_settings.mail_recipients.split(",")
+                        if r.strip()
+                    ][:1]
                     if recipients:
                         body = get_email_body(subject, lines, alert_type)
                         res = send_email_raw(conf, subject, body, recipients)
                         if res is not True:
                             sent_status = res
-                        
+
     return sent_status
+
 
 def send_email_raw(conf, subject, body, recipients):
     try:
@@ -229,12 +266,12 @@ def send_email_raw(conf, subject, body, recipients):
         server = conf.get("MAIL_SERVER")
         port = int(conf.get("MAIL_PORT", 587))
         password = conf.get("MAIL_PASS")
-        
+
         msg = MIMEMultipart()
-        msg['From'] = sender
-        msg['To'] = ", ".join(recipients)
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'html'))
+        msg["From"] = sender
+        msg["To"] = ", ".join(recipients)
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "html"))
 
         with smtplib.SMTP(server, port) as s:
             s.starttls()
@@ -245,15 +282,11 @@ def send_email_raw(conf, subject, body, recipients):
         logger.error(f"Email error: {e}")
         return str(e)
 
+
 def get_telegram_message(header, lines, alert_type):
-    icons = {
-        "error": "🚨",
-        "warning": "⚠️", 
-        "success": "✅",
-        "info": "ℹ️"
-    }
+    icons = {"error": "🚨", "warning": "⚠️", "success": "✅", "info": "ℹ️"}
     icon = icons.get(alert_type, "⚠️")
-    
+
     msg = f"{icon} <b>{header}</b>\n"
     msg += "━" * 20 + "\n"
     for line in lines:
@@ -263,32 +296,43 @@ def get_telegram_message(header, lines, alert_type):
     msg += f"📅 {get_persian_datetime()}"
     return msg
 
-def send_telegram_batch(header, lines, alert_type="warning", group_id=None, event_type=None):
+
+def send_telegram_batch(
+    header, lines, alert_type="warning", group_id=None, event_type=None
+):
     if not is_notification_enabled(event_type, "telegram"):
         return True
     conf = get_config_dict()
     sent_status = True
-    
+
     # 1. Send to admin
     if conf.get("TELEGRAM_ENABLED") == "true" and lines:
         msg = get_telegram_message(header, lines, alert_type)
-        chat_ids = [c.strip() for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()]
+        chat_ids = [
+            c.strip() for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()
+        ]
         if chat_ids:
             res = send_telegram_raw(conf, msg, chat_ids)
             if res is not True:
                 sent_status = res
-            
+
     # 2. Send to IT manager users
     if group_id is not None and lines:
         with Session(engine) as session:
-            all_it_users = session.exec(select(User).where(User.role == "it_manager", User.is_active == True)).all()
+            all_it_users = session.exec(
+                select(User).where(User.role == "it_manager", User.is_active == True)
+            ).all()
             users = []
             for u in all_it_users:
                 if u.group_id == group_id:
                     users.append(u)
                 elif u.accessible_group_ids:
                     try:
-                        ids = [int(x.strip()) for x in u.accessible_group_ids.split(",") if x.strip().isdigit()]
+                        ids = [
+                            int(x.strip())
+                            for x in u.accessible_group_ids.split(",")
+                            if x.strip().isdigit()
+                        ]
                         if group_id in ids:
                             users.append(u)
                     except Exception:
@@ -296,47 +340,75 @@ def send_telegram_batch(header, lines, alert_type="warning", group_id=None, even
                 elif u.group_id is None and not u.accessible_group_ids:
                     users.append(u)
             for u in users:
-                alert_settings = session.exec(select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)).first()
-                if alert_settings and alert_settings.telegram_enabled and alert_settings.telegram_chat_ids:
+                alert_settings = session.exec(
+                    select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)
+                ).first()
+                if (
+                    alert_settings
+                    and alert_settings.telegram_enabled
+                    and alert_settings.telegram_chat_ids
+                ):
                     # Pick only the first item in case database still has commas
-                    chat_ids = [c.strip() for c in alert_settings.telegram_chat_ids.split(",") if c.strip()][:1]
+                    chat_ids = [
+                        c.strip()
+                        for c in alert_settings.telegram_chat_ids.split(",")
+                        if c.strip()
+                    ][:1]
                     if chat_ids:
                         msg = get_telegram_message(header, lines, alert_type)
                         res = send_telegram_raw(conf, msg, chat_ids)
                         if res is not True:
                             sent_status = res
-                        
+
     return sent_status
+
 
 def send_telegram_raw(conf, message, chat_ids):
     token = conf.get("TELEGRAM_BOT_TOKEN")
     proxy_url = conf.get("TELEGRAM_PROXY", "")
-    
-    if not token or not chat_ids: return "Missing Token/ID"
-    
+
+    if not token or not chat_ids:
+        return "Missing Token/ID"
+
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    proxies = {'https': proxy_url, 'http': proxy_url} if proxy_url else None
+    proxies = {"https": proxy_url, "http": proxy_url} if proxy_url else None
 
     errors = []
     for cid in chat_ids:
         try:
-            payload = {'chat_id': cid, 'text': message, 'parse_mode': 'HTML'}
+            payload = {"chat_id": cid, "text": message, "parse_mode": "HTML"}
             requests.post(url, data=payload, proxies=proxies, timeout=10)
         except Exception as e:
             logger.error(f"Telegram error: {e}")
             errors.append(str(e))
-            
+
     return errors[0] if errors else True
 
-def send_change_alert(title, lines, alert_type="warning", group_id=None, event_type=None):
+
+def send_change_alert(
+    title, lines, alert_type="warning", group_id=None, event_type=None
+):
     """Send both email and telegram alerts in a background thread (non-blocking)."""
+
     def _bg_send():
         try:
-            send_email_batch(title, lines, alert_type=alert_type, group_id=group_id, event_type=event_type)
+            send_email_batch(
+                title,
+                lines,
+                alert_type=alert_type,
+                group_id=group_id,
+                event_type=event_type,
+            )
         except Exception as e:
             logger.error(f"Change alert email error: {e}")
         try:
-            send_telegram_batch(title, lines, alert_type=alert_type, group_id=group_id, event_type=event_type)
+            send_telegram_batch(
+                title,
+                lines,
+                alert_type=alert_type,
+                group_id=group_id,
+                event_type=event_type,
+            )
         except Exception as e:
             logger.error(f"Change alert telegram error: {e}")
 

@@ -1,0 +1,29 @@
+[tool.ruff]
+target-version = "py310"
+exclude = [
+    ".git",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+ignore = [
+    "DTZ",      # Timezone-naive datetimes
+    "BLE",      # Blind exception catching
+    "ASYNC",    # Async blocking operations
+    "E501",     # Line too long
+    "E711",     # Comparison to None
+    "E712",     # Comparison to True
+    "E402",     # Module-level imports not at top
+    "E741",     # Ambiguous variable name
+    "F841",     # Local variable assigned but unused
+    "E722",     # Bare except
+    "F821",     # Undefined name (e.g. sqlite3 in type hints)
+    "F811",     # Redefinition of unused name
+    "W293",     # Blank line contains whitespace
+]

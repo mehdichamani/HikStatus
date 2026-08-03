@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import SQLModel, create_engine, Session, select
+from sqlmodel import Session, SQLModel, create_engine
 
 import main
-from main import get_session, require_auth, require_control, require_admin
-from app.database import NVR, Camera, NVRGroup, Settings, ScheduledTask, hash_password, User
+from app.database import NVR, Camera, NVRGroup, Settings
+from main import get_session, require_admin, require_auth, require_control
 
 # پایگاه‌داده تست موقت برای سناریوهای جدید
 test_sqlite_url = "sqlite:///data/test_scenarios_temp.db"
 test_engine = create_engine(test_sqlite_url, connect_args={"check_same_thread": False})
+
 
 @pytest.fixture(name="session")
 def session_fixture():
@@ -17,8 +17,7 @@ def session_fixture():
     SQLModel.metadata.create_all(test_engine)
 
     from app import database
-    from app.services import monitor
-    from app.services import scheduler
+    from app.services import monitor, scheduler
 
     old_db_engine = database.engine
     old_monitor_engine = monitor.engine
@@ -47,7 +46,7 @@ def session_fixture():
             nvr_ip="192.168.1.10",
             channel_id="1",
             importance=2,
-            status="Online"
+            status="Online",
         )
         session.add(c)
 
@@ -58,6 +57,7 @@ def session_fixture():
     monitor.engine = old_monitor_engine
     scheduler.engine = old_scheduler_engine
     SQLModel.metadata.drop_all(test_engine)
+
 
 @pytest.fixture(name="client")
 def client_fixture(session):
@@ -92,7 +92,7 @@ def test_create_nvr_validation(client):
         "password": "password123",
         "enabled": True,
         "group_id": 1,
-        "rtsp_port": 554
+        "rtsp_port": 554,
     }
     response = client.post("/api/nvrs", json=invalid_payload)
     assert response.status_code == 400
@@ -106,7 +106,7 @@ def test_create_nvr_validation(client):
         "password": "password123",
         "enabled": True,
         "group_id": 1,
-        "rtsp_port": 999999
+        "rtsp_port": 999999,
     }
     response = client.post("/api/nvrs", json=invalid_port_payload)
     assert response.status_code == 400
@@ -119,7 +119,7 @@ def test_create_nvr_validation(client):
         "password": "password123",
         "enabled": True,
         "group_id": 1,
-        "rtsp_port": 554
+        "rtsp_port": 554,
     }
     response = client.post("/api/nvrs", json=valid_payload)
     assert response.status_code == 200
@@ -140,7 +140,7 @@ def test_update_camera_position_on_map(client, session):
         "plan_id": 1,
         "fov_angle": 90,
         "fov_radius": 150,
-        "fov_spread": 45
+        "fov_spread": 45,
     }
     response = client.put("/api/cameras/123", json=map_payload)
     assert response.status_code == 200
@@ -151,10 +151,7 @@ def test_update_camera_position_on_map(client, session):
     assert data["fov_angle"] == 90
 
     # ب. ثبت موقعیت جغرافیایی نقشه برای دوربین (PUT)
-    geo_payload = {
-        "latitude": 35.6892,
-        "longitude": 51.3890
-    }
+    geo_payload = {"latitude": 35.6892, "longitude": 51.3890}
     response = client.put("/api/cameras/123", json=geo_payload)
     assert response.status_code == 200
     data = response.json()

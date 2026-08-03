@@ -72,7 +72,7 @@ from database import DowntimeEvent
 events = session.exec(
     select(DowntimeEvent).where(
         DowntimeEvent.start_time < end_dt,
-        (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time > start_dt)
+        (DowntimeEvent.end_time == None) | (DowntimeEvent.end_time > start_dt),
     )
 ).all()
 
@@ -102,8 +102,8 @@ for camera in cameras:
 ```python
 # گرد کردن دقیق زمان تحلیل به روز قبل (یا بازه‌های رند شبانه‌روزی)
 yesterday = (now - timedelta(days=1)).date()
-start_dt = datetime.combine(yesterday, datetime.min.time()) # 00:00:00
-end_dt = datetime.combine(yesterday, datetime.max.time())   # 23:59:59
+start_dt = datetime.combine(yesterday, datetime.min.time())  # 00:00:00
+end_dt = datetime.combine(yesterday, datetime.max.time())  # 23:59:59
 ```
 این امر تضمین می‌کند که مهم نیست تسک در چه ساعتی اجرا شود؛ قطعی‌های هر روز دقیقاً در یک بازه منحصربه‌فرد روزانه قرار می‌گیرند و شرط بررسی رکوردهای تکراری همیشه به درستی کار خواهد کرد.
 
@@ -111,14 +111,19 @@ end_dt = datetime.combine(yesterday, datetime.max.time())   # 23:59:59
 اصلاح APIهای مربوطه در فایل `main.py` به منظور دادن دسترسی همیشگی به نقش `admin` برای تمدید مهلت یا اصلاح اشتباهات کاربران:
 
 ```python
-is_admin = (user["role"] == "admin")
+is_admin = user["role"] == "admin"
 
 # ادمین همواره مجاز به ویرایش توضیحات یا تمدید است
 if outage.explained_at and not is_admin:
-    raise HTTPException(status_code=400, detail="ابهام این قطعی قبلاً رفع شده و برای کاربران غیر ادمین غیرقابل تغییر است")
+    raise HTTPException(
+        status_code=400,
+        detail="ابهام این قطعی قبلاً رفع شده و برای کاربران غیر ادمین غیرقابل تغییر است",
+    )
 
 if now > outage.assigned_deadline and not is_admin:
-    raise HTTPException(status_code=400, detail="مهلت رفع ابهام این قطعی به پایان رسیده است")
+    raise HTTPException(
+        status_code=400, detail="مهلت رفع ابهام این قطعی به پایان رسیده است"
+    )
 ```
 
 ---

@@ -1,11 +1,12 @@
-# -*- coding: utf-8 -*-
 import asyncio
+import os
+import subprocess
+
 import requests
 from requests.auth import HTTPDigestAuth
-import subprocess
-import signal
-import os
+
 from app.database import decrypt_password
+
 
 async def fetch_camera_snapshot(nvr, camera) -> tuple:
     """
@@ -23,7 +24,9 @@ async def fetch_camera_snapshot(nvr, camera) -> tuple:
         req_sess = requests.Session()
         req_sess.trust_env = False
         decrypted_pass = decrypt_password(nvr.password)
-        resp = req_sess.get(url, auth=HTTPDigestAuth(nvr.user, decrypted_pass), timeout=5, proxies={})
+        resp = req_sess.get(
+            url, auth=HTTPDigestAuth(nvr.user, decrypted_pass), timeout=5, proxies={}
+        )
         if resp.status_code == 200:
             return resp.content, resp.headers.get("Content-Type", "image/jpeg")
         return None, resp.status_code
@@ -39,25 +42,31 @@ async def gen_frames_ffmpeg(rtsp_url, scale_width=640, fps=5):
     vf_chain = f"scale={scale_width}:-1" if scale_width else "null"
     cmd = [
         "ffmpeg",
-        "-rtsp_transport", "tcp",
-        "-i", rtsp_url,
-        "-f", "mpjpeg",
-        "-q", "4",
+        "-rtsp_transport",
+        "tcp",
+        "-i",
+        rtsp_url,
+        "-f",
+        "mpjpeg",
+        "-q",
+        "4",
         "-an",
-        "-vf", vf_chain,
-        "-r", str(fps),
-        "pipe:1"
+        "-vf",
+        vf_chain,
+        "-r",
+        str(fps),
+        "pipe:1",
     ]
 
     creationflags = 0
-    if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP") and os.name == 'nt':
+    if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP") and os.name == "nt":
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
     process = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
-        creationflags=creationflags
+        creationflags=creationflags,
     )
 
     try:

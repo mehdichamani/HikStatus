@@ -1,12 +1,23 @@
 from __future__ import annotations
+
 import asyncio
-from datetime import datetime, timedelta
 import time
-from typing import Optional
+from datetime import datetime, timedelta
+
 from sqlmodel import Session, select
-from app.database import engine, ScheduledTask
-from app.logging_config import logger, log_event
-from app.services.monitor import task_ping_cameras, task_sync_nvr_configs, task_sync_nvr_stats, task_sync_nvr_health, task_cleanup_database, task_capture_camera_snapshots, task_analyze_outages, broadcast
+
+from app.database import ScheduledTask, engine
+from app.logging_config import log_event, logger
+from app.services.monitor import (
+    broadcast,
+    task_analyze_outages,
+    task_capture_camera_snapshots,
+    task_cleanup_database,
+    task_ping_cameras,
+    task_sync_nvr_configs,
+    task_sync_nvr_health,
+    task_sync_nvr_stats,
+)
 
 TASK_FUNCTIONS = {
     "ping_cameras": task_ping_cameras,
@@ -15,33 +26,39 @@ TASK_FUNCTIONS = {
     "sync_nvr_health": task_sync_nvr_health,
     "cleanup_database": task_cleanup_database,
     "capture_camera_snapshots": task_capture_camera_snapshots,
-    "analyze_outages": task_analyze_outages
+    "analyze_outages": task_analyze_outages,
 }
 
-def get_next_analysis_run(base_time: datetime, days_str: str, time_str: str) -> datetime:
+
+def get_next_analysis_run(
+    base_time: datetime, days_str: str, time_str: str
+) -> datetime:
     try:
         days = [int(x.strip()) for x in days_str.split(",") if x.strip().isdigit()]
         hour, minute = map(int, time_str.split(":"))
     except Exception:
         days = [5, 6, 0, 1, 2, 3]  # Saturday to Thursday
         hour, minute = 7, 30
-        
+
     for i in range(8):
         check_date = base_time + timedelta(days=i)
         check_weekday = check_date.weekday()  # 0=Monday, ..., 6=Sunday
         if check_weekday in days:
-            run_time = datetime(check_date.year, check_date.month, check_date.day, hour, minute)
+            run_time = datetime(
+                check_date.year, check_date.month, check_date.day, hour, minute
+            )
             if run_time > base_time:
                 return run_time
     return base_time + timedelta(days=1)
+
 
 class TaskScheduler:
     def __init__(self):
         self.active_tasks: dict[str, asyncio.Task] = {}
         self.running = False
-        self.loop_task: Optional[asyncio.Task] = None
+        self.loop_task: asyncio.Task | None = None
         self._trigger_lock = asyncio.Lock()
-        
+
     async def start(self):
         if self.running:
             return
@@ -69,10 +86,10 @@ class TaskScheduler:
                     t.next_run = now + timedelta(seconds=t.interval)
                 session.add(t)
             session.commit()
-            
+
         self.loop_task = asyncio.create_task(self._main_loop())
         logger.info("Scheduler engine started.")
-        
+
     async def stop(self):
         self.running = False
         if self.loop_task:
@@ -85,14 +102,14 @@ class TaskScheduler:
         for tid, t in list(self.active_tasks.items()):
             t.cancel()
         logger.info("Scheduler engine stopped.")
-            
+
     async def _main_loop(self):
         while self.running:
             try:
                 now = datetime.now()
                 with Session(engine) as session:
                     tasks = session.exec(select(ScheduledTask)).all()
-                    
+
                 for task in tasks:
                     # Check if it is marked running but has no active task (stale state)
                     if task.status == "Running" and task.id not in self.active_tasks:
@@ -109,21 +126,25 @@ class TaskScheduler:
                         continue
 
                     # Time to run?
-                    if task.status == "Idle" and (not task.next_run or task.next_run <= now):
-                        self.active_tasks[task.id] = asyncio.create_task(self._run_task_wrapper(task.id))
-                        
+                    if task.status == "Idle" and (
+                        not task.next_run or task.next_run <= now
+                    ):
+                        self.active_tasks[task.id] = asyncio.create_task(
+                            self._run_task_wrapper(task.id)
+                        )
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"Scheduler main loop error: {e}")
-                
+
             await asyncio.sleep(2)  # Check every 2 seconds
-            
+
     async def _run_task_wrapper(self, task_id: str):
         func = TASK_FUNCTIONS.get(task_id)
         if not func:
             return
-            
+
         start_time = time.time()
         with Session(engine) as session:
             db_task = session.get(ScheduledTask, task_id)
@@ -133,7 +154,7 @@ class TaskScheduler:
                 session.add(db_task)
                 session.commit()
         await self._broadcast_status(task_id, "Running")
-        
+
         status_str = "Success"
         error_msg = None
         try:
@@ -157,6 +178,7 @@ class TaskScheduler:
                     # Schedule next run based on interval
                     if db_task.id == "analyze_outages":
                         from app.database import Settings
+
                         days_str = "5,6,0,1,2,3"
                         time_str = "07:30"
                         s_days = session.get(Settings, "OUTAGE_ANALYSIS_DAYS")
@@ -165,22 +187,36 @@ class TaskScheduler:
                             days_str = s_days.value
                         if s_time:
                             time_str = s_time.value
-                        db_task.next_run = get_next_analysis_run(datetime.now(), days_str, time_str)
+                        db_task.next_run = get_next_analysis_run(
+                            datetime.now(), days_str, time_str
+                        )
                     else:
-                        db_task.next_run = datetime.now() + timedelta(seconds=db_task.interval)
+                        db_task.next_run = datetime.now() + timedelta(
+                            seconds=db_task.interval
+                        )
                     session.add(db_task)
-                    
+
                     if status_str != "Success":
-                        status_fa = "لغو شد" if status_str == "Cancelled" else "با خطا مواجه شد"
+                        status_fa = (
+                            "لغو شد" if status_str == "Cancelled" else "با خطا مواجه شد"
+                        )
                         details_str = f"پایان اجرای تسک {db_task.name} ({status_fa})"
                         if error_msg:
                             details_str += f" - خطای سیستم: {error_msg}"
-                        log_event(session, category="Task", action=f"TASK_{status_str.upper()}", details=details_str, level="WARNING" if status_str=="Cancelled" else "ERROR", target_type="Task", target_id=db_task.id)
-                    
+                        log_event(
+                            session,
+                            category="Task",
+                            action=f"TASK_{status_str.upper()}",
+                            details=details_str,
+                            level="WARNING" if status_str == "Cancelled" else "ERROR",
+                            target_type="Task",
+                            target_id=db_task.id,
+                        )
+
                     session.commit()
             self.active_tasks.pop(task_id, None)
             await self._broadcast_status(task_id, "Idle")
-            
+
     async def trigger_task_now(self, task_id: str):
         async with self._trigger_lock:
             with Session(engine) as session:
@@ -190,37 +226,46 @@ class TaskScheduler:
                 if db_task.status == "Running":
                     return False
 
-            self.active_tasks[task_id] = asyncio.create_task(self._run_task_wrapper(task_id))
+            self.active_tasks[task_id] = asyncio.create_task(
+                self._run_task_wrapper(task_id)
+            )
         return True
-        
+
     async def stop_task_now(self, task_id: str):
         act_task = self.active_tasks.get(task_id)
         if act_task:
             act_task.cancel()
             return True
         return False
-        
+
     async def _broadcast_status(self, task_id: str, status: str):
         try:
             with Session(engine) as session:
                 task = session.get(ScheduledTask, task_id)
                 if task:
-                    await broadcast({
-                        "type": "task_status",
-                        "data": {
-                            "id": task.id,
-                            "name": task.name,
-                            "status": task.status,
-                            "last_run": task.last_run.isoformat() if task.last_run else None,
-                            "last_duration": task.last_duration,
-                            "last_status": task.last_status,
-                            "last_error": task.last_error,
-                            "next_run": task.next_run.isoformat() if task.next_run else None,
-                            "interval": task.interval,
-                            "is_enabled": task.is_enabled
+                    await broadcast(
+                        {
+                            "type": "task_status",
+                            "data": {
+                                "id": task.id,
+                                "name": task.name,
+                                "status": task.status,
+                                "last_run": task.last_run.isoformat()
+                                if task.last_run
+                                else None,
+                                "last_duration": task.last_duration,
+                                "last_status": task.last_status,
+                                "last_error": task.last_error,
+                                "next_run": task.next_run.isoformat()
+                                if task.next_run
+                                else None,
+                                "interval": task.interval,
+                                "is_enabled": task.is_enabled,
+                            },
                         }
-                    })
+                    )
         except Exception as e:
             logger.warning(f"Failed to broadcast task status update: {e}")
-            
+
+
 scheduler = TaskScheduler()
