@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     HikStatus Native Manager (PowerShell TUI - Clean & Dual Language)
@@ -18,7 +18,9 @@ param(
     [string]$Action = "",
 
     [Parameter(Position=1)]
-    [int]$Port = 28888
+    [int]$Port = 28888,
+
+    [switch]$NoBrowser
 )
 
 # تنظیم انکودینگ خروجی ترمینال به UTF-8
@@ -57,6 +59,18 @@ function Write-LogErr ($label, $en, $fa) {
     Write-Host "${label}: " -NoNewline -ForegroundColor White
     Write-Host "$en " -NoNewline -ForegroundColor White
     Write-Host "| $fa" -ForegroundColor Gray
+}
+
+# باز کردن خودکار مرورگر در صورت عدم غیرفعال بودن (مانند حالت استارت‌آپ)
+function Open-BrowserUrl ($url) {
+    if (-not $NoBrowser) {
+        Write-LogInfo "Browser" "Opening browser at $url..." "در حال باز کردن مرورگر..."
+        try {
+            Start-Process $url
+        } catch {
+            Write-LogWarn "Browser" "Failed to open browser automatically." "خطا در باز کردن خودکار مرورگر."
+        }
+    }
 }
 
 function Ensure-Uv {
@@ -240,6 +254,8 @@ function Start-Server {
     Write-Host "  Press Ctrl+C to Stop" -ForegroundColor Yellow
     Write-Host "══════════════════════════════════════════════════════════════════════`n" -ForegroundColor Green
 
+    Open-BrowserUrl "http://localhost:$Port"
+
     & .venv\Scripts\uvicorn.exe main:app --host 0.0.0.0 --port $Port
 }
 
@@ -254,6 +270,7 @@ function Start-ServerBackground {
     if ($activeProc) {
         Write-LogWarn "Server" "Background service already running (PID $($activeProc.Id))" "سرویس پس‌زمینه قبلاً راه‌اندازی شده"
         Write-Host "  Panel URL: http://localhost:$Port" -ForegroundColor Cyan
+        Open-BrowserUrl "http://localhost:$Port"
         return
     }
 
@@ -269,6 +286,7 @@ function Start-ServerBackground {
         Write-LogOk "Server" "Background service started (PID $($proc.Id))" "سرویس پس‌زمینه با موفقیت اجرا شد"
         Write-Host "  Panel URL: http://localhost:$Port" -ForegroundColor Green
         Write-Host "  Note: You can safely close this terminal." -ForegroundColor Yellow
+        Open-BrowserUrl "http://localhost:$Port"
     } else {
         Write-LogErr "Server" "Failed to start background service." "راه‌اندازی سرویس پس‌زمینه ناموفق بود."
     }
@@ -313,7 +331,7 @@ function Enable-Startup {
         $wshShell = New-Object -ComObject WScript.Shell
         $shortcut = $wshShell.CreateShortcut($StartupShortcut)
         $shortcut.TargetPath = "powershell.exe"
-        $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptDir\start.ps1`" -Action start-bg -Port $Port"
+        $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptDir\start.ps1`" -Action start-bg -Port $Port -NoBrowser"
         $shortcut.WorkingDirectory = $ScriptDir
         $shortcut.Description = "HikStatus Auto-Start Background Service"
         $shortcut.Save()
