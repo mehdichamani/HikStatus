@@ -6,7 +6,9 @@
   font-display: swap;
 }
 
-:root {
+/* ===== GLOBAL BASE TOKENS & DEFAULT THEME (Classic Minimal Dark) ===== */
+:root,
+[data-theme="classic-dark"] {
     --bg: #0a0a0f;
     --surface: #12121a;
     --surface-2: #1a1a24;
@@ -37,6 +39,8 @@
     --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* 0. Classic Minimal - Light */
+[data-theme="classic-light"],
 :root[data-theme="light"] {
     --bg: #f8fafc;
     --surface: #ffffff;
@@ -45,12 +49,205 @@
     --border: #e2e8f0;
     --border-light: #cbd5e1;
 
+    --primary: #4f46e5;
+    --primary-hover: #6366f1;
+    --primary-glow: rgba(79, 70, 229, 0.12);
+
     --text: #0f172a;
     --text-secondary: #475569;
     --text-muted: #64748b;
 
+    --success: #16a34a;
+    --success-bg: rgba(22, 163, 74, 0.1);
+    --danger: #dc2626;
+    --danger-bg: rgba(220, 38, 38, 0.1);
+    --warning: #d97706;
+    --info: #2563eb;
+    --info-bg: rgba(37, 99, 235, 0.1);
+
     --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
+
+/* 1. Corporate Navy - Dark */
+[data-theme="navy-dark"] {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-2: #2d3d54;
+    --surface-3: #3b4f6c;
+    --border: #334155;
+    --border-light: #475569;
+
+    --primary: #3b82f6;
+    --primary-hover: #60a5fa;
+    --primary-glow: rgba(59, 130, 246, 0.25);
+
+    --text: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+
+    --success: #34d399;
+    --success-bg: rgba(52, 211, 153, 0.15);
+    --danger: #f87171;
+    --danger-bg: rgba(248, 113, 113, 0.15);
+    --warning: #fbbf24;
+    --info: #60a5fa;
+    --info-bg: rgba(96, 165, 250, 0.15);
+
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* 1. Corporate Navy - Light */
+[data-theme="navy-light"] {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface-2: #eaeef4;
+    --surface-3: #dbe2ed;
+    --border: #dcdfe6;
+    --border-light: #e2e8f0;
+
+    --primary: #1e3a8a;
+    --primary-hover: #1d4ed8;
+    --primary-glow: rgba(30, 58, 138, 0.12);
+
+    --text: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.1);
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.1);
+    --warning: #d97706;
+    --info: #2563eb;
+    --info-bg: rgba(37, 99, 235, 0.1);
+
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.1);
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.1);
+    --warning: #d97706;
+    --info: #2563eb;
+    --info-bg: rgba(37, 99, 235, 0.1);
+
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* 2. Modern Emerald - Dark */
+[data-theme="emerald-dark"] {
+    --bg: #022c22;
+    --surface: #064e3b;
+    --surface-2: #0b6e54;
+    --surface-3: #108e6c;
+    --border: #047857;
+    --border-light: #059669;
+
+    --primary: #10b981;
+    --primary-hover: #34d399;
+    --primary-glow: rgba(16, 185, 129, 0.25);
+
+    --text: #ecfdf5;
+    --text-secondary: #a7f3d0;
+    --text-muted: #6ee7b7;
+
+    --success: #34d399;
+    --success-bg: rgba(52, 211, 153, 0.15);
+    --danger: #f87171;
+    --danger-bg: rgba(248, 113, 113, 0.15);
+    --warning: #fbbf24;
+    --info: #38bdf8;
+    --info-bg: rgba(56, 189, 248, 0.15);
+
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* 2. Modern Emerald - Light */
+[data-theme="emerald-light"] {
+    --bg: #f0fdf4;
+    --surface: #ffffff;
+    --surface-2: #dcfce7;
+    --surface-3: #bbf7d0;
+    --border: #cbd5e1;
+    --border-light: #a7f3d0;
+
+    --primary: #059669;
+    --primary-hover: #10b981;
+    --primary-glow: rgba(5, 150, 105, 0.12);
+
+    --text: #064e3b;
+    --text-secondary: #047857;
+    --text-muted: #6b7280;
+
+    --success: #059669;
+    --success-bg: rgba(5, 150, 105, 0.1);
+    --danger: #dc2626;
+    --danger-bg: rgba(220, 38, 38, 0.1);
+    --warning: #d97706;
+    --info: #0284c7;
+    --info-bg: rgba(2, 132, 199, 0.1);
+
+    --shadow: 0 4px 24px rgba(5, 150, 105, 0.1);
+}
+
+/* 3. Cyber Violet - Dark */
+[data-theme="violet-dark"] {
+    --bg: #0b0716;
+    --surface: #170e2b;
+    --surface-2: #261748;
+    --surface-3: #362263;
+    --border: #3b206e;
+    --border-light: #532d99;
+
+    --primary: #a855f7;
+    --primary-hover: #c084fc;
+    --primary-glow: rgba(168, 85, 247, 0.25);
+
+    --text: #f5f3ff;
+    --text-secondary: #ddd6fe;
+    --text-muted: #a78bfa;
+
+    --success: #00ff9d;
+    --success-bg: rgba(0, 255, 157, 0.15);
+    --danger: #ff0055;
+    --danger-bg: rgba(255, 0, 85, 0.15);
+    --warning: #ffb703;
+    --info: #00e5ff;
+    --info-bg: rgba(0, 229, 255, 0.15);
+
+    --shadow: 0 4px 24px rgba(168, 85, 247, 0.2);
+}
+
+/* 3. Cyber Violet - Light */
+[data-theme="violet-light"] {
+    --bg: #faf5ff;
+    --surface: #ffffff;
+    --surface-2: #f3e8ff;
+    --surface-3: #e9d5ff;
+    --border: #e9d5ff;
+    --border-light: #d8b4fe;
+
+    --primary: #7e22ce;
+    --primary-hover: #9333ea;
+    --primary-glow: rgba(126, 34, 206, 0.12);
+
+    --text: #3b0764;
+    --text-secondary: #6b21a8;
+    --text-muted: #9333ea;
+
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.1);
+    --danger: #e11d48;
+    --danger-bg: rgba(225, 29, 72, 0.1);
+    --warning: #f59e0b;
+    --info: #8b5cf6;
+    --info-bg: rgba(139, 92, 246, 0.1);
+
+    --shadow: 0 4px 24px rgba(126, 34, 206, 0.1);
+}
+
 
 * {
     margin: 0;
@@ -3525,6 +3722,49 @@ body.kiosk-mode #dash-edit-controls {
     background: var(--danger-bg);
     color: var(--danger);
 }
+
+/* ===== THEME SELECTOR MINI MODAL POPOVER ===== */
+.theme-popover {
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+.theme-popover.hidden {
+    display: none !important;
+}
+
+.theme-mode-btn {
+    transition: all 0.2s ease;
+}
+
+.theme-mode-btn.active {
+    background: var(--surface) !important;
+    color: var(--primary) !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.theme-style-option {
+    transition: all 0.2s ease;
+}
+
+.theme-style-option:hover {
+    border-color: var(--primary-hover) !important;
+    background: var(--surface-2) !important;
+}
+
+.theme-style-option.active {
+    border-color: var(--primary) !important;
+    background: var(--surface-2) !important;
+}
+
+.theme-style-option.active .check-icon {
+    display: block !important;
+}
+
+.theme-style-option:not(.active) .check-icon {
+    display: none !important;
+}
+
 
 
 

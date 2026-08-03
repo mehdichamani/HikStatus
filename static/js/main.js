@@ -252,15 +252,24 @@ window.TASK_DETAILS = {
     ]
 };
 
-// ===== GLOBAL SEARCH AND DROPDOWN =====
+// ===== GLOBAL SEARCH & THEME DROPDOWNS =====
 
 document.addEventListener('click', (e) => {
-    const container = document.querySelector('.global-search-container');
-    const dropdown = document.getElementById('global-search-dropdown');
-    if (container && dropdown && !container.contains(e.target)) {
-        dropdown.classList.add('hidden');
+    // Global Search Dropdown outside click
+    const searchContainer = document.querySelector('.global-search-container');
+    const searchDropdown = document.getElementById('global-search-dropdown');
+    if (searchContainer && searchDropdown && !searchContainer.contains(e.target)) {
+        searchDropdown.classList.add('hidden');
+    }
+
+    // Theme Selector Mini Modal outside click
+    const themeContainer = document.querySelector('.theme-dropdown-container');
+    const themeDropdown = document.getElementById('theme-selector-dropdown');
+    if (themeContainer && themeDropdown && !themeContainer.contains(e.target)) {
+        themeDropdown.classList.add('hidden');
     }
 });
+
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

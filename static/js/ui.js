@@ -1195,93 +1195,130 @@ export function updateDashFromWS(cams) {
     }
 }
 
-export function applyTheme(theme) {
+export function applyTheme(themeKey) {
     const root = document.documentElement;
     const meta = document.querySelector('meta[name="theme-color"]');
 
-    let actualTheme = theme;
-    if (theme === 'system') {
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-            actualTheme = 'light';
-        } else {
-            actualTheme = 'dark';
-        }
+    let theme = themeKey || localStorage.getItem('hikstatus-theme') || 'classic-dark';
+    if (theme === 'light') theme = 'classic-light';
+    else if (theme === 'dark' || theme === 'system') theme = 'classic-dark';
+
+    const validThemes = [
+        'classic-dark', 'classic-light',
+        'navy-dark', 'navy-light',
+        'emerald-dark', 'emerald-light',
+        'violet-dark', 'violet-light'
+    ];
+    if (!validThemes.includes(theme)) {
+        theme = 'classic-dark';
     }
 
-    if (actualTheme === 'light') {
-        root.setAttribute('data-theme', 'light');
-        if (meta) meta.setAttribute('content', '#f8fafc');
-    } else {
-        root.removeAttribute('data-theme');
-        if (meta) meta.setAttribute('content', '#0a0a0f');
+    root.setAttribute('data-theme', theme);
+
+    if (meta) {
+        const themeColors = {
+            'classic-dark': '#0a0a0f',
+            'classic-light': '#f8fafc',
+            'navy-dark': '#0f172a',
+            'navy-light': '#f4f6f9',
+            'emerald-dark': '#022c22',
+            'emerald-light': '#f0fdf4',
+            'violet-dark': '#0b0716',
+            'violet-light': '#faf5ff'
+        };
+        meta.setAttribute('content', themeColors[theme] || '#0a0a0f');
     }
 
     localStorage.setItem('hikstatus-theme', theme);
-    window.updateThemeIcon(theme);
+    window.updateThemeUIState(theme);
 }
 
-export function toggleTheme() {
-    const currentTheme = localStorage.getItem('hikstatus-theme') || 'system';
-    let nextTheme = 'light';
-    if (currentTheme === 'system') {
-        nextTheme = 'light';
-    } else if (currentTheme === 'light') {
-        nextTheme = 'dark';
-    } else if (currentTheme === 'dark') {
-        nextTheme = 'system';
+export function updateThemeUIState(themeKey) {
+    const theme = themeKey || localStorage.getItem('hikstatus-theme') || 'classic-dark';
+    const parts = theme.split('-');
+    const style = parts[0] || 'classic';
+    const mode = parts[1] || 'dark';
+
+    // Update Mode Switcher (dark / light)
+    document.querySelectorAll('.theme-mode-btn').forEach(btn => {
+        if (btn.getAttribute('data-mode') === mode) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Update Style Options (classic / navy / emerald / violet)
+    document.querySelectorAll('.theme-style-option').forEach(option => {
+        if (option.getAttribute('data-style') === style) {
+            option.classList.add('active');
+        } else {
+            option.classList.remove('active');
+        }
+    });
+
+    // Update Badge Text
+    const badge = document.getElementById('theme-mode-badge');
+    if (badge) {
+        const styleNames = { classic: 'کلاسیک', navy: 'سرمه‌ای', emerald: 'زمردی', violet: 'سایبر' };
+        const modeNames = { dark: 'تاریک', light: 'روشن' };
+        badge.textContent = `${styleNames[style] || 'کلاسیک'} ${modeNames[mode] || 'تاریک'}`;
     }
+}
 
-    window.applyTheme(nextTheme);
+export function toggleThemeDropdown(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('theme-selector-dropdown');
+    if (!dropdown) return;
 
-    let themeLabel = '';
-    if (nextTheme === 'system') themeLabel = 'هماهنگ با سیستم';
-    else if (nextTheme === 'light') themeLabel = 'روشن';
-    else if (nextTheme === 'dark') themeLabel = 'تاریک';
+    const isHidden = dropdown.classList.contains('hidden');
+    
+    // Close search dropdown if open
+    const searchDropdown = document.getElementById('global-search-dropdown');
+    if (searchDropdown) searchDropdown.classList.add('hidden');
+
+    if (isHidden) {
+        dropdown.classList.remove('hidden');
+        window.updateThemeUIState();
+    } else {
+        dropdown.classList.add('hidden');
+    }
+}
+
+export function selectThemeMode(mode) {
+    const currentTheme = localStorage.getItem('hikstatus-theme') || 'classic-dark';
+    const currentStyle = currentTheme.split('-')[0] || 'classic';
+    const newTheme = `${currentStyle}-${mode}`;
+    window.applyTheme(newTheme);
+    
+    if (typeof showToast === 'function') {
+        const modeLabel = mode === 'dark' ? 'تاریک' : 'روشن';
+        window.showToast(`حالت پوسته به «${modeLabel}» تغییر یافت`);
+    }
+}
+
+export function selectThemeStyle(style) {
+    const currentTheme = localStorage.getItem('hikstatus-theme') || 'classic-dark';
+    const parts = currentTheme.split('-');
+    const currentMode = parts[1] || 'dark';
+    const newTheme = `${style}-${currentMode}`;
+    window.applyTheme(newTheme);
 
     if (typeof showToast === 'function') {
-        window.showToast(`پوسته به حالت «${themeLabel}» تغییر یافت`);
+        const styleNames = { classic: 'کلاسیک ساده', navy: 'سرمه‌ای شرکتی', emerald: 'زمردی مدرن', violet: 'سایبر بنفش' };
+        window.showToast(`استایل پوسته به «${styleNames[style] || style}» تغییر یافت`);
     }
+}
+
+
+export function toggleTheme() {
+    window.toggleThemeDropdown();
 }
 
 export function updateThemeIcon(theme) {
-    const btn = document.getElementById('btn-theme-toggle');
-    if (!btn) return;
-
-    const currentTheme = theme || localStorage.getItem('hikstatus-theme') || 'system';
-
-    if (currentTheme === 'system') {
-        btn.innerHTML = `
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-        `;
-        btn.setAttribute('title', 'پوسته: هماهنگ با سیستم');
-    } else if (currentTheme === 'light') {
-        btn.innerHTML = `
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-            </svg>
-        `;
-        btn.setAttribute('title', 'پوسته: روشن');
-    } else {
-        btn.innerHTML = `
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
-        `;
-        btn.setAttribute('title', 'پوسته: تاریک');
-    }
+    window.updateThemeUIState(theme);
 }
+
 
 export function isKioskActive() {
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || document.body.classList.contains('kiosk-mode'));
