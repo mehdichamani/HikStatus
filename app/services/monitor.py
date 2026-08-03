@@ -58,7 +58,7 @@ async def broadcast(message):
         await _broadcast_callback(message)
 
 
-async def broadcast_alert(event_type, title, body, alert_type):
+async def broadcast_alert(event_type, title, body, alert_type, count: int = 1):
     """Deliver browser alerts only when their central policy permits it."""
     if is_notification_enabled(event_type, "browser"):
         await broadcast(
@@ -68,6 +68,7 @@ async def broadcast_alert(event_type, title, body, alert_type):
                 "body": body,
                 "alert_type": alert_type,
                 "event_type": event_type,
+                "count": count,
             }
         )
 
@@ -1211,6 +1212,10 @@ async def task_ping_cameras():
 
     cams_processed = []
 
+    from collections import defaultdict
+    browser_offline_by_group = defaultdict(list)
+    browser_recovered_by_group = defaultdict(list)
+
     with Session(engine) as session:
         for nvr_obj, res in zip(nvrs, results):
             status, payload = res
@@ -1254,6 +1259,7 @@ async def task_ping_cameras():
                             target_id=cam.id,
                         )
                         cam.status = "Offline"
+                        browser_offline_by_group[nvr_obj.group_id].append(cam)
                         open_evt = session.exec(
                             select(DowntimeEvent).where(
                                 DowntimeEvent.camera_id == cam.id,
@@ -1295,6 +1301,7 @@ async def task_ping_cameras():
                             target_id=cam.id,
                         )
                         cam.status = "Offline"
+                        browser_offline_by_group[nvr_obj.group_id].append(cam)
                         open_evt = session.exec(
                             select(DowntimeEvent).where(
                                 DowntimeEvent.camera_id == cam.id,
@@ -1365,6 +1372,7 @@ async def task_ping_cameras():
                     session.flush()
                     session.refresh(db_cam)
                     if new_status == "Offline":
+                        browser_offline_by_group[nvr_obj.group_id].append(db_cam)
                         session.add(
                             DowntimeEvent(
                                 camera_id=db_cam.id, start_time=datetime.now()
@@ -1385,17 +1393,11 @@ async def task_ping_cameras():
                             target_type="Camera",
                             target_id=db_cam.id,
                         )
-                        event_type = (
-                            "camera_recovered"
-                            if new_status == "Online"
-                            else "camera_offline"
-                        )
-                        await broadcast_alert(
-                            event_type,
-                            f"تغییر وضعیت: {db_cam.name}",
-                            f"دوربین {db_cam.name} ({db_cam.ip}) {'متصل' if new_status == 'Online' else 'قطع'} شد",
-                            "success" if new_status == "Online" else "error",
-                        )
+                        if new_status == "Offline":
+                            browser_offline_by_group[nvr_obj.group_id].append(db_cam)
+                        else:
+                            browser_recovered_by_group[nvr_obj.group_id].append(db_cam)
+
                         db_cam.status = new_status
                         if new_status == "Offline":
                             session.add(
@@ -1419,6 +1421,57 @@ async def task_ping_cameras():
                     session.add(db_cam)
 
                 cams_processed.append(db_cam)
+
+        # Broadcast aggregated browser alerts per group for offline cameras
+        for gid, cams in browser_offline_by_group.items():
+            count = len(cams)
+            if count == 0:
+                continue
+            grp_name = ""
+            if gid:
+                grp = session.get(NVRGroup, gid)
+                if grp and grp.name:
+                    grp_name = f" [{grp.name}]"
+            if count == 1:
+                c = cams[0]
+                title = f"قطع ارتباط: {c.name}"
+                body = f"ارتباط دوربین {c.name} ({c.ip}) قطع شد"
+            else:
+                names_str = "، ".join([c.name for c in cams[:3]])
+                if count > 3:
+                    names_str += f" و {count - 3} دوربین دیگر"
+                title = f"قطع ارتباط تجمیعی {count} دوربین{grp_name}"
+                body = f"{count} دوربین قطع شدند: {names_str}"
+
+            await broadcast_alert(
+                "camera_offline", title, body, "error", count=count
+            )
+
+        # Broadcast aggregated browser alerts per group for recovered cameras
+        for gid, cams in browser_recovered_by_group.items():
+            count = len(cams)
+            if count == 0:
+                continue
+            grp_name = ""
+            if gid:
+                grp = session.get(NVRGroup, gid)
+                if grp and grp.name:
+                    grp_name = f" [{grp.name}]"
+            if count == 1:
+                c = cams[0]
+                title = f"اتصال مجدد: {c.name}"
+                body = f"ارتباط دوربین {c.name} ({c.ip}) مجدداً برقرار شد"
+            else:
+                names_str = "، ".join([c.name for c in cams[:3]])
+                if count > 3:
+                    names_str += f" و {count - 3} دوربین دیگر"
+                title = f"اتصال مجدد تجمیعی {count} دوربین{grp_name}"
+                body = f"{count} دوربین مجدداً متصل شدند: {names_str}"
+
+            await broadcast_alert(
+                "camera_recovered", title, body, "success", count=count
+            )
+
 
         nvr_list = session.exec(select(NVR)).all()
         nvr_groups = {n.ip: n.group_id for n in nvr_list}
