@@ -8,7 +8,7 @@ echo  ║      HikStatus - Uninstall           ║
 echo  ╚══════════════════════════════════════╝
 echo.
 echo This will remove the Python virtual environment (.venv).
-echo Your data, .env, and init_config.json will NOT be deleted.
+echo Your data and .env will NOT be deleted.
 echo.
 
 set /p CONFIRM=Type YES to continue: 
