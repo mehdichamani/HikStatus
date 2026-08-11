@@ -788,6 +788,14 @@ export function renderNvrHealthSummaryWidget() {
             <div style="display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.01); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 4px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; padding: 2px 0;">
                     <span style="color: var(--text-secondary);">وضعیت کل هارد دیسک‌ها:</span>
+                    <div class="widget-update-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                        <span class="widget-update-time" id="nvr-stats-update-timer-text" style="font-size: 10px; color: var(--text-muted); font-weight: 500;">در حال انتظار...</span>
+                        <div style="width: 70px; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; border: 1px solid var(--border);">
+                            <div id="nvr-stats-update-progress" style="width: 0%; height: 100%; background: var(--success); transition: width 0.2s linear;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
                     <span>${hddStatusText}</span>
                 </div>
             </div>

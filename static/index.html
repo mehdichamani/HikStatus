@@ -456,7 +456,7 @@
                     </div>
                     <div class="stat-card-combined"
                         style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 30px); min-height: 220px;">
-                        <div class="stat-combined-header">
+                        <div class="stat-combined-header" style="display: flex; align-items: center; gap: 8px;">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" style="color: var(--danger);">
                                 <path
@@ -464,6 +464,12 @@
                                 <line x1="2" y1="2" x2="22" y2="22" />
                             </svg>
                             <span class="stat-combined-title">دوربین‌های ضبط خاموش</span>
+                            <div class="widget-update-container" style="margin-right: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                                <span class="widget-update-time" id="off-rec-update-timer-text" style="font-size: 10px; color: var(--text-muted); font-weight: 500;">در حال انتظار...</span>
+                                <div style="width: 80px; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; border: 1px solid var(--border);">
+                                    <div id="off-rec-update-progress" style="width: 0%; height: 100%; background: var(--danger); transition: width 0.2s linear;"></div>
+                                </div>
+                            </div>
                         </div>
                         <div id="off-recording-list" class="widget-list-scrollable"
                             style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
@@ -2075,6 +2081,15 @@
                 <div class="modal-grid-layout">
                     <!-- Snapshot Column -->
                     <div class="snapshot-column" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 2px;">
+                            <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">پیش‌نمایش تصویر دوربین</span>
+                            <div class="widget-update-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                                <span class="widget-update-time" id="cam-modal-snap-timer-text" style="font-size: 10px; color: var(--text-muted); font-weight: 500;">در حال انتظار...</span>
+                                <div style="width: 80px; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; border: 1px solid var(--border);">
+                                    <div id="cam-modal-snap-progress" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.2s linear;"></div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="snapshot-container" id="m-snap-container"
                             style="display:none; text-align: center; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); position: relative; aspect-ratio: 4/3; width: 100%;">
                             <img id="m-snap-img" src=""
