@@ -4,16 +4,17 @@ services:
     container_name: hikstatus
     restart: always
     ports:
-      - '28888:28888'
+      - "${PORT:-28888}:${PORT:-28888}"
     environment:
       - TZ=Asia/Tehran
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASS=${ADMIN_PASS:-admin}
+      - PORT=${PORT:-28888}
     volumes:
       - ./data:/app/data
       - ./static:/app/static
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:28888/api/health')"]
+      test: ["CMD", "python", "-c", "import os, urllib.request; port=os.getenv('PORT','28888'); urllib.request.urlopen(f'http://localhost:{port}/api/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
