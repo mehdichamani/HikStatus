@@ -297,6 +297,142 @@ def get_telegram_message(header, lines, alert_type):
     return msg
 
 
+def build_aggregated_telegram_message(events_by_group):
+    """
+    ساخت پیام تجمیعی HTML برای ارسال به تلگرام بر اساس گروه‌های NVR و دوربین‌ها.
+    """
+    total_groups = len(events_by_group)
+    total_offline = 0
+    total_online = 0
+
+    for group_name, events in events_by_group.items():
+        for ev in events:
+            if isinstance(ev, dict):
+                ev_type = str(ev.get("type", "")).lower()
+                if "offline" in ev_type or "off" in ev_type:
+                    total_offline += 1
+                else:
+                    total_online += 1
+            else:
+                total_offline += 1
+
+    summary_parts = [f"{total_groups} گروه درگیر"]
+    if total_offline > 0:
+        summary_parts.append(f"🔴 {total_offline} دوربین قطع")
+    if total_online > 0:
+        summary_parts.append(f"🟢 {total_online} دوربین وصل مجدد")
+    summary_str = " | ".join(summary_parts)
+
+    msg = f"🚨 <b>گزارش تجمیعی پایش HikStatus</b>\n"
+    msg += f"📅 <i>تاریخ: {get_persian_datetime()}</i>\n"
+    msg += f"📊 <b>خلاصه وضعیت:</b> {summary_str}\n"
+
+    for group_name, events in events_by_group.items():
+        g_offline = 0
+        g_online = 0
+        event_lines = []
+        for ev in events:
+            if isinstance(ev, dict):
+                ev_type = str(ev.get("type", "")).lower()
+                is_off = "offline" in ev_type or "off" in ev_type
+                if is_off:
+                    g_offline += 1
+                    icon = "🔴"
+                else:
+                    g_online += 1
+                    icon = "🟢"
+                name = ev.get("name", "دوربین")
+                ip = ev.get("ip", "")
+                time_str = ev.get("time", "")
+                ip_part = f" (<code>{ip}</code>)" if ip else ""
+                time_part = f" - قطعی از {time_str}" if (is_off and time_str) else (f" - {time_str}" if time_str else "")
+                event_lines.append(f"• {icon} {name}{ip_part}{time_part}")
+            else:
+                g_offline += 1
+                event_lines.append(f"• 🔴 {ev}")
+
+        status_parts = []
+        if g_offline > 0:
+            status_parts.append(f"🔴 {g_offline} قطعی")
+        if g_online > 0:
+            status_parts.append(f"🟢 {g_online} وصل")
+        status_str = f" ({', '.join(status_parts)})" if status_parts else ""
+
+        msg += "\n───────────────────\n"
+        msg += f"🏢 <b>گروه: {group_name}</b>{status_str}\n"
+        msg += "<blockquote expandable>\n"
+        msg += "\n".join(event_lines) + "\n"
+        msg += "</blockquote>\n"
+
+    msg += "───────────────────\n"
+    msg += "⚙️ <i>سامانه هوشمند پایش تجهیزات HikStatus</i>"
+    return msg
+
+
+def split_telegram_message(message, max_chars=3800):
+    """
+    تقسیم هوشمند پیام‌های عریض تلگرام به چنک‌های متوازن زیر max_chars
+    همراه با حفظ توازن کامل تگ‌های HTML (b, blockquote) و درج شماره بخش.
+    """
+    if not message or len(message) <= max_chars:
+        return [message]
+
+    effective_max = max_chars - 50
+
+    lines = message.split("\n")
+    flattened_lines = []
+    for l in lines:
+        if len(l) <= effective_max:
+            flattened_lines.append(l)
+        else:
+            for start in range(0, len(l), effective_max):
+                flattened_lines.append(l[start : start + effective_max])
+
+    raw_chunks = []
+    current_lines = []
+    current_len = 0
+
+    for line in flattened_lines:
+        line_len = len(line) + 1
+        if current_len + line_len > effective_max and current_lines:
+            raw_chunks.append("\n".join(current_lines))
+            current_lines = [line]
+            current_len = line_len
+        else:
+            current_lines.append(line)
+            current_len += line_len
+
+    if current_lines:
+        raw_chunks.append("\n".join(current_lines))
+
+    total = len(raw_chunks)
+    final_chunks = []
+
+    for i, chunk in enumerate(raw_chunks, 1):
+        suffix = f"\n\n<i>(بخش {i} از {total})</i>" if total > 1 else ""
+        text = chunk + suffix
+
+        # حفظ توازن تگ‌های <b>
+        b_diff = text.count("<b>") - text.count("</b>")
+        if b_diff > 0:
+            text = text + ("</b>" * b_diff)
+        elif b_diff < 0:
+            text = ("<b>" * abs(b_diff)) + text
+
+        # حفظ توازن تگ‌های <blockquote>
+        bq_open = text.count("<blockquote expandable>") + text.count("<blockquote>")
+        bq_close = text.count("</blockquote>")
+        bq_diff = bq_open - bq_close
+        if bq_diff > 0:
+            text = text + ("\n</blockquote>" * bq_diff)
+        elif bq_diff < 0:
+            text = ("<blockquote expandable>\n" * abs(bq_diff)) + text
+
+        final_chunks.append(text)
+
+    return final_chunks
+
+
 def send_telegram_batch(
     header, lines, alert_type="warning", group_id=None, event_type=None
 ):
@@ -348,7 +484,6 @@ def send_telegram_batch(
                     and alert_settings.telegram_enabled
                     and alert_settings.telegram_chat_ids
                 ):
-                    # Pick only the first item in case database still has commas
                     chat_ids = [
                         c.strip()
                         for c in alert_settings.telegram_chat_ids.split(",")
@@ -373,14 +508,26 @@ def send_telegram_raw(conf, message, chat_ids):
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     proxies = {"https": proxy_url, "http": proxy_url} if proxy_url else None
 
+    # اگر طول پیام بیشتر از ۳۸۰۰ کاراکتر باشد، به چند بخش شکسته می‌شود
+    if isinstance(message, str) and len(message) > 3800:
+        chunks = split_telegram_message(message, max_chars=3800)
+    elif isinstance(message, str):
+        chunks = [message]
+    else:
+        chunks = [str(message)]
+
     errors = []
     for cid in chat_ids:
-        try:
-            payload = {"chat_id": cid, "text": message, "parse_mode": "HTML"}
-            requests.post(url, data=payload, proxies=proxies, timeout=10)
-        except Exception as e:
-            logger.error(f"Telegram error: {e}")
-            errors.append(str(e))
+        for chunk in chunks:
+            try:
+                payload = {"chat_id": cid, "text": chunk, "parse_mode": "HTML"}
+                resp = requests.post(url, data=payload, proxies=proxies, timeout=10)
+                if resp.status_code != 200:
+                    logger.warning(f"Telegram sendMessage status {resp.status_code}: {resp.text}")
+                    errors.append(f"HTTP {resp.status_code}: {resp.text}")
+            except Exception as e:
+                logger.error(f"Telegram error: {e}")
+                errors.append(str(e))
 
     return errors[0] if errors else True
 
