@@ -25,19 +25,21 @@ PORT="${PORT:-28888}"
 # ──────────────────────────────────────────────────────────────────────────────
 
 ensure_uv() {
+    export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$HOME/.astral/bin:$PATH"
     if command -v uv >/dev/null 2>&1; then
         return 0
     fi
 
     echo -e "${YELLOW}[HikStatus] ابزار Astral uv یافت نشد. در حال نصب uv...${NC}"
-    if command -v curl >/dev/null 2>&1; then
-        curl -LsSf https://astral-sh.io/uv/install.sh | sh
-        export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
-    elif command -v python3 >/dev/null 2>&1; then
-        python3 -m pip install --quiet uv
+    
+    # 1. تلاش برای نصب با curl از آدرس رسمی
+    if command -v curl >/dev/null 2>&1 && curl -LsSf https://astral.sh/uv/install.sh | sh; then
+        export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$HOME/.astral/bin:$PATH"
+    # 2. در صورت عدم موفقیت curl (مانند اختلال در پروکسی یا شبکه)، تلاش با pip
+    elif command -v python3 >/dev/null 2>&1 && python3 -m pip install --quiet uv; then
+        export PATH="$HOME/.local/bin:$PATH"
     else
-        echo -e "${RED}[ERROR] پایتون ۳ یا curl یافت نشد. لطفاً پایتون را نصب کنید.${NC}"
-        exit 1
+        echo -e "${RED}[ERROR] پایتون ۳ یا curl یافت نشد یا نصب ناموفق بود.${NC}"
     fi
 
     if command -v uv >/dev/null 2>&1; then

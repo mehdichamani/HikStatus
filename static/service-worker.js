@@ -1,11 +1,19 @@
-const CACHE_NAME = 'hikstatus-cache-v6';
+const CACHE_NAME = 'hikstatus-cache-v7';
 const ASSETS = [
   '/login',
   '/static/style.css',
   '/static/logo.webp',
   '/static/index.html',
   '/static/login.html',
-  '/static/qrcode.min.js'
+  '/static/qrcode.min.js',
+  '/static/vendor/leaflet/leaflet.css',
+  '/static/vendor/leaflet/leaflet.js',
+  '/static/vendor/leaflet.markercluster/MarkerCluster.css',
+  '/static/vendor/leaflet.markercluster/MarkerCluster.Default.css',
+  '/static/vendor/leaflet.markercluster/leaflet.markercluster.js',
+  '/static/vendor/jalalidatepicker/jalalidatepicker.min.css',
+  '/static/vendor/jalalidatepicker/jalalidatepicker.min.js',
+  '/static/vendor/chartjs/chart.umd.js'
 ];
 
 self.addEventListener('install', (event) => {
