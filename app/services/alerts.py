@@ -323,7 +323,7 @@ def build_aggregated_telegram_message(events_by_group):
         summary_parts.append(f"🟢 {total_online} دوربین وصل مجدد")
     summary_str = " | ".join(summary_parts)
 
-    msg = f"🚨 <b>گزارش تجمیعی پایش HikStatus</b>\n"
+    msg = "🚨 <b>گزارش تجمیعی پایش HikStatus</b>\n"
     msg += f"📅 <i>تاریخ: {get_persian_datetime()}</i>\n"
     msg += f"📊 <b>خلاصه وضعیت:</b> {summary_str}\n"
 
