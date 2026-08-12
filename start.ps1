@@ -496,7 +496,8 @@ function Show-Menu {
                 break
             }
             "4" {
-                Test-HealthCheck
+                Write-Host "`n=== وضعیت سرویس‌ها (Service Status) ===" -ForegroundColor Cyan
+                Get-ServerStatus | Out-Null
                 Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."
                 break
             }
