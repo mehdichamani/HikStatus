@@ -29,7 +29,10 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $ScriptDir
-$PidFile = Join-Path $ScriptDir "data\hikstatus.pid"
+# مسیرهای ذخیره PID برای سرویس وب و زمان‌بند به صورت جداگانه
+$WebPidFile = Join-Path $ScriptDir "data\hikstatus_web.pid"
+$SchedPidFile = Join-Path $ScriptDir "data\hikstatus_scheduler.pid"
+$LegacyPidFile = Join-Path $ScriptDir "data\hikstatus.pid"
 $StartupFolder = [Environment]::GetFolderPath("Startup")
 $StartupShortcut = Join-Path $StartupFolder "HikStatus.lnk"
 
@@ -145,36 +148,71 @@ function Update-Dependencies {
     Write-LogOk "PACKAGES" "All packages updated successfully." "تمامی بستهها بروزرسانی شدند."
 }
 
-function Get-ActiveServerProcess {
-    if (Test-Path $PidFile) {
-        $savedPid = Get-Content $PidFile -ErrorAction SilentlyContinue
+# بررسی پروسه‌های فعال سرویس وب و سرویس زمان‌بند
+function Get-ActiveServerProcesses {
+    $webProc = $null
+    $schedProc = $null
+
+    if (Test-Path $WebPidFile) {
+        $savedPid = Get-Content $WebPidFile -ErrorAction SilentlyContinue
         if ($savedPid) {
-            $proc = Get-Process -Id $savedPid -ErrorAction SilentlyContinue
-            if ($proc) {
-                return $proc
-            }
+            $webProc = Get-Process -Id $savedPid -ErrorAction SilentlyContinue
         }
     }
-    return $null
+    if (-not $webProc -and (Test-Path $LegacyPidFile)) {
+        $savedPid = Get-Content $LegacyPidFile -ErrorAction SilentlyContinue
+        if ($savedPid) {
+            $webProc = Get-Process -Id $savedPid -ErrorAction SilentlyContinue
+        }
+    }
+
+    if (Test-Path $SchedPidFile) {
+        $savedPid = Get-Content $SchedPidFile -ErrorAction SilentlyContinue
+        if ($savedPid) {
+            $schedProc = Get-Process -Id $savedPid -ErrorAction SilentlyContinue
+        }
+    }
+
+    return @{ Web = $webProc; Scheduler = $schedProc }
 }
 
 function Get-ServerStatus {
-    $proc = Get-ActiveServerProcess
-    if ($proc) {
+    $procs = Get-ActiveServerProcesses
+    $webProc = $procs.Web
+    $schedProc = $procs.Scheduler
+
+    $hasActive = $false
+    if ($webProc) {
         Write-Host "  [OK] " -NoNewline -ForegroundColor Green
-        Write-Host "Background Service: " -NoNewline -ForegroundColor White
-        Write-Host "ACTIVE (PID: $($proc.Id)) " -NoNewline -ForegroundColor Green
-        Write-Host "| سرویس پسزمینه فعال است" -ForegroundColor Gray
-        Write-Host "       Panel URL: " -NoNewline -ForegroundColor White
-        Write-Host "http://localhost:$Port" -ForegroundColor Cyan
-        return $true
+        Write-Host "Web Service: " -NoNewline -ForegroundColor White
+        Write-Host "ACTIVE (PID: $($webProc.Id)) " -NoNewline -ForegroundColor Green
+        Write-Host "| سرویس وب فعال است" -ForegroundColor Gray
+        $hasActive = $true
     } else {
         Write-Host "  [INFO] " -NoNewline -ForegroundColor Yellow
-        Write-Host "Background Service: " -NoNewline -ForegroundColor White
+        Write-Host "Web Service: " -NoNewline -ForegroundColor White
         Write-Host "INACTIVE " -NoNewline -ForegroundColor Yellow
-        Write-Host "| سرویس پسزمینه فعال نیست" -ForegroundColor Gray
-        return $false
+        Write-Host "| سرویس وب فعال نیست" -ForegroundColor Gray
     }
+
+    if ($schedProc) {
+        Write-Host "  [OK] " -NoNewline -ForegroundColor Green
+        Write-Host "Scheduler Service: " -NoNewline -ForegroundColor White
+        Write-Host "ACTIVE (PID: $($schedProc.Id)) " -NoNewline -ForegroundColor Green
+        Write-Host "| سرویس زمان‌بند فعال است" -ForegroundColor Gray
+        $hasActive = $true
+    } else {
+        Write-Host "  [INFO] " -NoNewline -ForegroundColor Yellow
+        Write-Host "Scheduler Service: " -NoNewline -ForegroundColor White
+        Write-Host "INACTIVE " -NoNewline -ForegroundColor Yellow
+        Write-Host "| سرویس زمان‌بند فعال نیست" -ForegroundColor Gray
+    }
+
+    if ($webProc) {
+        Write-Host "       Panel URL: " -NoNewline -ForegroundColor White
+        Write-Host "http://localhost:$Port" -ForegroundColor Cyan
+    }
+    return $hasActive
 }
 
 function Test-HealthCheck {
@@ -231,7 +269,7 @@ function Test-HealthCheck {
     }
 
     Write-Host "──────────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
-    Write-Host '  Service & System Status:' -ForegroundColor White
+    Write-Host '  Service & System Status | وضعیت سرویس‌ها:' -ForegroundColor White
     Get-ServerStatus | Out-Null
 
     Write-Host "  Windows Auto-Start: " -NoNewline -ForegroundColor White
@@ -243,6 +281,7 @@ function Test-HealthCheck {
     Write-Host "══════════════════════════════════════════════════════════════════════`n" -ForegroundColor Cyan
 }
 
+# راه‌اندازی همزمان سرویس وب و زمان‌بند به صورت Foreground
 function Start-Server {
     if (-not (Test-Path ".venv\Scripts\python.exe")) {
         Write-LogWarn "Server" "Virtual env missing. Installing..." "محیط مجازی یافت نشد..."
@@ -251,24 +290,29 @@ function Start-Server {
     Ensure-EnvFiles
 
     Write-Host "`n══════════════════════════════════════════════════════════════════════" -ForegroundColor Green
-    Write-Host "  HikStatus Server Running (Console Foreground)" -ForegroundColor Green
+    Write-Host "  HikStatus Server Running (Web & Scheduler Active)" -ForegroundColor Green
     Write-Host "  Panel URL: http://localhost:$Port" -ForegroundColor Cyan
-    Write-Host "  Press Ctrl+C to Stop" -ForegroundColor Yellow
+    Write-Host "  Press Ctrl+C to Stop All Services" -ForegroundColor Yellow
     Write-Host "══════════════════════════════════════════════════════════════════════`n" -ForegroundColor Green
 
     Open-BrowserUrl "http://localhost:$Port"
 
     $pythonPath = Join-Path $ScriptDir ".venv\Scripts\python.exe"
+    Write-LogInfo "Scheduler" "Starting scheduler process..." "در حال راه‌اندازی پروسه زمان‌بند..."
     $schedProc = Start-Process -FilePath $pythonPath -ArgumentList "scheduler_runner.py" -WorkingDirectory $ScriptDir -PassThru -WindowStyle Hidden
+
     try {
+        Write-LogInfo "Web" "Starting Uvicorn web server..." "در حال راه‌اندازی سرور وب Uvicorn..."
         & .venv\Scripts\uvicorn.exe main:app --host 0.0.0.0 --port $Port
     } finally {
         if ($schedProc -and -not $schedProc.HasExited) {
+            Write-LogInfo "Scheduler" "Stopping scheduler process..." "در حال توقف پروسه زمان‌بند..."
             Stop-Process -Id $schedProc.Id -ErrorAction SilentlyContinue
         }
     }
 }
 
+# راه‌اندازی همزمان سرویس وب و زمان‌بند به صورت پس‌زمینه (Background)
 function Start-ServerBackground {
     if (-not (Test-Path ".venv\Scripts\python.exe")) {
         Write-LogWarn "Server" "Virtual env missing. Installing..." "محیط مجازی یافت نشد..."
@@ -276,62 +320,108 @@ function Start-ServerBackground {
     }
     Ensure-EnvFiles
 
-    $activeProc = Get-ActiveServerProcess
-    if ($activeProc) {
-        Write-LogWarn "Server" "Background service already running (PID $($activeProc.Id))" "سرویس پسزمینه قبلاً راهاندازی شده"
-        Write-Host "  Panel URL: http://localhost:$Port" -ForegroundColor Cyan
+    $procs = Get-ActiveServerProcesses
+    if ($procs.Web -or $procs.Scheduler) {
+        Write-LogWarn "Server" "Background services already running." "سرویس‌های پس‌زمینه قبلاً راه‌اندازی شده‌اند."
+        Get-ServerStatus | Out-Null
         Open-BrowserUrl "http://localhost:$Port"
         return
     }
 
     $uvicornPath = Join-Path $ScriptDir ".venv\Scripts\uvicorn.exe"
-    Write-LogInfo "Server" "Launching background service..." "در حال راهاندازی پسزمینه..."
+    $pythonPath = Join-Path $ScriptDir ".venv\Scripts\python.exe"
+    Write-LogInfo "Server" "Launching web & scheduler background services..." "در حال راه‌اندازی پس‌زمینه سرویس‌های وب و زمان‌بند..."
     
-    $proc = Start-Process -FilePath $uvicornPath -ArgumentList "main:app --host 0.0.0.0 --port $Port" -WorkingDirectory $ScriptDir -WindowStyle Hidden -PassThru
+    $webProc = Start-Process -FilePath $uvicornPath -ArgumentList "main:app --host 0.0.0.0 --port $Port" -WorkingDirectory $ScriptDir -WindowStyle Hidden -PassThru
+    $schedProc = Start-Process -FilePath $pythonPath -ArgumentList "scheduler_runner.py" -WorkingDirectory $ScriptDir -WindowStyle Hidden -PassThru
 
-    if ($proc -and -not $proc.HasExited) {
-        Ensure-EnvFiles
-        $proc.Id | Out-File -FilePath $PidFile -Encoding utf8
-        Start-Sleep -Seconds 1
-        Write-LogOk "Server" "Background service started (PID $($proc.Id))" "سرویس پسزمینه با موفقیت اجرا شد"
-        Write-Host "  Panel URL: http://localhost:$Port" -ForegroundColor Green
-        Write-Host "  Note: You can safely close this terminal." -ForegroundColor Yellow
-        Open-BrowserUrl "http://localhost:$Port"
+    if ($webProc -and -not $webProc.HasExited) {
+        $webProc.Id | Out-File -FilePath $WebPidFile -Encoding utf8
+        Write-LogOk "Web" "Background web service started (PID $($webProc.Id))" "سرویس وب پس‌زمینه با موفقیت اجرا شد"
     } else {
-        Write-LogErr "Server" "Failed to start background service." "راهاندازی سرویس پسزمینه ناموفق بود."
+        Write-LogErr "Web" "Failed to start background web service." "راه‌اندازی سرویس وب ناموفق بود."
     }
+
+    if ($schedProc -and -not $schedProc.HasExited) {
+        $schedProc.Id | Out-File -FilePath $SchedPidFile -Encoding utf8
+        Write-LogOk "Scheduler" "Background scheduler service started (PID $($schedProc.Id))" "سرویس زمان‌بند پس‌زمینه با موفقیت اجرا شد"
+    } else {
+        Write-LogErr "Scheduler" "Failed to start background scheduler service." "راه‌اندازی سرویس زمان‌بند ناموفق بود."
+    }
+
+    Write-Host "  Panel URL: http://localhost:$Port" -ForegroundColor Green
+    Write-Host "  Note: You can safely close this terminal." -ForegroundColor Yellow
+    Open-BrowserUrl "http://localhost:$Port"
 }
 
+# توقف یکپارچه سرویس‌های پس‌زمینه وب و زمان‌بند
 function Stop-Server {
-    Write-LogInfo "Server" "Stopping background service..." "در حال توقف سرویس پسزمینه..."
+    Write-LogInfo "Server" "Stopping web and scheduler background services..." "در حال توقف سرویس‌های پس‌زمینه وب و زمان‌بند..."
     $stopped = $false
 
-    if (Test-Path $PidFile) {
-        $savedPid = Get-Content $PidFile -ErrorAction SilentlyContinue
+    if (Test-Path $WebPidFile) {
+        $savedPid = Get-Content $WebPidFile -ErrorAction SilentlyContinue
         if ($savedPid) {
             $proc = Get-Process -Id $savedPid -ErrorAction SilentlyContinue
             if ($proc) {
                 Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
-                Write-LogOk "Server" "Stopped background service (PID $savedPid)" "سرویس پسزمینه متوقف شد"
+                Write-LogOk "Web" "Stopped background web service (PID $savedPid)" "سرویس وب پس‌زمینه متوقف شد"
                 $stopped = $true
             }
         }
-        Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
+        Remove-Item $WebPidFile -Force -ErrorAction SilentlyContinue
     }
 
-    if (-not $stopped) {
-        $procs = Get-Process -Name "uvicorn" -ErrorAction SilentlyContinue
-        if ($procs) {
-            foreach ($p in $procs) {
-                Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
-                Write-LogOk "Server" "Terminated uvicorn process (PID $($p.Id))" "پروسه uvicorn متوقف شد"
+    if (Test-Path $LegacyPidFile) {
+        $savedPid = Get-Content $LegacyPidFile -ErrorAction SilentlyContinue
+        if ($savedPid) {
+            $proc = Get-Process -Id $savedPid -ErrorAction SilentlyContinue
+            if ($proc) {
+                Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
                 $stopped = $true
             }
+        }
+        Remove-Item $LegacyPidFile -Force -ErrorAction SilentlyContinue
+    }
+
+    if (Test-Path $SchedPidFile) {
+        $savedPid = Get-Content $SchedPidFile -ErrorAction SilentlyContinue
+        if ($savedPid) {
+            $proc = Get-Process -Id $savedPid -ErrorAction SilentlyContinue
+            if ($proc) {
+                Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
+                Write-LogOk "Scheduler" "Stopped background scheduler service (PID $savedPid)" "سرویس زمان‌بند پس‌زمینه متوقف شد"
+                $stopped = $true
+            }
+        }
+        Remove-Item $SchedPidFile -Force -ErrorAction SilentlyContinue
+    }
+
+    $uvProcs = Get-Process -Name "uvicorn" -ErrorAction SilentlyContinue
+    if ($uvProcs) {
+        foreach ($p in $uvProcs) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            Write-LogOk "Web" "Terminated uvicorn process (PID $($p.Id))" "پروسه uvicorn متوقف شد"
+            $stopped = $true
+        }
+    }
+
+    $pyProcs = Get-Process -Name "python" -ErrorAction SilentlyContinue
+    if ($pyProcs) {
+        foreach ($p in $pyProcs) {
+            try {
+                $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($p.Id)").CommandLine
+                if ($cmdLine -like "*scheduler_runner.py*") {
+                    Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+                    Write-LogOk "Scheduler" "Terminated scheduler_runner process (PID $($p.Id))" "پروسه زمان‌بند متوقف شد"
+                    $stopped = $true
+                }
+            } catch {}
         }
     }
 
     if (-not $stopped) {
-        Write-Host "  [INFO] No active background service found | هیچ سرویس پسزمینهای فعال نبود" -ForegroundColor Yellow
+        Write-Host "  [INFO] No active background services found | هیچ سرویس پسزمینهای فعال نبود" -ForegroundColor Yellow
     }
 }
 
@@ -364,8 +454,8 @@ function Disable-Startup {
 function Show-Menu {
     while ($true) {
         Clear-Host
-        $activeProc = Get-ActiveServerProcess
-        $bgStatus = if ($activeProc) { " [ACTIVE]" } else { " [INACTIVE]" }
+        $procs = Get-ActiveServerProcesses
+        $bgStatus = if ($procs.Web -or $procs.Scheduler) { " [ACTIVE]" } else { " [INACTIVE]" }
         $hasStartup = Test-Path $StartupShortcut
         $startupStatus = if ($hasStartup) { " [ENABLED]" } else { " [DISABLED]" }
 
@@ -373,10 +463,10 @@ function Show-Menu {
         Write-Host "               HikStatus Native Manager (TUI)" -ForegroundColor Cyan
         Write-Host "        مدیریت بومی و استقرار سامانه پایش | System Management" -ForegroundColor Gray
         Write-Host "══════════════════════════════════════════════════════════════════════" -ForegroundColor DarkCyan
-        Write-Host "  [1] Start Foreground Console    | اجرای مستقیم در کنسول" -ForegroundColor White
+        Write-Host "  [1] Start Foreground Console    | اجرای مستقیم در کنسول (وب + زمان‌بند)" -ForegroundColor White
         
         Write-Host "  [2] Start Background Service   | اجرای سرویس پسزمینه" -NoNewline -ForegroundColor White
-        if ($activeProc) { Write-Host "$bgStatus" -ForegroundColor Green } else { Write-Host "$bgStatus" -ForegroundColor DarkGray }
+        if ($procs.Web -or $procs.Scheduler) { Write-Host "$bgStatus" -ForegroundColor Green } else { Write-Host "$bgStatus" -ForegroundColor DarkGray }
 
         Write-Host "  [3] Stop Background Service    | توقف سرویس پسزمینه" -ForegroundColor White
         Write-Host "  [4] Check Service Status       | مشاهده وضعیت سرویس" -ForegroundColor White
