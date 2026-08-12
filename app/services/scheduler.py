@@ -68,22 +68,10 @@ class TaskScheduler:
             tasks = session.exec(select(ScheduledTask)).all()
             now = datetime.now()
             for t in tasks:
-                t.status = "Idle"  # Reset status on startup
-                # Run sync/pings immediately on startup (instead of waiting for first interval)
-                # Stagger the initial runs on startup to prevent concurrent database insertions / race conditions
-                if t.id == "ping_cameras":
+                t.status = "Idle"  # ریست کردن وضعیت در راه‌اندازی
+                # حفظ مقدار next_run موجود در دیتابیس؛ فقط در صورت خالی بودن مقداردهی اولیه انجام می‌شود
+                if not t.next_run:
                     t.next_run = now
-                elif t.id == "sync_nvr_configs":
-                    t.next_run = now + timedelta(seconds=10)
-                elif t.id == "sync_nvr_stats":
-                    t.next_run = now + timedelta(seconds=20)
-                elif t.id == "sync_nvr_health":
-                    t.next_run = now + timedelta(seconds=30)
-                elif t.id == "capture_camera_snapshots":
-                    # Start with a 5 minutes delay on startup
-                    t.next_run = now + timedelta(minutes=5)
-                elif not t.next_run:
-                    t.next_run = now + timedelta(seconds=t.interval)
                 session.add(t)
             session.commit()
 

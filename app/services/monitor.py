@@ -1636,11 +1636,12 @@ async def task_ping_cameras():
         await broadcast({"type": "cameras", "data": cam_data})
 
 
-async def task_sync_nvr_configs():
+async def task_sync_nvr_configs(nvr_ip: str | None = None):
     with Session(engine) as session:
-        nvrs = session.exec(
-            select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")
-        ).all()
+        query = select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")
+        if nvr_ip:
+            query = query.where(NVR.ip == nvr_ip)
+        nvrs = session.exec(query).all()
     if not nvrs:
         return
     logger.info(f"Syncing recording config for {len(nvrs)} NVRs in parallel...")
@@ -1656,11 +1657,12 @@ async def task_sync_nvr_configs():
             logger.error(f"Config sync failed for {n.ip}: {r}")
 
 
-async def task_sync_nvr_stats():
+async def task_sync_nvr_stats(nvr_ip: str | None = None):
     with Session(engine) as session:
-        nvrs = session.exec(
-            select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")
-        ).all()
+        query = select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")
+        if nvr_ip:
+            query = query.where(NVR.ip == nvr_ip)
+        nvrs = session.exec(query).all()
     if not nvrs:
         return
     logger.info(f"Syncing recording stats for {len(nvrs)} NVRs in parallel...")
@@ -1676,13 +1678,14 @@ async def task_sync_nvr_stats():
             logger.error(f"Stats sync failed for {n.ip}: {r}")
 
 
-async def task_sync_nvr_health():
+async def task_sync_nvr_health(nvr_ip: str | None = None):
     from app.database import decrypt_password
 
     with Session(engine) as session:
-        nvrs = session.exec(
-            select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")
-        ).all()
+        query = select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")
+        if nvr_ip:
+            query = query.where(NVR.ip == nvr_ip)
+        nvrs = session.exec(query).all()
     if not nvrs:
         return
     logger.info(f"Syncing NVR health/extended info for {len(nvrs)} NVRs in parallel...")
@@ -1777,11 +1780,14 @@ def get_substream_channel_id(chan_id_str: str) -> str:
         return f"{chan_id_str}02"
 
 
-async def task_capture_camera_snapshots():
+async def task_capture_camera_snapshots(nvr_ip: str | None = None):
     from app.database import decrypt_password
 
     with Session(engine) as session:
-        cameras = session.exec(select(Camera).where(Camera.status == "Online")).all()
+        query = select(Camera).where(Camera.status == "Online")
+        if nvr_ip:
+            query = query.where(Camera.nvr_ip == nvr_ip)
+        cameras = session.exec(query).all()
         nvrs = {n.ip: n for n in session.exec(select(NVR)).all()}
 
     os.makedirs("data/snapshots", exist_ok=True)

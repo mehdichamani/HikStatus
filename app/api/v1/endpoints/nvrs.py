@@ -1,6 +1,6 @@
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from sqlmodel import Session, select
 
 from app.database import (
@@ -12,6 +12,11 @@ from app.database import (
     get_session,
 )
 from app.logging_config import log_event
+from app.services.monitor import (
+    task_sync_nvr_configs,
+    task_sync_nvr_health,
+    task_sync_nvr_stats,
+)
 
 router = APIRouter()
 
@@ -53,6 +58,7 @@ def create_nvr(
     nvr: NVR,
     request: Request,
     response: Response,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
 ):
     import main
@@ -98,6 +104,10 @@ def create_nvr(
         target_type="NVR",
         target_id=nvr.ip,
     )
+    # همگام‌سازی فوری پس‌زمینه برای NVR جدید بدون بلاک شدن کلاینت
+    background_tasks.add_task(task_sync_nvr_configs, nvr_ip=nvr.ip)
+    background_tasks.add_task(task_sync_nvr_health, nvr_ip=nvr.ip)
+    background_tasks.add_task(task_sync_nvr_stats, nvr_ip=nvr.ip)
     return nvr
 
 
