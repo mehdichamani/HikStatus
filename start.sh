@@ -142,9 +142,26 @@ health_check() {
         echo -e " [!] دایرکتوری داده (data/): ${YELLOW}ساخته نشده است${NC}"
     fi
 
+    # 7. بررسی پروسه‌های در حال اجرای وب و زمان‌بند
+    echo -e "\n${BOLD}=== وضعیت سرویس‌ها (Service Status) ===${NC}"
+    if pgrep -f "uvicorn main:app" >/dev/null 2>&1; then
+        WEB_PIDS=$(pgrep -f "uvicorn main:app" | tr '\n' ' ')
+        echo -e " [✓] سرویس وب (Web Service): ${GREEN}فعال است (PID: ${WEB_PIDS})${NC}"
+    else
+        echo -e " [!] سرویس وب (Web Service): ${YELLOW}غیرفعال است${NC}"
+    fi
+
+    if pgrep -f "scheduler_runner.py" >/dev/null 2>&1; then
+        SCHED_PIDS=$(pgrep -f "scheduler_runner.py" | tr '\n' ' ')
+        echo -e " [✓] سرویس زمان‌بند (Scheduler Service): ${GREEN}فعال است (PID: ${SCHED_PIDS})${NC}"
+    else
+        echo -e " [!] سرویس زمان‌بند (Scheduler Service): ${YELLOW}غیرفعال است${NC}"
+    fi
+
     echo ""
 }
 
+# راه‌اندازی همزمان پروسه وب و زمان‌بند در لینوکس
 start_server() {
     if [ ! -f ".venv/bin/python" ]; then
         echo -e "${YELLOW}[WARN] محیط مجازی یافته نشد. ابتدا فرایند نصب انجام می‌شود...${NC}"
@@ -153,16 +170,22 @@ start_server() {
 
     ensure_env_files
 
-    echo -e "\n${GREEN}${BOLD}🚀 HikStatus و موتور زمان‌بند در حال اجرا هستند...${NC}"
+    echo -e "\n${GREEN}${BOLD}🚀 در حال راه‌اندازی همزمان سرویس وب HikStatus و موتور زمان‌بند...${NC}"
     echo -e "${CYAN}آدرس پنل: http://localhost:${PORT}${NC}"
-    echo -e "${YELLOW}برای توقف کلید Ctrl+C را فشار دهید.${NC}\n"
+    echo -e "${YELLOW}جهت توقف کامل هر دو پروسه، کلید Ctrl+C را فشار دهید.${NC}\n"
 
-    trap 'echo -e "\n${YELLOW}[HikStatus] در حال متوقف کردن پروسه‌ها...${NC}"; kill $SCHEDULER_PID $WEB_PID 2>/dev/null' EXIT INT TERM
+    # مدیریت سیگنال‌های خروج جهت متوقف کردن هر دو پروسه
+    trap 'echo -e "\n${YELLOW}[HikStatus] در حال متوقف کردن پروسه‌های وب و زمان‌بند...${NC}"; kill $SCHEDULER_PID $WEB_PID 2>/dev/null' EXIT INT TERM
+    
+    # راه‌اندازی مستقل موتور زمان‌بند در پس‌زمینه
     .venv/bin/python scheduler_runner.py &
     SCHEDULER_PID=$!
+
+    # راه‌اندازی سرویس اصلی وب FastAPI/Uvicorn
     .venv/bin/uvicorn main:app --host 0.0.0.0 --port "$PORT" &
     WEB_PID=$!
 
+    # انتظار برای پایان کار پروسه‌ها
     wait $WEB_PID $SCHEDULER_PID 2>/dev/null
 }
 
