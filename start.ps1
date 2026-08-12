@@ -14,7 +14,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position=0)]
-    [ValidateSet("start", "start-bg", "stop", "status", "enable-startup", "disable-startup", "install", "update", "check", "help", "")]
+    [ValidateSet("start", "start-bg", "stop", "status", "enable-startup", "disable-startup", "install", "update", "check", "reset-data", "clean", "help", "")]
     [string]$Action = "",
 
     [Parameter(Position=1)]
@@ -451,6 +451,35 @@ function Disable-Startup {
     }
 }
 
+function Reset-Data {
+    param([switch]$Force)
+
+    if (-not $Force) {
+        Write-Host "`n══════════════════════════════════════════════════════════════════════" -ForegroundColor Red
+        Write-Host "  WARNING: FULL DATA RESET | هشدار: پاکسازی کامل داده‌ها" -ForegroundColor Red
+        Write-Host "══════════════════════════════════════════════════════════════════════" -ForegroundColor Red
+        Write-Host "  This action will permanently delete all databases, snapshots, logs and settings." -ForegroundColor White
+        Write-Host "  | این عملیات پایگاه‌داده، اسنپ‌شات‌ها، لاگ‌ها و تنظیمات را به طور کامل و غیرقابل بازگشت حذف می‌کند." -ForegroundColor Gray
+        Write-Host ""
+        $confirm = Read-Host "Are you sure you want to delete all data? [y/N] | آیا مطمئن هستید؟"
+        if ($confirm -notmatch "^[Yy]$") {
+            Write-LogInfo "Reset" "Operation cancelled by user." "عملیات لغو شد."
+            return
+        }
+    }
+
+    Write-LogInfo "Reset" "Stopping background services first..." "در حال توقف سرویس‌ها..."
+    Stop-Server | Out-Null
+
+    Write-LogInfo "Reset" "Wiping data directory..." "در حال حذف دایرکتوری داده..."
+    if (Test-Path "data") {
+        Remove-Item -Path "data" -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    New-Item -ItemType Directory -Path "data" -Force | Out-Null
+
+    Write-LogOk "Reset" "All data and database wiped successfully." "تمامی داده‌ها و دیتابیس با موفقیت پاکسازی شدند."
+}
+
 function Show-Menu {
     while ($true) {
         Clear-Host
@@ -478,10 +507,11 @@ function Show-Menu {
         Write-Host "  [7] Full Setup and Install     | نصب و پیکربندی اولیه" -ForegroundColor White
         Write-Host "  [8] Update Packages            | بهروزرسانی بستهها" -ForegroundColor White
         Write-Host "  [9] System Health Check        | بررسی سلامت سیستم" -ForegroundColor White
+        Write-Host "  [10] Reset All Data & DB       | پاکسازی و بازنشانی کامل داده‌ها" -ForegroundColor Red
         Write-Host "  [0] Exit                       | خروج" -ForegroundColor White
         Write-Host "══════════════════════════════════════════════════════════════════════" -ForegroundColor DarkCyan
         
-        $choice = Read-Host "Select Option [0-9] | انتخاب گزینه"
+        $choice = Read-Host "Select Option [0-10] | انتخاب گزینه"
 
         switch ($choice) {
             "1" { Start-Server; break }
@@ -526,6 +556,11 @@ function Show-Menu {
                 Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."
                 break
             }
+            "10" {
+                Reset-Data
+                Read-Host "`nPress Enter to return | جهت بازگشت کلید Enter را بزنید..."
+                break
+            }
             "0" {
                 Write-Host "Goodbye! | خداحافظ!" -ForegroundColor Green
                 return
@@ -548,6 +583,8 @@ switch ($Action.ToLower()) {
     "install"         { Install-Dependencies }
     "update"          { Update-Dependencies }
     "check"           { Test-HealthCheck }
+    "reset-data"      { Reset-Data }
+    "clean"           { Reset-Data }
     "help"            {
         Write-Host "HikStatus Help:"
         Write-Host "  .\start.ps1                           Interactive TUI Menu"
@@ -560,6 +597,7 @@ switch ($Action.ToLower()) {
         Write-Host "  .\start.ps1 -Action install           Install Dependencies"
         Write-Host "  .\start.ps1 -Action update            Update Packages"
         Write-Host "  .\start.ps1 -Action check             System Health Check"
+        Write-Host "  .\start.ps1 -Action reset-data        Reset All Data & Database"
     }
     default           { Show-Menu }
 }

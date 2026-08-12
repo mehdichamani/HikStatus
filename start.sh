@@ -449,6 +449,36 @@ disable_startup() {
     fi
 }
 
+reset_data() {
+    local force_flag=0
+    if [ "$1" = "-f" ] || [ "$1" = "--force" ]; then
+        force_flag=1
+    fi
+
+    if [ "$force_flag" -eq 0 ]; then
+        echo -e "\n${RED}══════════════════════════════════════════════════════════════════════${NC}"
+        echo -e "  ${RED}WARNING: FULL DATA RESET | هشدار: پاکسازی کامل داده‌ها${NC}"
+        echo -e "${RED}══════════════════════════════════════════════════════════════════════${NC}"
+        echo -e "  ${WHITE}This action will permanently delete all databases, snapshots, logs and settings.${NC}"
+        echo -e "  ${GRAY}این عملیات پایگاه‌داده، اسنپ‌شات‌ها، لاگ‌ها و تنظیمات را به طور کامل و غیرقابل بازگشت حذف می‌کند.${NC}\n"
+        read -rp "Are you sure you want to delete all data? [y/N] | آیا مطمئن هستید؟ " confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            log_info "Reset" "Operation cancelled by user." "عملیات لغو شد."
+            return 0
+        fi
+    fi
+
+    log_info "Reset" "Stopping background services first..." "در حال توقف سرویس‌ها..."
+    stop_server >/dev/null 2>&1 || true
+
+    log_info "Reset" "Wiping data directory..." "در حال حذف دایرکتوری داده..."
+    rm -rf data
+    mkdir -p data
+
+    log_ok "Reset" "All data and database wiped successfully." "تمامی داده‌ها و دیتابیس با موفقیت پاکسازی شدند."
+    return 0
+}
+
 show_menu() {
     while true; do
         clear 2>/dev/null || true
@@ -490,10 +520,11 @@ show_menu() {
         echo -e "  ${WHITE}[7] Full Setup and Install     | نصب و پیکربندی اولیه${NC}"
         echo -e "  ${WHITE}[8] Update Packages            | بهروزرسانی بستهها${NC}"
         echo -e "  ${WHITE}[9] System Health Check        | بررسی سلامت سیستم${NC}"
+        echo -e "  ${RED}[10] Reset All Data & DB       | پاکسازی و بازنشانی کامل داده‌ها${NC}"
         echo -e "  ${WHITE}[0] Exit                       | خروج${NC}"
         echo -e "${CYAN}══════════════════════════════════════════════════════════════════════${NC}"
         
-        read -rp "Select Option [0-9] | انتخاب گزینه: " choice
+        read -rp "Select Option [0-10] | انتخاب گزینه: " choice
 
         case "$choice" in
             1)
@@ -531,6 +562,10 @@ show_menu() {
                 ;;
             9)
                 health_check
+                read -rp "Press Enter to return | جهت بازگشت کلید Enter را بزنید..."
+                ;;
+            10)
+                reset_data
                 read -rp "Press Enter to return | جهت بازگشت کلید Enter را بزنید..."
                 ;;
             0)
@@ -576,6 +611,9 @@ case "$ACTION" in
     check|9)
         health_check
         ;;
+    reset-data|clean|10)
+        reset_data "$2"
+        ;;
     help|--help|-h)
         echo "HikStatus Help:"
         echo "  ./start.sh                           Interactive TUI Menu"
@@ -588,6 +626,7 @@ case "$ACTION" in
         echo "  ./start.sh install                   Install Dependencies"
         echo "  ./start.sh update                    Update Packages"
         echo "  ./start.sh check                     System Health Check"
+        echo "  ./start.sh reset-data                Reset All Data & Database"
         ;;
     "")
         show_menu
