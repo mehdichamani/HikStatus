@@ -345,7 +345,11 @@ def build_aggregated_telegram_message(events_by_group):
                 ip = ev.get("ip", "")
                 time_str = ev.get("time", "")
                 ip_part = f" (<code>{ip}</code>)" if ip else ""
-                time_part = f" - قطعی از {time_str}" if (is_off and time_str) else (f" - {time_str}" if time_str else "")
+                time_part = (
+                    f" - قطعی از {time_str}"
+                    if (is_off and time_str)
+                    else (f" - {time_str}" if time_str else "")
+                )
                 event_lines.append(f"• {icon} {name}{ip_part}{time_part}")
             else:
                 g_offline += 1
@@ -523,7 +527,9 @@ def send_telegram_raw(conf, message, chat_ids):
                 payload = {"chat_id": cid, "text": chunk, "parse_mode": "HTML"}
                 resp = requests.post(url, data=payload, proxies=proxies, timeout=10)
                 if resp.status_code != 200:
-                    logger.warning(f"Telegram sendMessage status {resp.status_code}: {resp.text}")
+                    logger.warning(
+                        f"Telegram sendMessage status {resp.status_code}: {resp.text}"
+                    )
                     errors.append(f"HTTP {resp.status_code}: {resp.text}")
             except Exception as e:
                 logger.error(f"Telegram error: {e}")

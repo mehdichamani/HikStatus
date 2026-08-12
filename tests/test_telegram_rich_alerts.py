@@ -72,14 +72,16 @@ def test_split_telegram_message_smart_chunking():
             {
                 "type": "camera_offline",
                 "name": f"دوربین سالن شماره {c}",
-                "ip": f"192.168.{g}.{10+c}",
+                "ip": f"192.168.{g}.{10 + c}",
                 "time": "۱۰:۰۰",
             }
             for c in range(1, 6)
         ]
 
     long_message = build_aggregated_telegram_message(events_by_group)
-    assert len(long_message) > 4096, "پیام تولید شده باید برای تست از ۴۰۹۶ کاراکتر بزرگ‌تر باشد"
+    assert len(long_message) > 4096, (
+        "پیام تولید شده باید برای تست از ۴۰۹۶ کاراکتر بزرگ‌تر باشد"
+    )
 
     # فراخوانی تابع تقسیم پیام با حد مجاز ۳۸۰۰ کاراکتر
     chunks = split_telegram_message(long_message, max_chars=3800)
@@ -88,12 +90,18 @@ def test_split_telegram_message_smart_chunking():
 
     for i, chunk in enumerate(chunks, 1):
         # طول هیچ چنکی نباید از حد مجاز بیشتر باشد
-        assert len(chunk) <= 3800, f"چنک شماره {i} بیشتر از حد مجاز ۳۸۰۰ کاراکتر است ({len(chunk)})"
+        assert len(chunk) <= 3800, (
+            f"چنک شماره {i} بیشتر از حد مجاز ۳۸۰۰ کاراکتر است ({len(chunk)})"
+        )
 
         # بررسی تگ‌های باز و بسته HTML در هر چنک برای جلوگیری از Parse Error تلگرام
-        open_blockquotes = chunk.count("<blockquote expandable>") + chunk.count("<blockquote>")
+        open_blockquotes = chunk.count("<blockquote expandable>") + chunk.count(
+            "<blockquote>"
+        )
         close_blockquotes = chunk.count("</blockquote>")
-        assert open_blockquotes == close_blockquotes, f"تگ‌های blockquote در چنک {i} متوازن نیستند"
+        assert open_blockquotes == close_blockquotes, (
+            f"تگ‌های blockquote در چنک {i} متوازن نیستند"
+        )
 
         open_b = chunk.count("<b>")
         close_b = chunk.count("</b>")
@@ -101,7 +109,6 @@ def test_split_telegram_message_smart_chunking():
 
         # بررسی پسوند شماره بخش
         assert f"بخش {i} از" in chunk or len(chunks) == 1
-
 
 
 def test_telegram_api_4096_character_limit_enforcement():
@@ -116,7 +123,6 @@ def test_telegram_api_4096_character_limit_enforcement():
         chunks = split_telegram_message(large_text, max_chars=3800)
         for chunk in chunks:
             assert len(chunk) <= 4096
-
 
 
 def test_telegram_backward_compatibility():

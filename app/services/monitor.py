@@ -1213,6 +1213,7 @@ async def task_ping_cameras():
     cams_processed = []
 
     from collections import defaultdict
+
     browser_offline_by_group = defaultdict(list)
     browser_recovered_by_group = defaultdict(list)
 
@@ -1443,9 +1444,7 @@ async def task_ping_cameras():
                 title = f"قطع ارتباط تجمیعی {count} دوربین{grp_name}"
                 body = f"{count} دوربین قطع شدند: {names_str}"
 
-            await broadcast_alert(
-                "camera_offline", title, body, "error", count=count
-            )
+            await broadcast_alert("camera_offline", title, body, "error", count=count)
 
         # Broadcast aggregated browser alerts per group for recovered cameras
         for gid, cams in browser_recovered_by_group.items():
@@ -1471,7 +1470,6 @@ async def task_ping_cameras():
             await broadcast_alert(
                 "camera_recovered", title, body, "success", count=count
             )
-
 
         nvr_list = session.exec(select(NVR)).all()
         nvr_groups = {n.ip: n.group_id for n in nvr_list}
