@@ -153,11 +153,17 @@ start_server() {
 
     ensure_env_files
 
-    echo -e "\n${GREEN}${BOLD}🚀 HikStatus در حال اجراست...${NC}"
+    echo -e "\n${GREEN}${BOLD}🚀 HikStatus و موتور زمان‌بند در حال اجرا هستند...${NC}"
     echo -e "${CYAN}آدرس پنل: http://localhost:${PORT}${NC}"
     echo -e "${YELLOW}برای توقف کلید Ctrl+C را فشار دهید.${NC}\n"
 
-    exec .venv/bin/uvicorn main:app --host 0.0.0.0 --port "$PORT"
+    trap 'echo -e "\n${YELLOW}[HikStatus] در حال متوقف کردن پروسه‌ها...${NC}"; kill $SCHEDULER_PID $WEB_PID 2>/dev/null' EXIT INT TERM
+    .venv/bin/python scheduler_runner.py &
+    SCHEDULER_PID=$!
+    .venv/bin/uvicorn main:app --host 0.0.0.0 --port "$PORT" &
+    WEB_PID=$!
+
+    wait $WEB_PID $SCHEDULER_PID 2>/dev/null
 }
 
 show_menu() {

@@ -20,6 +20,21 @@ services:
       retries: 3
       start_period: 15s
 
+  hikstatus_scheduler:
+    build: .
+    container_name: hikstatus_scheduler
+    restart: always
+    environment:
+      - TZ=Asia/Tehran
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-admin}
+    volumes:
+      - ./data:/app/data
+      - ./static:/app/static
+    command: python scheduler_runner.py
+    depends_on:
+      - hikstatus
+
 # شبکه پیش‌فرض داکر. در صورت عدم نیاز به شبکه خارجی vpn، کل بخش زیر را کامنت یا حذف کنید تا شبکه پیش‌فرض (bridge) استفاده شود.
 # Optional external network. Comment out or delete this block to use the default bridge network.
 networks:

@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     HikStatus Native Manager (PowerShell TUI - Clean and Dual Language)
@@ -258,7 +258,15 @@ function Start-Server {
 
     Open-BrowserUrl "http://localhost:$Port"
 
-    & .venv\Scripts\uvicorn.exe main:app --host 0.0.0.0 --port $Port
+    $pythonPath = Join-Path $ScriptDir ".venv\Scripts\python.exe"
+    $schedProc = Start-Process -FilePath $pythonPath -ArgumentList "scheduler_runner.py" -WorkingDirectory $ScriptDir -PassThru -WindowStyle Hidden
+    try {
+        & .venv\Scripts\uvicorn.exe main:app --host 0.0.0.0 --port $Port
+    } finally {
+        if ($schedProc -and -not $schedProc.HasExited) {
+            Stop-Process -Id $schedProc.Id -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 function Start-ServerBackground {

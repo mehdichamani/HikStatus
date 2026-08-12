@@ -311,19 +311,11 @@ def seed_scheduled_tasks():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global monitor_task
     init_db()
     seed_defaults()
     seed_scheduled_tasks()
     set_broadcast_callback(ws_manager.broadcast)
-    monitor_task = asyncio.create_task(start_monitor_loop())
     yield
-    if monitor_task:
-        monitor_task.cancel()
-        try:
-            await monitor_task
-        except asyncio.CancelledError:
-            pass
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -1063,13 +1055,23 @@ def toggle_task_endpoint(
 
 
 @app.post("/api/scheduler/tasks/{task_id}/run")
-async def run_task_immediately(task_id: str, user: dict = Depends(require_auth)):
+async def run_task_immediately(
+    task_id: str,
+    user: dict = Depends(require_auth),
+    session: Session = Depends(get_session),
+):
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
 
-    success = await scheduler.trigger_task_now(task_id)
-    if not success:
-        raise HTTPException(status_code=400, detail="تسک در حال اجراست یا یافت نشد")
+    db_task = session.get(ScheduledTask, task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="تسک یافت نشد")
+
+    db_task.next_run = datetime.now()
+    session.add(db_task)
+    session.commit()
+
+    await scheduler.trigger_task_now(task_id)
     return {"status": "triggered"}
 
 
