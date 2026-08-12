@@ -2,11 +2,11 @@
 تست‌های خودکار مربوط به تجمیع هشدارهای تلگرام، Rich Messages و مدیریت محدوده کاراکترها (tests/test_telegram_rich_alerts.py)
 """
 
-import pytest
+from unittest.mock import patch
+
 from app.services.alerts import (
     build_aggregated_telegram_message,
     get_telegram_message,
-    send_telegram_raw,
     split_telegram_message,
 )
 
@@ -103,7 +103,6 @@ def test_split_telegram_message_smart_chunking():
         assert f"بخش {i} از" in chunk or len(chunks) == 1
 
 
-from unittest.mock import patch
 
 def test_telegram_api_4096_character_limit_enforcement():
     """
