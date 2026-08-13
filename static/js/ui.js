@@ -258,7 +258,7 @@ export function formatShamsiDate(dateInput) {
     if (!dateInput) return 'نامشخص';
     const date = new Date(dateInput);
     if (isNaN(date.getTime())) return 'نامشخص';
-    
+
     const formatter = new Intl.DateTimeFormat('fa-IR', {
         weekday: 'long',
         day: 'numeric',
@@ -267,17 +267,17 @@ export function formatShamsiDate(dateInput) {
         minute: '2-digit',
         hour12: false
     });
-    
+
     try {
         const parts = formatter.formatToParts(date);
         const partMap = {};
         parts.forEach(p => partMap[p.type] = p.value);
-        
+
         let weekday = partMap.weekday;
         if (weekday === 'پنجشنبه') weekday = 'پنج‌شنبه';
         else if (weekday === 'یکشنبه') weekday = 'یک‌شنبه';
         else if (weekday === 'سه شنبه' || weekday === 'سه‌شنبه') weekday = 'سه‌شنبه';
-        
+
         return `${weekday} ${partMap.day} ${partMap.month} ${partMap.hour}:${partMap.minute}`;
     } catch (e) {
         return date.toLocaleString('fa-IR');
@@ -554,7 +554,7 @@ export function showToast(msg, type = 'success') {
     `;
     toast.innerHTML = msg;
     document.body.appendChild(toast);
-    
+
     const duration = type === 'error' ? 6000 : 2500;
     setTimeout(() => {
         toast.style.opacity = '0';
@@ -566,7 +566,7 @@ export function showToast(msg, type = 'success') {
 export function showConfirm(message, title = 'تایید عملیات', isDangerous = true) {
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-message').textContent = message;
-    
+
     const okBtn = document.getElementById('confirm-ok-btn');
     if (isDangerous) {
         okBtn.style.background = 'var(--danger)';
@@ -577,7 +577,7 @@ export function showConfirm(message, title = 'تایید عملیات', isDanger
     }
 
     document.getElementById('confirmModal').classList.add('open');
-    
+
     return new Promise((resolve) => {
         confirmPromiseResolver = resolve;
     });
@@ -717,14 +717,14 @@ export function formatPersianDateTime(date) {
     });
     const parts = formatter.formatToParts(date);
     const getVal = (type) => parts.find(p => p.type === type).value;
-    
+
     const year = getVal('year');
     const month = getVal('month');
     const day = getVal('day');
     let hour = getVal('hour');
     if (hour === '24') hour = '00';
     const minute = getVal('minute');
-    
+
     return `${year}/${month}/${day} ${hour}:${minute}`;
 }
 
@@ -758,12 +758,12 @@ export function toggleReportSection(forceHeatmap = null) {
 export function switchChartTab(tabId) {
     const tabs = document.querySelectorAll('.chart-tab-content');
     tabs.forEach(t => t.style.display = 'none');
-    
+
     const activeTab = document.getElementById(tabId);
     if (activeTab) {
         activeTab.style.display = 'block';
     }
-    
+
     const navButtons = document.querySelectorAll('#charts-nav button');
     navButtons.forEach(btn => {
         if (btn.getAttribute('data-tab') === tabId) {
@@ -790,14 +790,14 @@ export function getChartColor(varName, fallback) {
 export function renderTrendChart(chartData) {
     const ctx = document.getElementById('chart-trend');
     if (!ctx) return;
-    
+
     if (chartTrendInstance) {
         chartTrendInstance.destroy();
     }
-    
+
     const textColor = window.getChartColor('--text', '#f1f5f9');
     const gridColor = window.getChartColor('--border', '#2a2a36');
-    
+
     chartTrendInstance = new Chart(ctx, {
         type: 'line',
         data: {
@@ -838,11 +838,11 @@ export function renderTrendChart(chartData) {
 export function renderCausesChart(chartData) {
     const ctx = document.getElementById('chart-causes');
     if (!ctx) return;
-    
+
     if (chartCausesInstance) {
         chartCausesInstance.destroy();
     }
-    
+
     if (!chartData || !chartData.labels || chartData.labels.length === 0) {
         chartCausesInstance = new Chart(ctx, {
             type: 'doughnut',
@@ -865,7 +865,7 @@ export function renderCausesChart(chartData) {
         });
         return;
     }
-    
+
     chartCausesInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -895,11 +895,11 @@ export function renderCausesChart(chartData) {
 export function renderGroupsChart(chartData) {
     const ctx = document.getElementById('chart-groups');
     if (!ctx) return;
-    
+
     if (chartGroupsInstance) {
         chartGroupsInstance.destroy();
     }
-    
+
     chartGroupsInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -939,11 +939,11 @@ export function renderGroupsChart(chartData) {
 export function renderTopCamerasChart(chartData) {
     const ctx = document.getElementById('chart-top-cameras');
     if (!ctx) return;
-    
+
     if (chartTopCamerasInstance) {
         chartTopCamerasInstance.destroy();
     }
-    
+
     chartTopCamerasInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -984,11 +984,11 @@ export function renderTopCamerasChart(chartData) {
 export function renderStatusChart(chartData) {
     const ctx = document.getElementById('chart-status');
     if (!ctx) return;
-    
+
     if (chartStatusInstance) {
         chartStatusInstance.destroy();
     }
-    
+
     chartStatusInstance = new Chart(ctx, {
         type: 'pie',
         data: {
@@ -1272,7 +1272,7 @@ export function toggleThemeDropdown(event) {
     if (!dropdown) return;
 
     const isHidden = dropdown.classList.contains('hidden');
-    
+
     // Close search dropdown if open
     const searchDropdown = document.getElementById('global-search-dropdown');
     if (searchDropdown) searchDropdown.classList.add('hidden');
@@ -1290,7 +1290,7 @@ export function selectThemeMode(mode) {
     const currentStyle = currentTheme.split('-')[0] || 'classic';
     const newTheme = `${currentStyle}-${mode}`;
     window.applyTheme(newTheme);
-    
+
     if (typeof showToast === 'function') {
         const modeLabel = mode === 'dark' ? 'تاریک' : 'روشن';
         window.showToast(`حالت پوسته به «${modeLabel}» تغییر یافت`);
@@ -1395,7 +1395,7 @@ export function initKioskListeners() {
 export function initBrowserAlerts() {
     if (localStorage.getItem('BROWSER_ALERT_ENABLED') === null) localStorage.setItem('BROWSER_ALERT_ENABLED', 'false');
     if (localStorage.getItem('BROWSER_ALERT_MUTED') === null) localStorage.setItem('BROWSER_ALERT_MUTED', 'false');
-    
+
     const categories = ['critical', 'recovery', 'warning'];
     categories.forEach(cat => {
         if (localStorage.getItem(`BROWSER_NOTIFY_${cat.toUpperCase()}_ENABLED`) === null) {
@@ -1484,7 +1484,7 @@ export function toggleCategorySound(category, checkbox) {
     localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, checkbox.checked ? 'true' : 'false');
 }
 
-export function playSynthesizedSound(category) {
+export function playSynthesizedSound(category, count = 1) {
     const isMuted = localStorage.getItem('BROWSER_ALERT_MUTED') === 'true';
     if (isMuted) return;
 
@@ -1493,71 +1493,259 @@ export function playSynthesizedSound(category) {
 
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
-    
+
     try {
         const ctx = new AudioContext();
+        const soundEngine = localStorage.getItem('BROWSER_ALERT_SOUND_ENGINE') || 'smart_melody';
 
-        if (category === 'critical') {
-            // Critical: Alarm sound (High sawtooth beep followed by lower beep)
-            const playBeep = (freq, startTime, duration) => {
+        if (soundEngine === 'persian_tts') {
+            // Persian Independent Text-To-Speech from Backend (Fallback to smart_melody if it fails or has no internet)
+            let speechText = '';
+            if (category === 'critical') {
+                speechText = count === 1 ? 'یک دوربین قطع شد' : `تعداد ${count} دوربین قطع شد`;
+            } else if (category === 'recovery') {
+                speechText = count === 1 ? 'ارتباط یک دوربین برقرار شد' : `ارتباط تعداد ${count} دوربین برقرار شد`;
+            } else {
+                speechText = 'هشدار سیستم مانیتورینگ صادر شد';
+            }
+
+            const audioUrl = `/api/v1/status/tts?text=${encodeURIComponent(speechText)}`;
+            const audio = new Audio(audioUrl);
+            audio.play().catch(err => {
+                console.warn('TTS playback failed, falling back to smart_melody:', err);
+                // Fallback to smart_melody logic
+                playMelodyFallback(ctx, category);
+            });
+            return;
+        }
+
+        const playMelodyFallback = (audioCtx, cat) => {
+            if (cat === 'critical') {
+                const arpeggio = [880.00, 698.46, 554.37, 440.00];
+                arpeggio.forEach((freq, index) => {
+                    const startTime = audioCtx.currentTime + index * 0.12;
+                    const duration = 0.35;
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    gain.gain.setValueAtTime(0.14, startTime);
+                    gain.gain.linearRampToValueAtTime(0.05, startTime + 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                });
+            } else if (cat === 'recovery') {
+                const majorChord = [523.25, 659.25, 783.99, 1046.50];
+                majorChord.forEach((freq, index) => {
+                    const startTime = audioCtx.currentTime + index * 0.10;
+                    const duration = 0.40;
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    gain.gain.setValueAtTime(0.12, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                });
+            } else {
+                const tones = [659.25, 830.61];
+                tones.forEach((freq, index) => {
+                    const startTime = audioCtx.currentTime + index * 0.15;
+                    const duration = 0.30;
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    gain.gain.setValueAtTime(0.15, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                });
+            }
+        };
+
+        if (soundEngine === 'simple_chime') {
+            // Chime mode (Previous elegant decay single dings)
+            if (category === 'critical') {
+                const playBeep = (freq, startTime, duration) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    gain.gain.setValueAtTime(0.12, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration - 0.02);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                };
+                playBeep(880, ctx.currentTime, 0.15);
+                playBeep(587.33, ctx.currentTime + 0.18, 0.25);
+            } else if (category === 'recovery') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, index) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.08);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime + index * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + index * 0.08 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + index * 0.08);
+                    osc.stop(ctx.currentTime + index * 0.08 + 0.25);
+                });
+            } else {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(freq, startTime);
-                gain.gain.setValueAtTime(0.12, startTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration - 0.02);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, ctx.currentTime);
+                gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.35);
                 osc.connect(gain);
                 gain.connect(ctx.destination);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.35);
+            }
+        }
+        else if (soundEngine === 'rhythmic_beeps') {
+            // Rhythmic beeps based on count
+            const repeatCount = Math.max(1, Math.min(10, count || 1)); // Cap to max 10 to avoid noise pollution
+            let type = 'sine';
+            let freq = 600;
+            let duration = 0.12;
+            let gap = 0.18;
+
+            if (category === 'critical') {
+                type = 'sawtooth';
+                freq = 880;
+                duration = 0.15;
+                gap = 0.25;
+            } else if (category === 'recovery') {
+                type = 'sine';
+                freq = 523.25;
+                duration = 0.12;
+                gap = 0.20;
+            } else {
+                type = 'triangle';
+                freq = 600;
+                duration = 0.12;
+                gap = 0.22;
+            }
+
+            for (let i = 0; i < repeatCount; i++) {
+                const startTime = ctx.currentTime + (i * gap);
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, startTime);
+
+                gain.gain.setValueAtTime(category === 'critical' ? 0.08 : 0.15, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
                 osc.start(startTime);
                 osc.stop(startTime + duration);
-            };
-            playBeep(880, ctx.currentTime, 0.15);
-            playBeep(587.33, ctx.currentTime + 0.18, 0.25);
-        } else if (category === 'recovery') {
-            // Recovery: Pleasant rising chime (C5 -> E5 -> G5 -> C6)
-            const notes = [523.25, 659.25, 783.99, 1046.50];
-            notes.forEach((freq, index) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.08);
-                gain.gain.setValueAtTime(0.1, ctx.currentTime + index * 0.08);
-                gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + index * 0.08 + 0.25);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start(ctx.currentTime + index * 0.08);
-                osc.stop(ctx.currentTime + index * 0.08 + 0.25);
-            });
-        } else if (category === 'warning') {
-            // Warning: Soft warning chime (single triangle wave decay ding)
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(600, ctx.currentTime);
-            gain.gain.setValueAtTime(0.18, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.35);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.35);
+            }
+        }
+        else {
+            // smart_melody mode: Elegant synthesized melody based on category
+            if (category === 'critical') {
+                // Urgent high-impact descending warning arpeggio (A5 -> F5 -> C#5 -> A4)
+                const arpeggio = [880.00, 698.46, 554.37, 440.00];
+                arpeggio.forEach((freq, index) => {
+                    const startTime = ctx.currentTime + index * 0.12;
+                    const duration = 0.35;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    gain.gain.setValueAtTime(0.14, startTime);
+                    gain.gain.linearRampToValueAtTime(0.05, startTime + 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                });
+            } else if (category === 'recovery') {
+                // Pleasant rising major chord chime (C5 -> E5 -> G5 -> C6)
+                const majorChord = [523.25, 659.25, 783.99, 1046.50];
+                majorChord.forEach((freq, index) => {
+                    const startTime = ctx.currentTime + index * 0.10;
+                    const duration = 0.40;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    gain.gain.setValueAtTime(0.12, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                });
+            } else {
+                // System Warning: Dynamic alert chime (two-tone E5 -> G#5)
+                const tones = [659.25, 830.61];
+                tones.forEach((freq, index) => {
+                    const startTime = ctx.currentTime + index * 0.15;
+                    const duration = 0.30;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    gain.gain.setValueAtTime(0.15, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                });
+            }
         }
     } catch (e) {
         console.error("Audio Context playback failed", e);
     }
 }
 
+
+
 export function testSound(category) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return window.showToast("مرورگر شما از صدا پشتیبانی نمی‌کند", "error");
-    
+
     const originalMute = localStorage.getItem('BROWSER_ALERT_MUTED');
     const originalSoundVal = localStorage.getItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`);
-    
+
     localStorage.setItem('BROWSER_ALERT_MUTED', 'false');
     localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, 'true');
-    
+
     window.playSynthesizedSound(category);
-    
+
     localStorage.setItem('BROWSER_ALERT_MUTED', originalMute);
     localStorage.setItem(`BROWSER_SOUND_${category.toUpperCase()}_ENABLED`, originalSoundVal);
 }
@@ -1587,10 +1775,10 @@ export function sendTestNotification() {
         icon: '/static/logo.webp',
         dir: 'rtl'
     });
-    
+
     window.playSynthesizedSound('recovery');
     window.showToast("اعلان آزمایشی ارسال شد");
-    
+
     notification.onclick = () => {
         window.focus();
         window.nav('dash');
@@ -1598,32 +1786,128 @@ export function sendTestNotification() {
     };
 }
 
+window.aggregatedAlertsBuffer = [];
+window.aggregationTimer = null;
+
+window.aggregatedAlertsBuffer = [];
+window.aggregationTimer = null;
+
 export function handleIncomingAlert(msg) {
     const isEnabled = localStorage.getItem('BROWSER_ALERT_ENABLED') === 'true';
     if (!isEnabled) return;
 
-    let category = 'warning';
-    if (msg.alert_type === 'error') category = 'critical';
-    else if (msg.alert_type === 'success') category = 'recovery';
+    const aggregationEnabled = localStorage.getItem('BROWSER_ALERT_AGGREGATION_ENABLED') !== 'false';
 
-    const notifyEnabled = localStorage.getItem(`BROWSER_NOTIFY_${category.toUpperCase()}_ENABLED`) !== 'false';
-    
-    if (notifyEnabled && Notification.permission === "granted") {
-        const notification = new Notification(msg.title, {
-            body: msg.body,
-            icon: '/static/logo.webp',
-            tag: `hikstatus-${category}`,
-            dir: 'rtl'
-        });
-        notification.onclick = () => {
-            window.focus();
-            window.nav('dash');
-            notification.close();
-        };
+    if (!aggregationEnabled) {
+        // Immediate alert processing (previous behavior)
+        let category = 'warning';
+        if (msg.alert_type === 'error') category = 'critical';
+        else if (msg.alert_type === 'success') category = 'recovery';
+
+        const notifyEnabled = localStorage.getItem(`BROWSER_NOTIFY_${category.toUpperCase()}_ENABLED`) !== 'false';
+
+        if (notifyEnabled && Notification.permission === "granted") {
+            const notification = new Notification(msg.title, {
+                body: msg.body,
+                icon: '/static/logo.webp',
+                tag: `hikstatus-${category}`,
+                dir: 'rtl'
+            });
+            notification.onclick = () => {
+                window.focus();
+                window.nav('dash');
+                notification.close();
+            };
+        }
+        window.playSynthesizedSound(category, 1);
+    } else {
+        // Aggregate / Batch the incoming alert
+        window.aggregatedAlertsBuffer.push(msg);
+
+        if (!window.aggregationTimer) {
+            const intervalSec = parseInt(localStorage.getItem('BROWSER_ALERT_AGGREGATION_INTERVAL') || '3');
+            window.aggregationTimer = setTimeout(window.processAggregatedAlerts, intervalSec * 1000);
+        }
+    }
+}
+
+window.processAggregatedAlerts = function() {
+    const buffer = window.aggregatedAlertsBuffer;
+    if (!buffer || buffer.length === 0) {
+        window.aggregationTimer = null;
+        return;
     }
 
-    window.playSynthesizedSound(category);
-}
+    if (buffer.length === 1) {
+        const msg = buffer[0];
+        let category = 'warning';
+        if (msg.alert_type === 'error') category = 'critical';
+        else if (msg.alert_type === 'success') category = 'recovery';
+
+        const notifyEnabled = localStorage.getItem(`BROWSER_NOTIFY_${category.toUpperCase()}_ENABLED`) !== 'false';
+        if (notifyEnabled && Notification.permission === "granted") {
+            const notification = new Notification(msg.title, {
+                body: msg.body,
+                icon: '/static/logo.webp',
+                tag: `hikstatus-${category}`,
+                dir: 'rtl'
+            });
+            notification.onclick = () => {
+                window.focus();
+                window.nav('dash');
+                notification.close();
+            };
+        }
+        window.playSynthesizedSound(category, 1);
+    } else {
+        // Multi-alert aggregation
+        let criticalCount = 0;
+        let recoveryCount = 0;
+        let warningCount = 0;
+
+        buffer.forEach(msg => {
+            if (msg.alert_type === 'error') criticalCount++;
+            else if (msg.alert_type === 'success') recoveryCount++;
+            else warningCount++;
+        });
+
+        const total = buffer.length;
+        let dominantCategory = 'warning';
+        if (criticalCount > 0) dominantCategory = 'critical';
+        else if (warningCount > 0) dominantCategory = 'warning';
+        else dominantCategory = 'recovery';
+
+        const notifyEnabled = localStorage.getItem(`BROWSER_NOTIFY_${dominantCategory.toUpperCase()}_ENABLED`) !== 'false';
+
+        if (notifyEnabled && Notification.permission === "granted") {
+            // Build a natural Persian summary
+            let summaryText = `تعداد ${window.toPersianNumbers(total)} رویداد جدید ثبت شد: `;
+            const parts = [];
+            if (criticalCount > 0) parts.push(`${window.toPersianNumbers(criticalCount)} دوربین قطع`);
+            if (recoveryCount > 0) parts.push(`${window.toPersianNumbers(recoveryCount)} دوربین وصل مجدد`);
+            if (warningCount > 0) parts.push(`${window.toPersianNumbers(warningCount)} هشدار سیستم`);
+
+            summaryText += parts.join(' و ');
+
+            const notification = new Notification("گزارش تجمیعی هشدارهای مانیتورینگ", {
+                body: summaryText,
+                icon: '/static/logo.webp',
+                tag: 'hikstatus-aggregated',
+                dir: 'rtl'
+            });
+            notification.onclick = () => {
+                window.focus();
+                window.nav('dash');
+                notification.close();
+            };
+        }
+
+        window.playSynthesizedSound(dominantCategory, total);
+    }
+
+    window.aggregatedAlertsBuffer = [];
+    window.aggregationTimer = null;
+};
 
 export function populateMapGroupSelect() {
     const sel = document.getElementById('map-group-select');
@@ -2015,9 +2299,9 @@ export function getMarkerPopupContent(c) {
             <p style="margin: 2px 0; font-size: 11px; color: var(--text-secondary);"><b>کانال:</b> ${c.channel_id}</p>
             <p style="margin: 2px 0; font-size: 11px; color: var(--text-secondary);"><b>IP:</b> ${c.ip}</p>
             <p style="margin: 4px 0 0; font-size: 11px; color: var(--text-secondary);"><b>وضعیت:</b> <span style="color: ${c.status === 'Online' ? 'var(--success)' : 'var(--danger)'}; font-weight: bold">${statusText}</span></p>
-            
+
             <hr style="border: 0; border-top: 1px solid var(--border); margin: 8px 0;">
-            
+
             <!-- FOV Toggle -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-size: 12px; font-weight: 500; color: var(--text);">محدوده دید (FOV)</span>
@@ -2026,7 +2310,7 @@ export function getMarkerPopupContent(c) {
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            
+
             <!-- FOV Sliders -->
             <div id="popup-fov-sliders-${c.id}" style="display: ${isFovEnabled ? 'block' : 'none'}; margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px;">
                 <div style="margin-bottom: 8px;">
@@ -2051,7 +2335,7 @@ export function getMarkerPopupContent(c) {
                     <input type="range" min="10" max="180" value="${c.fov_spread || 60}" style="width: 100%; accent-color: var(--primary);" oninput="window.updateMarkerFovVal(${c.id}, 'spread', this.value)">
                 </div>
             </div>
-            
+
             <!-- Remove from Map Button -->
             <button onclick="window.removeCameraFromMap(${c.id})" style="
                 width: 100%;
@@ -2237,7 +2521,7 @@ export function toggleMapEditMode() {
 export function applyRoleUI() {
     if (!window.currentUser) return;
     const role = window.currentUser.role;
-    
+
     // Hide navigation views
     document.querySelectorAll('[data-view="logs"]').forEach(el => {
         el.style.display = (role === 'admin') ? '' : 'none';
@@ -2307,7 +2591,7 @@ export function renderUsersList() {
             'it_manager': 'مسئول آی‌تی',
             'inspector': 'ناظر'
         }[u.role] || u.role;
-        
+
         let detailsText = `نقش: ${roleLabel}`;
         if (u.role === 'inspector' || u.role === 'it_manager') {
             if (!u.accessible_group_ids) {
@@ -2320,7 +2604,7 @@ export function renderUsersList() {
         } else if (u.role !== 'admin') {
             detailsText += ` | کارخانه: ${groupName}`;
         }
-        
+
         return `<div class="list-item">
             <div class="list-item-info">
                 <strong>${u.username}</strong>
@@ -2336,22 +2620,22 @@ export function renderUsersList() {
 
 export function openProfileModal() {
     if (!window.currentUser) return;
-    
+
     document.getElementById('p-username').textContent = window.currentUser.username;
-    
+
     const roleLabel = {
         'admin': 'مدیر کامل سیستم',
         'group_control': 'کنترل گروه/کارخانه',
         'group_view': 'مشاهده گروه/کارخانه'
     }[window.currentUser.role] || window.currentUser.role;
-    
+
     document.getElementById('p-role').textContent = roleLabel;
     document.getElementById('p-new-pass').value = '';
     document.getElementById('p-new-pass-confirm').value = '';
-    
+
     window.cancel2FASetup();
     window.update2FAUIState();
-    
+
     document.getElementById('profileModal').classList.add('open');
 }
 
@@ -2364,9 +2648,9 @@ export function update2FAUIState() {
     const disabledSec = document.getElementById('p-2fa-disabled-section');
     const setupSec = document.getElementById('p-2fa-setup-section');
     const enabledSec = document.getElementById('p-2fa-enabled-section');
-    
+
     if (!disabledSec || !setupSec || !enabledSec) return;
-    
+
     if (isEnabled) {
         disabledSec.style.display = 'none';
         setupSec.style.display = 'none';
@@ -2394,32 +2678,32 @@ export function copy2FAKey() {
 
 export function selectMarkerForFov(marker, c) {
     window.clearActiveFovSelection();
-    
+
     activeFovMarker = marker;
     activeFovCamera = c;
-    
+
     const panel = document.getElementById('map-fov-section');
     if (!panel) return;
     panel.style.display = 'block';
-    
+
     document.getElementById('map-fov-cam-name').textContent = `تنظیم محدوده دید دوربین "${c.name}"`;
-    
+
     const isFovEnabled = c.fov_angle != null && c.fov_radius != null;
     document.getElementById('sidebar-fov-enable').checked = isFovEnabled;
-    
+
     const slidersBlock = document.getElementById('sidebar-fov-sliders');
     slidersBlock.style.display = isFovEnabled ? 'block' : 'none';
-    
+
     if (isFovEnabled) {
         document.getElementById('sidebar-fov-angle').value = c.fov_angle || 0;
         document.getElementById('lbl-sidebar-angle').textContent = `${c.fov_angle || 0}°`;
-        
+
         document.getElementById('sidebar-fov-radius').value = c.fov_radius || 50;
         document.getElementById('lbl-sidebar-radius').textContent = c.fov_radius || 50;
-        
+
         document.getElementById('sidebar-fov-spread').value = c.fov_spread || 60;
         document.getElementById('lbl-sidebar-spread').textContent = `${c.fov_spread || 60}°`;
-        
+
         window.spawnFovHandles();
     }
 }
@@ -2440,33 +2724,33 @@ export function closeMapFovSection() {
 export function spawnFovHandles() {
     fovHandles.forEach(h => map.removeLayer(h));
     fovHandles = [];
-    
+
     if (!activeFovMarker || !activeFovCamera || !activeFovMarker.fovPolygon) return;
-    
+
     const c = activeFovCamera;
     const center = activeFovMarker.getLatLng();
     const pts = activeFovMarker.fovPolygon.getLatLngs()[0];
-    
+
     if (!pts || pts.length < 3) return;
-    
+
     const leftPt = pts[1];
     const rightPt = pts[pts.length - 2];
-    
+
     const handleIcon = L.divIcon({
         className: 'fov-handle-icon',
         html: `<div style="width: 12px; height: 12px; background: #ef4444; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); cursor: move;"></div>`,
         iconSize: [12, 12],
         iconAnchor: [6, 6]
     });
-    
+
     const leftHandle = L.marker(leftPt, { icon: handleIcon, draggable: true }).addTo(map);
     const rightHandle = L.marker(rightPt, { icon: handleIcon, draggable: true }).addTo(map);
-    
+
     fovHandles.push(leftHandle, rightHandle);
-    
+
     leftHandle.on('drag', () => window.handleDrag(leftHandle, rightHandle));
     rightHandle.on('drag', () => window.handleDrag(leftHandle, rightHandle));
-    
+
     leftHandle.on('dragend', () => window.saveFovFromHandles());
     rightHandle.on('dragend', () => window.saveFovFromHandles());
 }
@@ -2476,7 +2760,7 @@ export function getFlatAngle(center, pt) {
     const cx = center.lng !== undefined ? center.lng : center[1];
     const py = pt.lat !== undefined ? pt.lat : pt[0];
     const px = pt.lng !== undefined ? pt.lng : pt[1];
-    
+
     const dx = px - cx;
     const dy = py - cy;
     const rad = Math.atan2(dy, dx);
@@ -2491,7 +2775,7 @@ export function getGeoAngle(center, pt) {
     const lng1 = (center.lng) * Math.PI / 180;
     const lat2 = (pt.lat) * Math.PI / 180;
     const lng2 = (pt.lng) * Math.PI / 180;
-    
+
     const dLng = lng2 - lng1;
     const y = Math.sin(dLng) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
@@ -2503,51 +2787,51 @@ export function getGeoAngle(center, pt) {
 
 export function handleDrag(leftHandle, rightHandle) {
     if (!activeFovMarker || !activeFovCamera) return;
-    
+
     const c = activeFovCamera;
     const center = activeFovMarker.getLatLng();
     const leftLatLng = leftHandle.getLatLng();
     const rightLatLng = rightHandle.getLatLng();
-    
+
     let radius, leftAngle, rightAngle;
-    
+
     if (mapType === 'floor') {
         const distL = Math.sqrt(Math.pow(leftLatLng.lat - center.lat, 2) + Math.pow(leftLatLng.lng - center.lng, 2));
         const distR = Math.sqrt(Math.pow(rightLatLng.lat - center.lat, 2) + Math.pow(rightLatLng.lng - center.lng, 2));
         radius = Math.round((distL + distR) / 2);
-        
+
         leftAngle = window.getFlatAngle(center, leftLatLng);
         rightAngle = window.getFlatAngle(center, rightLatLng);
     } else {
         const distL = map.distance(center, leftLatLng);
         const distR = map.distance(center, rightLatLng);
         radius = Math.round((distL + distR) / 2);
-        
+
         leftAngle = window.getGeoAngle(center, leftLatLng);
         rightAngle = window.getGeoAngle(center, rightLatLng);
     }
-    
+
     let spread = rightAngle - leftAngle;
     if (spread < 0) spread += 360;
-    
+
     spread = Math.max(10, Math.min(180, spread));
-    
+
     let angle = leftAngle + (spread / 2);
     while (angle >= 360) angle -= 360;
-    
+
     c.fov_angle = Math.round(angle);
     c.fov_radius = Math.round(radius);
     c.fov_spread = Math.round(spread);
-    
+
     document.getElementById('sidebar-fov-angle').value = c.fov_angle;
     document.getElementById('lbl-sidebar-angle').textContent = `${c.fov_angle}°`;
-    
+
     document.getElementById('sidebar-fov-radius').value = c.fov_radius;
     document.getElementById('lbl-sidebar-radius').textContent = c.fov_radius;
-    
+
     document.getElementById('sidebar-fov-spread').value = c.fov_spread;
     document.getElementById('lbl-sidebar-spread').textContent = `${c.fov_spread}°`;
-    
+
     if (activeFovMarker.fovPolygon) {
         const pts = window.calculateFovPoints(c, center);
         activeFovMarker.fovPolygon.setLatLngs(pts);
@@ -2563,11 +2847,11 @@ export function saveFovFromHandles() {
 
 export function updateSidebarFovVal(field, value) {
     if (!activeFovMarker || !activeFovCamera) return;
-    
+
     const c = activeFovCamera;
     const marker = activeFovMarker;
     const val = parseInt(value);
-    
+
     if (field === 'angle') {
         c.fov_angle = val;
         document.getElementById('lbl-sidebar-angle').textContent = `${val}°`;
@@ -2578,12 +2862,12 @@ export function updateSidebarFovVal(field, value) {
         c.fov_spread = val;
         document.getElementById('lbl-sidebar-spread').textContent = `${val}°`;
     }
-    
+
     if (marker.fovPolygon) {
         const pts = window.calculateFovPoints(c, marker.getLatLng());
         marker.fovPolygon.setLatLngs(pts);
     }
-    
+
     window.spawnFovHandles();
     window.saveFovDebounced(c.id, c.fov_angle, c.fov_radius, c.fov_spread);
 }
@@ -2775,7 +3059,7 @@ export function toggleGlobalSearch(event) {
     if (event) event.stopPropagation();
     const dropdown = document.getElementById('global-search-dropdown');
     if (!dropdown) return;
-    
+
     const isHidden = dropdown.classList.toggle('hidden');
     if (!isHidden) {
         const input = document.getElementById('global-search-input');
@@ -2783,9 +3067,9 @@ export function toggleGlobalSearch(event) {
             input.value = '';
             input.focus();
         }
-        document.getElementById('global-search-results').innerHTML = 
+        document.getElementById('global-search-results').innerHTML =
             '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">عبارتی وارد کنید...</div>';
-        
+
         window.warmUpSearchCache();
     }
 }
@@ -2800,12 +3084,12 @@ export function onGlobalSearch(query) {
     }
 
     const q = query.toLowerCase().trim();
-    
+
     // Find matching cameras
     const matches = dashCamerasCache.filter(c => {
         const camName = (c.name || '').toLowerCase();
         const camIp = (c.ip || '').toLowerCase();
-        
+
         // Find NVR and its Group
         const nvrObj = nvrCache.find(n => n.ip === c.nvr_ip);
         const nvrName = nvrObj && nvrObj.name ? nvrObj.name.toLowerCase() : '';
@@ -2828,8 +3112,8 @@ export function onGlobalSearch(query) {
 
         const pathText = `${groupName} › ${nvrName} › ${c.name}`;
         const meta = encodeURIComponent(JSON.stringify(c));
-        const statusDot = c.status === 'Online' ? 
-            '<span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>' : 
+        const statusDot = c.status === 'Online' ?
+            '<span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>' :
             '<span style="width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block;"></span>';
 
         return `<div class="search-result-item" onclick="window.showCam('${meta}'); window.toggleGlobalSearch();" style="padding: 8px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.2s; border-radius: 4px; gap: 8px;">
@@ -2847,16 +3131,16 @@ export function onGlobalSearch(query) {
 export function populateOutageGroupFilter() {
     const sel = document.getElementById('outage-filter-group');
     if (!sel) return;
-    
+
     // Clear dynamic options (keep first one "همه کارخانه‌ها")
     while (sel.options.length > 1) {
         sel.remove(1);
     }
-    
+
     // Find unique group names from cache
     const groups = [...new Set(outagesCache.map(o => o.group_name).filter(Boolean))];
     groups.sort();
-    
+
     groups.forEach(g => {
         const opt = document.createElement('option');
         opt.value = g;
@@ -2872,20 +3156,20 @@ export function filterOutages() {
 export function renderOutagesList() {
     const list = document.getElementById('outage-explanations-list');
     if (!list) return;
-    
+
     // Get filter values
     const filterGroupVal = document.getElementById('outage-filter-group').value;
     const filterStatusVal = document.getElementById('outage-filter-status').value;
     const filterDaysVal = document.getElementById('outage-filter-days').value;
     const searchVal = document.getElementById('outage-search') ? document.getElementById('outage-search').value.toLowerCase().trim() : '';
-    
+
     let filtered = outagesCache;
-    
+
     // 1. Group Filter
     if (filterGroupVal) {
         filtered = filtered.filter(o => o.group_name === filterGroupVal);
     }
-    
+
     // 2. Status Filter
     if (filterStatusVal === 'pending') {
         filtered = filtered.filter(o => o.status === 'pending');
@@ -2894,7 +3178,7 @@ export function renderOutagesList() {
     } else if (filterStatusVal === 'expired') {
         filtered = filtered.filter(o => o.status === 'expired');
     }
-    
+
     // 3. Days Filter
     if (filterDaysVal !== 'all') {
         const days = parseInt(filterDaysVal);
@@ -2912,7 +3196,7 @@ export function renderOutagesList() {
             (o.camera_ip && o.camera_ip.toLowerCase().includes(searchVal))
         );
     }
-    
+
     const totalCount = filtered.length;
     const totalPages = Math.ceil(totalCount / outagesPerPage) || 1;
     if (currentOutagePage > totalPages) {
@@ -2938,16 +3222,16 @@ export function renderOutagesList() {
         list.innerHTML = '<tr><td colspan="13" class="empty-state" style="text-align: center; padding: 20px;">هیچ قطعی یافت نشد</td></tr>';
         return;
     }
-    
+
     const paginated = filtered.slice(startIndex, endIndex);
 
     const role = window.currentUser ? window.currentUser.role : 'group_view';
     const canExplain = role === 'admin' || role === 'it_manager';
-    
+
     list.innerHTML = paginated.map(o => {
         let statusBadge = '';
         let actionBtn = '';
-        
+
         if (o.status === 'explained') {
             statusBadge = '<span class="badge badge-success" style="background:#10b981; color:#fff; padding: 4px 8px; border-radius: 4px; font-size:12px;">رفع ابهام شده</span>';
             if (role === 'admin') {
@@ -2970,7 +3254,7 @@ export function renderOutagesList() {
                 actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">-</span>';
             }
         }
-        
+
         const isChecked = outagesSelectedIds.includes(o.id) ? 'checked' : '';
         const checkboxHtml = `<input type="checkbox" class="outage-row-checkbox" value="${o.id}" ${isChecked} onchange="window.onOutageRowCheckboxChange(${o.id}, this.checked)" style="cursor: pointer;">`;
 
@@ -3074,9 +3358,9 @@ export async function openExplanationModal(id) {
     isBulkExplanation = false;
     const o = outagesCache.find(x => x.id === id);
     if (!o) return;
-    
+
     document.getElementById('exp-outage-id').value = id;
-    
+
     // مدیریت بنر پیشنهاد هوشمند سیستم
     const banner = document.getElementById('outages-suggestion-banner');
     const bannerText = document.getElementById('outages-suggestion-text');
@@ -3147,9 +3431,9 @@ export async function openBulkExplanationModal() {
     } catch (e) {
         console.error('Error fetching causes for modal:', e);
     }
-    
+
     document.getElementById('exp-detail').value = '';
-    
+
     const modal = document.getElementById('explanationModal');
     if (modal) {
         modal.classList.remove('hidden');
@@ -3229,7 +3513,7 @@ export function toggleDashEditMode(forceState) {
     const btnEdit = document.getElementById('btn-edit-dash');
     const fabEdit = document.getElementById('btn-fab-edit');
     const editControls = document.getElementById('dash-edit-controls');
-    
+
     if (isDashEditMode) {
         dashSection.classList.add('dash-edit-mode');
         if (btnEdit) btnEdit.classList.add('active');
@@ -3292,7 +3576,7 @@ export function addWidget(widgetId) {
 export function resetDashboardLayout() {
     localStorage.removeItem('hikstatus_dashboard_layout');
     const container = document.getElementById('dash-widgets-container');
-    
+
     const defaultVisible = [
         'widget-cam-stats',
         'widget-nvr-health-summary',
@@ -3300,7 +3584,7 @@ export function resetDashboardLayout() {
         'widget-offline-section',
         'widget-nvr-container'
     ];
-    
+
     DEFAULT_WIDGET_ORDER.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -3319,10 +3603,10 @@ export function resetDashboardLayout() {
 export function saveDashboardLayout() {
     const container = document.getElementById('dash-widgets-container');
     if (!container) return;
-    
+
     const widgets = container.querySelectorAll('.dash-widget');
     const layout = [];
-    
+
     widgets.forEach(w => {
         let size = 'size-full';
         SIZES.forEach(s => { if (w.classList.contains(s)) size = s; });
@@ -3333,17 +3617,17 @@ export function saveDashboardLayout() {
             size: size
         });
     });
-    
+
     localStorage.setItem('hikstatus_dashboard_layout', JSON.stringify(layout));
 }
 
 export function loadDashboardLayout() {
     const container = document.getElementById('dash-widgets-container');
     if (!container) return;
-    
+
     const saved = localStorage.getItem('hikstatus_dashboard_layout');
     if (!saved) return;
-    
+
     try {
         const layout = JSON.parse(saved);
         layout.forEach(item => {
@@ -3371,12 +3655,12 @@ export function loadDashboardLayout() {
 export function initDragAndDropListeners() {
     const container = document.getElementById('dash-widgets-container');
     if (!container) return;
-    
+
     container.addEventListener('dragstart', (e) => {
         if (!isDashEditMode) return;
         const widget = e.target.closest('.dash-widget');
         if (!widget) return;
-        
+
         draggedWidgetId = widget.id;
         widget.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
@@ -3387,7 +3671,7 @@ export function initDragAndDropListeners() {
         if (!isDashEditMode || !draggedWidgetId) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        
+
         const targetWidget = e.target.closest('.dash-widget');
         if (targetWidget && targetWidget.id !== draggedWidgetId) {
             const rect = targetWidget.getBoundingClientRect();
@@ -3434,7 +3718,7 @@ export function closeAddWidgetModal() {
 export function updateAddWidgetModalContent() {
     const listEl = document.getElementById('add-widget-list');
     if (!listEl) return;
-    
+
     const hiddenWidgets = [];
     DEFAULT_WIDGET_ORDER.forEach(id => {
         const el = document.getElementById(id);
@@ -3442,7 +3726,7 @@ export function updateAddWidgetModalContent() {
             hiddenWidgets.push(id);
         }
     });
-    
+
     if (hiddenWidgets.length === 0) {
         listEl.innerHTML = `
             <div style="text-align: center; color: var(--text-muted); padding: 24px 0;">
@@ -3451,7 +3735,7 @@ export function updateAddWidgetModalContent() {
         `;
         return;
     }
-    
+
     listEl.innerHTML = hiddenWidgets.map(id => {
         const meta = WIDGET_METADATA[id] || { title: id, desc: '' };
         return `
@@ -3513,7 +3797,7 @@ export function formatHddInfo(hddJsonStr) {
 
             const usedVal = Math.max(0, capVal - freeVal);
             const usedPercent = capVal > 0 ? Math.min(100, Math.round((usedVal / capVal) * 100)) : 0;
-            
+
             const isFullAndRecording = isOk && (freeVal < 5120 || usedPercent >= 99);
             const overwriteBadge = isFullAndRecording ? '<span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: var(--primary-glow); color: var(--primary); border: 1px solid var(--border); font-weight: bold; margin-right: 4px;">ضبط مداوم</span>' : '';
 
@@ -3553,7 +3837,7 @@ export function renderDashboardCharts() {
     if (statusCanvas && dashCamerasCache) {
         const onCount = dashCamerasCache.filter(c => c.status === 'Online').length;
         const offCount = dashCamerasCache.filter(c => c.status !== 'Online').length;
-        
+
         if (dashChartStatusInstance) dashChartStatusInstance.destroy();
         dashChartStatusInstance = new Chart(statusCanvas.getContext('2d'), {
             type: 'doughnut',
@@ -3585,7 +3869,7 @@ export function renderDashboardCharts() {
             if (!Array.isArray(data) || data.length === 0) return;
             const labels = data.map(d => d.cause);
             const values = data.map(d => d.count);
-            
+
             if (dashChartCausesInstance) dashChartCausesInstance.destroy();
             dashChartCausesInstance = new Chart(causesCanvas.getContext('2d'), {
                 type: 'bar',
@@ -3617,11 +3901,11 @@ export function renderDashboardCharts() {
 export function openEditGroupModal(id) {
     const group = groupCache.find(g => g.id === id);
     if (!group) return window.showToast('کارخانه پیدا نشد', 'error');
-    
+
     document.getElementById('editGroupId').value = group.id;
     document.getElementById('editGroupName').value = group.name;
     document.getElementById('editGroupDesc').value = group.description || '';
-    
+
     document.getElementById('editGroupModal').classList.add('open');
 }
 
@@ -3671,7 +3955,7 @@ export function openEditUserModal(id) {
     // Populate group select
     const select = document.getElementById('editUserGroup');
     if (select) {
-        select.innerHTML = '<option value="">بدون گروه</option>' + groupCache.map(g => 
+        select.innerHTML = '<option value="">بدون گروه</option>' + groupCache.map(g =>
             `<option value="${g.id}">${g.name}</option>`
         ).join('');
         select.value = user.group_id || '';
@@ -3751,9 +4035,9 @@ window.showNvrHealthModal = function(event, ip) {
     const modalHtml = `
         <div id="nvr-health-detail-modal" class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
             <div class="modal-content" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 460px; padding: 20px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px; transform: scale(0.95); transition: transform 0.25s ease; position: relative;">
-                
+
                 <button onclick="window.closeNvrHealthModal()" style="position: absolute; left: 16px; top: 16px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; padding: 4px;" title="بستن">&times;</button>
-                
+
                 <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
                     <div style="display: flex; flex-direction: column; gap: 2px;">
                         <h3 style="font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0;">${n.name || 'NVR بدون نام'}</h3>
@@ -3783,7 +4067,7 @@ window.showNvrHealthModal = function(event, ip) {
 
     const modalEl = document.getElementById('nvr-health-detail-modal');
     const contentEl = modalEl.querySelector('.modal-content');
-    
+
     modalEl.offsetHeight; // force reflow
 
     modalEl.style.opacity = '1';
@@ -3822,7 +4106,7 @@ window.showOffRecordingDetailsModal = function(event) {
 
     const list = window.offRecordingCache || [];
     let listHtml = '';
-    
+
     if (list.length === 0) {
         listHtml = '<div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 24px 0;">هیچ دوربین ضبط خاموشی وجود ندارد.</div>';
     } else {
@@ -3843,9 +4127,9 @@ window.showOffRecordingDetailsModal = function(event) {
     const modalHtml = `
         <div id="cam-details-modal" class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
             <div class="modal-content" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 480px; padding: 20px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px; transform: scale(0.95); transition: transform 0.25s ease; position: relative;">
-                
+
                 <button onclick="window.closeCamDetailsModal()" style="position: absolute; left: 16px; top: 16px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; padding: 4px;" title="بستن">&times;</button>
-                
+
                 <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
                     <div style="display: flex; flex-direction: column; gap: 2px;">
                         <h3 style="font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0;">دوربین‌های ضبط خاموش</h3>
@@ -3864,7 +4148,7 @@ window.showOffRecordingDetailsModal = function(event) {
 
     const modalEl = document.getElementById('cam-details-modal');
     const contentEl = modalEl.querySelector('.modal-content');
-    
+
     modalEl.offsetHeight; // force reflow
 
     modalEl.style.opacity = '1';
@@ -3891,7 +4175,7 @@ window.showDeletedCamerasDetailsModal = function(event) {
     const changes = (window.changesCache && window.changesCache.changes_24h) || [];
     const list = changes.filter(item => item.action === 'حذف شده');
     let listHtml = '';
-    
+
     if (list.length === 0) {
         listHtml = '<div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 24px 0;">هیچ دوربین حذف شده‌ای در ۲۴ ساعت اخیر یافت نشد.</div>';
     } else {
@@ -3912,9 +4196,9 @@ window.showDeletedCamerasDetailsModal = function(event) {
     const modalHtml = `
         <div id="cam-details-modal" class="modal-backdrop" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
             <div class="modal-content" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 480px; padding: 20px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px; transform: scale(0.95); transition: transform 0.25s ease; position: relative;">
-                
+
                 <button onclick="window.closeCamDetailsModal()" style="position: absolute; left: 16px; top: 16px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; padding: 4px;" title="بستن">&times;</button>
-                
+
                 <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
                     <div style="display: flex; flex-direction: column; gap: 2px;">
                         <h3 style="font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0;">دوربین‌های حذف شده (۲۴ ساعت اخیر)</h3>
@@ -3933,7 +4217,7 @@ window.showDeletedCamerasDetailsModal = function(event) {
 
     const modalEl = document.getElementById('cam-details-modal');
     const contentEl = modalEl.querySelector('.modal-content');
-    
+
     modalEl.offsetHeight; // force reflow
 
     modalEl.style.opacity = '1';
@@ -3971,14 +4255,14 @@ function updateTaskProgressUI(taskId, defaultInterval, timerTextElId, progressEl
     if (!window.scheduledTasksCache) return -1;
     const task = window.scheduledTasksCache.find(t => t.id === taskId);
     if (!task || !task.next_run) return -1;
-    
+
     const nextRun = new Date(task.next_run);
     const total = task.interval || defaultInterval;
     const diff = Math.max(0, Math.ceil((nextRun - now) / 1000));
-    
+
     const timerTextEl = document.getElementById(timerTextElId);
     const progressEl = document.getElementById(progressElId);
-    
+
     if (timerTextEl) {
         if (diff === 0) {
             timerTextEl.textContent = 'بروزرسانی...';
@@ -4006,15 +4290,15 @@ window.startDashboardCountdowns = function() {
     if (window.dashboardCountdownInterval) {
         clearInterval(window.dashboardCountdownInterval);
     }
-    
+
     window.dashboardCountdownInterval = setInterval(() => {
         if (!window.scheduledTasksCache || window.scheduledTasksCache.length === 0) return;
-        
+
         const now = new Date();
-        
+
         // 1. Camera Health Update (ping_cameras)
         updateTaskProgressUI('ping_cameras', 60, 'cam-update-timer-text', 'cam-update-progress', now);
-        
+
         // 2. NVR Health Update (sync_nvr_health)
         updateTaskProgressUI('sync_nvr_health', 300, 'nvr-update-timer-text', 'nvr-update-progress', now);
 
@@ -4038,4 +4322,4 @@ window.startDashboardCountdowns = function() {
         }
         window.lastSnapDiff = snapDiff;
     }, 1000);
-};
+};

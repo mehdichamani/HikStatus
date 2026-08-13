@@ -78,3 +78,22 @@ def update_setting(
     )
     invalidate_config_cache()
     return s
+
+
+@router.get("/tts")
+def text_to_speech(text: str):
+    if not text:
+        raise HTTPException(status_code=400, detail="Text parameter is required")
+    try:
+        import io
+        from fastapi.responses import StreamingResponse
+        from gtts import gTTS
+
+        # Synthesize Persian speech
+        tts = gTTS(text=text, lang="fa", slow=False)
+        mp3_fp = io.BytesIO()
+        tts.write_to_fp(mp3_fp)
+        mp3_fp.seek(0)
+        return StreamingResponse(mp3_fp, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {str(e)}")

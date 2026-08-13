@@ -1494,6 +1494,41 @@
                                 </label>
                             </div>
 
+                            <!-- Smart Aggregation & Independent Sound settings -->
+                            <div style="background: rgba(var(--primary-glow), 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px;">
+                                <strong style="color: var(--primary); font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                    ⚡ تجمیع هوشمند و خوانش مستقل اعلان‌ها
+                                </strong>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">فعال‌سازی تجمیع اعلان‌ها (Notification Batching):</span>
+                                        <label class="toggle" style="transform: scale(0.95);">
+                                            <input type="checkbox" id="BROWSER_ALERT_AGGREGATION_ENABLED" onchange="toggleBrowserAlertAggregation(this)">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                                        <label class="compact-label" for="BROWSER_ALERT_AGGREGATION_INTERVAL">مدت زمان بازه تجمیع (ثانیه):</label>
+                                        <select id="BROWSER_ALERT_AGGREGATION_INTERVAL" class="form-input" onchange="changeAggregationInterval(this.value)" style="padding: 6px 12px; font-size: 12px;">
+                                            <option value="2">۲ ثانیه (سریع)</option>
+                                            <option value="3">۳ ثانیه (پیش‌فرض)</option>
+                                            <option value="5">۵ ثانیه (معمولی)</option>
+                                            <option value="8">۸ ثانیه (کند)</option>
+                                            <option value="10">۱۰ ثانیه (صرفه‌جویی بالا)</option>
+                                        </select>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 6px; grid-column: span 2;">
+                                        <label class="compact-label" for="BROWSER_ALERT_SOUND_ENGINE">نوع سیستم صوتی مستقل (عدم اتکا به TTS مرورگر):</label>
+                                        <select id="BROWSER_ALERT_SOUND_ENGINE" class="form-input" onchange="changeBrowserSoundEngine(this.value)" style="padding: 6px 12px; font-size: 12px;">
+                                            <option value="persian_tts">خوانش صوتی فارسی روان (موتور سخن‌گوی مستقل بک‌اَند سامانه)</option>
+                                            <option value="smart_melody">ملودی کدگذاری شده هوشمند (پخش هارمونی متمایز قطع و وصل)</option>
+                                            <option value="rhythmic_beeps">بیپ‌های ریتمیک پیاپی (تعداد بیپ‌ها برابر با تعداد تجهیزات درگیر)</option>
+                                            <option value="simple_chime">تک زنگ ساده و ملایم (Single Chime)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Granular Notification Settings -->
                             <h4 style="color: var(--text-primary); margin-bottom: 12px; font-size: 14px;">اعلان به تفکیک
                                 دسته‌بندی:</h4>
