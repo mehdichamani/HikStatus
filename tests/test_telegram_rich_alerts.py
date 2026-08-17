@@ -212,3 +212,54 @@ def test_send_telegram_batch_structured_and_raw():
         assert "خط اول" in sent_raw_msg
         assert "<blockquote expandable>" in sent_raw_msg
 
+
+import pytest
+from unittest.mock import MagicMock
+from app.database import Camera
+from app.services.monitor import process_batch_alerts
+
+
+@pytest.mark.asyncio
+async def test_process_batch_alerts_ignores_never_online_cameras():
+    """
+    اطمینان از اینکه دوربین‌های جدید یا کانال‌های خالی NVR که هنوز آنلاین نشده‌اند (last_online=None)
+    موجب ارسال پیام خطای قطعی در تلگرام نمی‌شوند.
+    """
+    mock_session = MagicMock()
+    mock_session.get.return_value = MagicMock(value="1")  # Delay 1 min
+
+    # دوربینی که هرگز آنلاین نبوده (کانال خالی NVR)
+    unused_cam = Camera(
+        id=1,
+        name="دوربین بلااستفاده",
+        ip="192.168.1.50",
+        nvr_ip="192.168.1.10",
+        channel_id="1",
+        status="Offline",
+        last_online=None,
+        telegram_alert_count=0,
+    )
+
+    # دوربینی که قبلاً آنلاین بوده و قطع شده
+    from datetime import datetime, timedelta
+
+    real_offline_cam = Camera(
+        id=2,
+        name="دوربین قطع‌شده واقعی",
+        ip="192.168.1.51",
+        nvr_ip="192.168.1.10",
+        channel_id="2",
+        status="Offline",
+        last_online=datetime.now() - timedelta(minutes=5),
+        telegram_alert_count=0,
+    )
+
+    t_events, m_alerts, m_recov = await process_batch_alerts(
+        mock_session, [unused_cam, real_offline_cam]
+    )
+
+    # فقط دوربین واقعی باید در لیست رویدادها باشد و کانال خالی نادیده گرفته شود
+    assert len(t_events) == 1
+    assert t_events[0]["name"] == "دوربین قطع‌شده واقعی"
+
+

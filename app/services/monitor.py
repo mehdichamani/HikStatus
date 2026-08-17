@@ -103,6 +103,7 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
         # Get existing cameras in DB for this NVR
         existing_cams = db_session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
         existing_channel_ids = {cam.channel_id: cam for cam in existing_cams}
+        is_initial_sync = len(existing_cams) == 0
 
         req_sess = requests.Session()
         req_sess.trust_env = False
@@ -162,38 +163,40 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
 
             # Detect removed cameras: in DB but not in NVR response
             removed_cameras = []
-            for chan_id, cam in existing_channel_ids.items():
-                if chan_id not in nvr_channel_ids:
-                    removed_cameras.append((chan_id, cam.name, cam.ip))
+            if not is_initial_sync:
+                for chan_id, cam in existing_channel_ids.items():
+                    if chan_id not in nvr_channel_ids:
+                        removed_cameras.append((chan_id, cam.name, cam.ip))
 
-            # Log change events for added cameras
+            # Log change events for added cameras (تنها در صورتی که کشف اولیه نباشد هشدار ارسال می‌شود)
             alert_lines = []
             for chan_id, cam_name, cam_ip in added_cameras:
-                db_session.add(
-                    CameraChangeEvent(
-                        nvr_ip=ip,
-                        camera_name=cam_name,
-                        camera_channel_id=chan_id,
-                        change_type="camera_added",
-                        new_value=f"{cam_name} ({cam_ip})",
-                        group_id=nvr_group_id,
+                if not is_initial_sync:
+                    db_session.add(
+                        CameraChangeEvent(
+                            nvr_ip=ip,
+                            camera_name=cam_name,
+                            camera_channel_id=chan_id,
+                            change_type="camera_added",
+                            new_value=f"{cam_name} ({cam_ip})",
+                            group_id=nvr_group_id,
+                        )
                     )
-                )
+                    alert_lines.append(
+                        f"➕ دوربین جدید: {cam_name} ({cam_ip}) — کانال {chan_id}"
+                    )
                 log_event(
                     db_session,
                     category="Camera",
-                    action="CAMERA_ADDED",
-                    details=f"دوربین جدید {cam_name} ({cam_ip}) به {nvr_name} اضافه شد",
+                    action="CAMERA_ADDED" if not is_initial_sync else "CAMERA_DISCOVERED",
+                    details=f"دوربین {cam_name} ({cam_ip}) در {nvr_name} ثبت شد",
                     level="INFO",
                     group_id=nvr_group_id,
                     target_type="Camera",
                     target_id=cam_ip,
                 )
-                alert_lines.append(
-                    f"➕ دوربین جدید: {cam_name} ({cam_ip}) — کانال {chan_id}"
-                )
                 logger.info(
-                    f"New camera detected on {nvr_name}: {cam_name} ({cam_ip}) CH {chan_id}"
+                    f"Camera registered on {nvr_name}: {cam_name} ({cam_ip}) CH {chan_id}"
                 )
 
             # Log change events for removed cameras and delete them
@@ -246,8 +249,8 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
 
             db_session.commit()
 
-            # Send combined alert for all changes on this NVR
-            if alert_lines:
+            # Send combined alert for all changes on this NVR (تنها برای تغییرات واقعی پس از کشف اولیه)
+            if alert_lines and not is_initial_sync:
                 group_name = ""
                 if nvr_group_id:
                     grp = db_session.get(NVRGroup, nvr_group_id)
@@ -499,7 +502,11 @@ async def process_batch_alerts(session, cams_to_check, startup_grace=False):
             session.add(cam)
             continue
 
-        downtime = now - (cam.last_online or now)
+        # اگر دوربین تا کنون آنلاین نبوده (کانال خالی/استفاده‌نشده NVR)، هشدار قطعی صادر نشود
+        if cam.last_online is None:
+            continue
+
+        downtime = now - cam.last_online
         downtime_mins = int(downtime.total_seconds() / 60)
 
         # --- TELEGRAM ---
@@ -1404,41 +1411,32 @@ async def task_ping_cameras():
                     session.add(db_cam)
                     session.flush()
                     session.refresh(db_cam)
-                    if new_status == "Offline":
-                        browser_offline_by_group[nvr_obj.group_id].append(db_cam)
-                        session.add(
-                            DowntimeEvent(
-                                camera_id=db_cam.id, start_time=datetime.now()
-                            )
-                        )
                 else:
                     if db_cam.ip != d["ip"]:
                         db_cam.ip = d["ip"]
 
                     if db_cam.status != new_status:
+                        was_ever_online = db_cam.last_online is not None
                         log_event(
                             session,
                             category="Camera",
                             action=f"CAMERA_{new_status.upper()}",
                             details=f"{db_cam.name} ({db_cam.ip})",
                             level="INFO" if new_status == "Online" else "WARNING",
-                            group_id=nvr_obj.group_id,
+                            group_id=nvr_group_id if nvr_group_id else nvr_obj.group_id,
                             target_type="Camera",
                             target_id=db_cam.id,
                         )
-                        if new_status == "Offline":
+                        if new_status == "Offline" and was_ever_online:
                             browser_offline_by_group[nvr_obj.group_id].append(db_cam)
-                        else:
-                            browser_recovered_by_group[nvr_obj.group_id].append(db_cam)
-
-                        db_cam.status = new_status
-                        if new_status == "Offline":
                             session.add(
                                 DowntimeEvent(
                                     camera_id=db_cam.id, start_time=datetime.now()
                                 )
                             )
                         elif new_status == "Online":
+                            if was_ever_online:
+                                browser_recovered_by_group[nvr_obj.group_id].append(db_cam)
                             open_evt = session.exec(
                                 select(DowntimeEvent).where(
                                     DowntimeEvent.camera_id == db_cam.id,
@@ -1448,6 +1446,8 @@ async def task_ping_cameras():
                             if open_evt:
                                 open_evt.end_time = datetime.now()
                                 session.add(open_evt)
+
+                        db_cam.status = new_status
 
                     if d["online"]:
                         db_cam.last_online = datetime.now()
