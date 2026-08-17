@@ -4,6 +4,7 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -450,15 +451,27 @@ def require_auth(
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
         origin = request.headers.get("origin")
         referer = request.headers.get("referer")
-        base_url = str(request.base_url).rstrip("/")
+
+        # استخراج هاست معتبر درخواست با در نظر گرفتن پروکسی‌ها (Reverse Proxy / Cloud)
+        raw_host = (
+            request.headers.get("x-forwarded-host")
+            or request.headers.get("host")
+            or request.url.netloc
+            or ""
+        )
+        expected_host = (
+            urlparse(f"http://{raw_host.split(',')[0].strip()}").hostname or ""
+        ).lower()
 
         if origin:
-            if not origin.rstrip("/").startswith(base_url):
+            origin_host = (urlparse(origin).hostname or "").lower()
+            if origin_host != expected_host:
                 raise HTTPException(
                     status_code=403, detail="درخواست غیرمجاز (CSRF Origin)"
                 )
         elif referer:
-            if not referer.rstrip("/").startswith(base_url):
+            referer_host = (urlparse(referer).hostname or "").lower()
+            if referer_host != expected_host:
                 raise HTTPException(
                     status_code=403, detail="درخواست غیرمجاز (CSRF Referer)"
                 )

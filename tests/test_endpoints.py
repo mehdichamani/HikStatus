@@ -481,3 +481,53 @@ def test_endpoint_config_export(client):
     response = client.get("/api/config/export")
     assert response.status_code == 200
     assert "settings" in response.json()
+
+
+# ==================== ۱۳. تست‌های اعتبارسنجی ضد CSRF و Reverse Proxy ====================
+
+
+def test_csrf_validation_allowed_and_blocked(session):
+    from fastapi import HTTPException, Request
+
+    # ۱. تست مسدود شدن درخواست از دامنه نامعتبر (CSRF Attack)
+    req_evil = Request(
+        scope={
+            "type": "http",
+            "method": "POST",
+            "headers": [
+                (b"origin", b"https://evil-attacker.com"),
+                (b"host", b"hikstatus.up.railway.app"),
+            ],
+            "scheme": "http",
+            "server": ("hikstatus.up.railway.app", 80),
+            "path": "/api/outage-causes",
+            "query_string": b"",
+        }
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        main.require_auth(req_evil, None, session)
+    assert exc_info.value.status_code == 403
+    assert "CSRF Origin" in exc_info.value.detail
+
+    # ۲. تست پذیرش درخواست معتبر از طریق Reverse Proxy و کلود (Railway)
+    req_valid_proxy = Request(
+        scope={
+            "type": "http",
+            "method": "POST",
+            "headers": [
+                (b"origin", b"https://hikstatus.up.railway.app"),
+                (b"x-forwarded-host", b"hikstatus.up.railway.app"),
+                (b"x-forwarded-proto", b"https"),
+            ],
+            "scheme": "http",
+            "server": ("127.0.0.1", 28888),
+            "path": "/api/outage-causes",
+            "query_string": b"",
+        }
+    )
+    # هدرهای پروکسی پذیرفته می‌شوند و چون توکن ورود ندارد، خطای 401 احراز هویت می‌دهد نه 403 CSRF
+    with pytest.raises(HTTPException) as exc_info:
+        main.require_auth(req_valid_proxy, None, session)
+    assert exc_info.value.status_code == 401
+
+
