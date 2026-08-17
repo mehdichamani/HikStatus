@@ -2,6 +2,10 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+build/
+dist/
+src/
 .venv/
 
 # --- HikStatus Data (SENSITIVE) ---
