@@ -283,50 +283,126 @@ def send_email_raw(conf, subject, body, recipients):
         return str(e)
 
 
-def get_telegram_message(header, lines, alert_type):
+def build_aggregated_telegram_message(
+    events_by_group=None,
+    nvr_events=None,
+    title=None,
+    alert_type="warning",
+    raw_lines=None,
+):
+    """
+    ساخت پیام تجمیعی و غنی HTML برای ارسال به تلگرام.
+    شامل خلاصه وضعیت، رویدادهای NVR و گروه‌های دوربین با المان‌های Expandable و Code.
+    """
     icons = {"error": "🚨", "warning": "⚠️", "success": "✅", "info": "ℹ️"}
-    icon = icons.get(alert_type, "⚠️")
 
-    msg = f"{icon} <b>{header}</b>\n"
-    msg += "━" * 20 + "\n"
-    for line in lines:
-        safe_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        msg += f"  • {safe_line}\n"
-    msg += "━" * 20 + "\n"
-    msg += f"📅 {get_persian_datetime()}"
-    return msg
+    # سناریو ۱: پیام مبتنی بر خطوط خام (مانند تغییرات ساختاری، تنظیمات ضبط، یا گزارش ساعتی)
+    if raw_lines is not None:
+        header_title = title or "اعلان سامانه HikStatus"
+        icon = icons.get(alert_type, "⚠️")
+        msg = f"{icon} <b>{header_title}</b>\n"
+        msg += f"📅 <i>تاریخ: {get_persian_datetime()}</i>\n"
+        msg += "───────────────────\n"
+        msg += "<blockquote expandable>\n"
+        for line in raw_lines:
+            safe_line = (
+                str(line)
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+            )
+            # بازگرداندن تگ‌های مجاز تلگرام در صورت وجود
+            safe_line = (
+                safe_line.replace("&lt;code&gt;", "<code>")
+                .replace("&lt;/code&gt;", "</code>")
+                .replace("&lt;b&gt;", "<b>")
+                .replace("&lt;/b&gt;", "</b>")
+            )
+            msg += f"• {safe_line}\n"
+        msg += "</blockquote>\n"
+        msg += "───────────────────\n"
+        msg += "⚙️ <i>سامانه هوشمند پایش تجهیزات HikStatus</i>"
+        return msg
 
+    events_by_group = events_by_group or {}
+    nvr_events = nvr_events or []
 
-def build_aggregated_telegram_message(events_by_group):
-    """
-    ساخت پیام تجمیعی HTML برای ارسال به تلگرام بر اساس گروه‌های NVR و دوربین‌ها.
-    """
+    # محاسبه آمار کلی
     total_groups = len(events_by_group)
-    total_offline = 0
-    total_online = 0
+    nvr_offline = sum(
+        1
+        for n in nvr_events
+        if "offline" in str(n.get("type", "")).lower()
+        or "fail" in str(n.get("type", "")).lower()
+        or "error" in str(n.get("type", "")).lower()
+    )
+    nvr_online = sum(
+        1
+        for n in nvr_events
+        if "recovered" in str(n.get("type", "")).lower()
+        or "online" in str(n.get("type", "")).lower()
+    )
 
+    cam_offline = 0
+    cam_online = 0
     for group_name, events in events_by_group.items():
         for ev in events:
             if isinstance(ev, dict):
                 ev_type = str(ev.get("type", "")).lower()
                 if "offline" in ev_type or "off" in ev_type:
-                    total_offline += 1
+                    cam_offline += 1
                 else:
-                    total_online += 1
+                    cam_online += 1
             else:
-                total_offline += 1
+                cam_offline += 1
 
-    summary_parts = [f"{total_groups} گروه درگیر"]
-    if total_offline > 0:
-        summary_parts.append(f"🔴 {total_offline} دوربین قطع")
-    if total_online > 0:
-        summary_parts.append(f"🟢 {total_online} دوربین وصل مجدد")
-    summary_str = " | ".join(summary_parts)
+    summary_parts = []
+    if total_groups > 0:
+        summary_parts.append(f"{total_groups} گروه درگیر")
+    if nvr_offline > 0:
+        summary_parts.append(f"🔴 {nvr_offline} NVR قطع")
+    if nvr_online > 0:
+        summary_parts.append(f"🟢 {nvr_online} NVR وصل")
+    if cam_offline > 0:
+        summary_parts.append(f"🔴 {cam_offline} دوربین قطع")
+    if cam_online > 0:
+        summary_parts.append(f"🟢 {cam_online} دوربین وصل مجدد")
 
-    msg = "🚨 <b>گزارش تجمیعی پایش HikStatus</b>\n"
+    summary_str = " | ".join(summary_parts) if summary_parts else "بدون رخداد جدید"
+
+    main_title = title or "گزارش تجمیعی پایش HikStatus"
+    main_icon = "🚨" if (nvr_offline > 0 or cam_offline > 0) else "✅"
+    if alert_type in icons and title:
+        main_icon = icons[alert_type]
+
+    msg = f"{main_icon} <b>{main_title}</b>\n"
     msg += f"📅 <i>تاریخ: {get_persian_datetime()}</i>\n"
     msg += f"📊 <b>خلاصه وضعیت:</b> {summary_str}\n"
 
+    # بخش ۱: رویدادهای NVR در صورت وجود
+    if nvr_events:
+        msg += "\n───────────────────\n"
+        msg += "🖥 <b>وضعیت سرورهای NVR:</b>\n"
+        msg += "<blockquote expandable>\n"
+        for nev in nvr_events:
+            ntype = str(nev.get("type", "")).lower()
+            is_off = (
+                "offline" in ntype or "fail" in ntype or "error" in ntype
+            )
+            icon = "🔴" if is_off else "🟢"
+            nname = nev.get("name") or nev.get("ip") or "NVR"
+            nip = nev.get("ip", "")
+            nip_str = f" (<code>{nip}</code>)" if nip else ""
+            err = nev.get("error") or nev.get("message") or ""
+            detail = (
+                f" - {err}"
+                if err
+                else (" - قطع اتصال" if is_off else " - اتصال مجدد برقرار شد")
+            )
+            msg += f"• {icon} {nname}{nip_str}{detail}\n"
+        msg += "</blockquote>\n"
+
+    # بخش ۲: دوربین‌ها به تفکیک گروه
     for group_name, events in events_by_group.items():
         g_offline = 0
         g_online = 0
@@ -344,12 +420,19 @@ def build_aggregated_telegram_message(events_by_group):
                 name = ev.get("name", "دوربین")
                 ip = ev.get("ip", "")
                 time_str = ev.get("time", "")
+                downtime_mins = ev.get("downtime_mins")
                 ip_part = f" (<code>{ip}</code>)" if ip else ""
-                time_part = (
-                    f" - قطعی از {time_str}"
-                    if (is_off and time_str)
-                    else (f" - {time_str}" if time_str else "")
-                )
+
+                if is_off:
+                    if downtime_mins is not None:
+                        time_part = f" - قطعی: {downtime_mins} دقیقه"
+                    elif time_str:
+                        time_part = f" - قطعی از {time_str}"
+                    else:
+                        time_part = ""
+                else:
+                    time_part = " - وصل مجدد" if not time_str else f" - {time_str}"
+
                 event_lines.append(f"• {icon} {name}{ip_part}{time_part}")
             else:
                 g_offline += 1
@@ -438,26 +521,50 @@ def split_telegram_message(message, max_chars=3800):
 
 
 def send_telegram_batch(
-    header, lines, alert_type="warning", group_id=None, event_type=None
+    header_or_data,
+    lines=None,
+    alert_type="warning",
+    group_id=None,
+    event_type=None,
+    nvr_events=None,
 ):
     if not is_notification_enabled(event_type, "telegram"):
         return True
     conf = get_config_dict()
     sent_status = True
 
-    # 1. Send to admin
-    if conf.get("TELEGRAM_ENABLED") == "true" and lines:
-        msg = get_telegram_message(header, lines, alert_type)
+    # ساخت پیام به فرمت کاملاً غنی و ساختاریافته (Rich Messages)
+    if isinstance(header_or_data, dict):
+        msg = build_aggregated_telegram_message(
+            events_by_group=header_or_data,
+            nvr_events=nvr_events,
+            alert_type=alert_type,
+        )
+    elif isinstance(header_or_data, str) and lines:
+        msg = build_aggregated_telegram_message(
+            title=header_or_data,
+            raw_lines=lines,
+            alert_type=alert_type,
+        )
+    elif isinstance(header_or_data, str):
+        msg = header_or_data
+    else:
+        return True
+
+    # ۱. ارسال به مدیران کل (Super Admins)
+    if conf.get("TELEGRAM_ENABLED") == "true":
         chat_ids = [
-            c.strip() for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()
+            c.strip()
+            for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",")
+            if c.strip()
         ]
         if chat_ids:
             res = send_telegram_raw(conf, msg, chat_ids)
             if res is not True:
                 sent_status = res
 
-    # 2. Send to IT manager users
-    if group_id is not None and lines:
+    # ۲. ارسال به مدیران IT
+    if group_id is not None:
         with Session(engine) as session:
             all_it_users = session.exec(
                 select(User).where(User.role == "it_manager", User.is_active == True)
@@ -494,7 +601,6 @@ def send_telegram_batch(
                         if c.strip()
                     ][:1]
                     if chat_ids:
-                        msg = get_telegram_message(header, lines, alert_type)
                         res = send_telegram_raw(conf, msg, chat_ids)
                         if res is not True:
                             sent_status = res

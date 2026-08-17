@@ -12,13 +12,13 @@
 ---
 
 ## 🧪 ۲. وضعیت آزمون‌ها و کیفیت کد
-* **تست‌های خودکار (Pytest):** ۳۶ از ۳۶ تست موفق (`36 passed`) در ماژول‌های:
+* **تست‌های خودکار (Pytest):** ۳۷ از ۳۷ تست موفق (`37 passed`) در ماژول‌های:
   - `test_endpoints.py` (۲۵ تست مسیرهای API و دسترسی‌ها)
   - `test_new_scenarios.py` (۲ تست سناریوهای پایش)
   - `test_nvr_health.py` (۱ تست سلامت سخت‌افزاری)
   - `test_outage.py` (۲ تست تحلیل قطعی‌ها)
   - `test_scheduler_arch.py` (۲ تست معماری زمان‌بند مستقل)
-  - `test_telegram_rich_alerts.py` (۴ تست سیستم هشدار غنی تلگرام)
+  - `test_telegram_rich_alerts.py` (۵ تست سیستم هشدار غنی تلگرام)
 * **لینتر و فرمتر:** ابزار Ruff فعال و تنظیم‌شده در [`pyproject.toml`](file:///c:/Users/Mehdi/projects/HikStatus/pyproject.toml)
 
 ---
@@ -49,7 +49,7 @@
 * **مستندات فنی معماری و سیستم (`docs/`):**
   - [`docs/DATA_MODELS.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/DATA_MODELS.md) — مدل‌های داده، جداول و اینام‌ها
   - [`docs/CODEBASE_MAP.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/CODEBASE_MAP.md) — نقشه ساختار کدبیس و ماژول‌ها
-  - [`docs/MONITOR_LOGIC.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/MONITOR_LOGIC.md) — منطق و چرخه حلقه مانیتورینگ
+  - [`docs/MONITOR_LOGIC.md`](file:///c:/Users/HikStatus/docs/MONITOR_LOGIC.md) — منطق و چرخه حلقه مانیتورینگ
   - [`docs/SETTINGS_REFERENCE.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/SETTINGS_REFERENCE.md) — مرجع جامع تنظیمات سیستم
   - [`docs/RBAC_MATRIX.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/RBAC_MATRIX.md) — ماتریس دسترسی ۴ نقش کاربری
   - [`docs/TEST_GUIDE.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/TEST_GUIDE.md) — راهنمای جامع آزمون‌ها و کیفیت‌سنجی
@@ -68,3 +68,4 @@
 1. **جداسازی سرویس زمان‌بندی:** پروسه پایش و کارهای پس‌زمینه از فرآیند وب جدا شده و نقطه ورود اختصاصی [`scheduler_runner.py`](file:///home/unreal/projects/HikStatus/scheduler_runner.py) دارد.
 2. **سیستم رنگ و تم یکپارچه:** تنها مرجع معتبر تم و ظاهر، مستند [`.agents/DESIGN.md`](file:///home/unreal/projects/HikStatus/.agents/DESIGN.md) است.
 3. **عدم وابستگی سنگین در فرانت‌اند:** استفاده از Vanilla JS بدون استفاده از کامپایلر یا فریم‌ورک‌های React/Vue.
+4. **تجمیع کامل اعلان‌های تلگرام با Rich Messages:** تمام هشدارهای تلگرام به صورت ۱۰۰٪ غنی (تگ‌های آکاردئونی `<blockquote expandable>`، متون مونو `<code>` و خلاصه آماری) در انتهای هر دور پایش در قالب یک پیام چرخه‌ای جامع برای مدیران ارشد و پیام‌های فیلترشده برای مدیران IT مخابره می‌شوند و روش سنتی بولت‌های ساده به طور کامل حذف گردید.

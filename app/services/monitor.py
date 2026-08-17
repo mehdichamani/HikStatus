@@ -17,15 +17,20 @@ from app.database import (
     NVRGroup,
     OutageExplanation,
     Settings,
+    User,
+    UserAlertSettings,
     UserSession,
     engine,
 )
 from app.logging_config import log_event, logger
 from app.services.alerts import (
+    build_aggregated_telegram_message,
+    get_config_dict,
     is_notification_enabled,
     send_change_alert,
     send_email_batch,
     send_telegram_batch,
+    send_telegram_raw,
 )
 
 _XML_STREAM_THRESHOLD = 1_000_000  # 1MB
@@ -453,10 +458,9 @@ def poll_nvr_thread(nvr_data):
         return ("FAIL", err_str)
 
 
-async def process_batch_alerts(session, cams_to_check):
-    tele_alerts = []
+async def process_batch_alerts(session, cams_to_check, startup_grace=False):
+    tele_events = []
     mail_alerts = []
-    tele_recoveries = []
     mail_recoveries = []
     now = datetime.now()
 
@@ -464,24 +468,33 @@ async def process_batch_alerts(session, cams_to_check):
     mail_delay = int(get_setting(session, "MAIL_FIRST_ALERT_DELAY_MINUTES", 1))
     mail_low_delay = int(
         get_setting(session, "MAIL_LOW_IMPORTANCE_DELAY_MINUTES", 30)
-    )  # NEW
+    )
     mail_freq = int(get_setting(session, "MAIL_ALERT_FREQUENCY_MINUTES", 60))
     mail_mute = int(get_setting(session, "MAIL_MUTE_AFTER_N_ALERTS", 3))
 
     tele_delay = int(get_setting(session, "TELEGRAM_FIRST_ALERT_DELAY_MINUTES", 1))
     tele_low_delay = int(
         get_setting(session, "TELEGRAM_LOW_IMPORTANCE_DELAY_MINUTES", 15)
-    )  # NEW
+    )
     tele_freq = int(get_setting(session, "TELEGRAM_ALERT_FREQUENCY_MINUTES", 30))
     tele_mute = int(get_setting(session, "TELEGRAM_MUTE_AFTER_N_ALERTS", 3))
 
     for cam in cams_to_check:
         if cam.status == "Online":
             if cam.telegram_alert_count > 0:
-                tele_recoveries.append(f"✅ {cam.name} مجددا متصل شد")
+                if not startup_grace:
+                    tele_events.append(
+                        {
+                            "type": "camera_online",
+                            "name": cam.name,
+                            "ip": cam.ip,
+                            "channel_id": cam.channel_id,
+                        }
+                    )
                 cam.telegram_alert_count = 0
             if cam.mail_alert_count > 0:
-                mail_recoveries.append(f"{cam.name} مجددا متصل شد")
+                if not startup_grace:
+                    mail_recoveries.append(f"{cam.name} مجددا متصل شد")
                 cam.mail_alert_count = 0
             session.add(cam)
             continue
@@ -491,9 +504,8 @@ async def process_batch_alerts(session, cams_to_check):
 
         # --- TELEGRAM ---
         send_tele = False
-        if cam.telegram_alert_count < tele_mute:
+        if not startup_grace and cam.telegram_alert_count < tele_mute:
             if cam.telegram_alert_count == 0:
-                # Use Low Delay if imp=1, else Normal Delay
                 threshold = tele_low_delay if cam.importance == 1 else tele_delay
                 if downtime_mins >= threshold:
                     send_tele = True
@@ -503,17 +515,23 @@ async def process_batch_alerts(session, cams_to_check):
                     send_tele = True
 
         if send_tele:
-            msg = f"🚨 دوربین {cam.name} ({downtime_mins}دقیقه)"
-            if cam.telegram_alert_count + 1 >= tele_mute:
-                msg += " 🔕(بی صدا)"
-            tele_alerts.append(msg)
+            tele_events.append(
+                {
+                    "type": "camera_offline",
+                    "name": cam.name,
+                    "ip": cam.ip,
+                    "channel_id": cam.channel_id,
+                    "downtime_mins": downtime_mins,
+                    "is_muted": cam.telegram_alert_count + 1 >= tele_mute,
+                }
+            )
             cam.telegram_alert_count += 1
             cam.telegram_last_alert = now
             session.add(cam)
 
         # --- MAIL ---
         send_mail = False
-        if cam.mail_alert_count < mail_mute:
+        if not startup_grace and cam.mail_alert_count < mail_mute:
             if cam.mail_alert_count == 0:
                 threshold = mail_low_delay if cam.importance == 1 else mail_delay
                 if downtime_mins >= threshold:
@@ -532,10 +550,12 @@ async def process_batch_alerts(session, cams_to_check):
             cam.mail_last_alert = now
             session.add(cam)
 
-    return tele_alerts, mail_alerts, tele_recoveries, mail_recoveries
+    return tele_events, mail_alerts, mail_recoveries
 
 
-async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
+async def process_nvr_alerts(
+    session, nvr_obj, is_failed, error_message=None, startup_grace=False
+):
     now = datetime.now()
 
     mail_delay = int(get_setting(session, "MAIL_FIRST_ALERT_DELAY_MINUTES", 1))
@@ -547,6 +567,7 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
     tele_mute = int(get_setting(session, "TELEGRAM_MUTE_AFTER_N_ALERTS", 3))
 
     nvr_name = nvr_obj.name or nvr_obj.ip
+    tele_event = None
 
     if not is_failed:
         if nvr_obj.status == "Offline":
@@ -571,42 +592,36 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
         nvr_obj.last_online = now
 
         if nvr_obj.telegram_alert_count > 0:
-            res = await asyncio.to_thread(
-                send_telegram_batch,
-                "NVR برگشت",
-                [f"✅ {nvr_name} مجددا متصل شد"],
-                "success",
-                nvr_obj.group_id,
-                "nvr_recovered",
-            )
-            if res is not True:
-                await broadcast_alert(
-                    "delivery_failure",
-                    "خطای ارسال تلگرام (NVR)",
-                    f"خطا در ارسال پیام تلگرام برای NVR {nvr_name}: {res}",
-                    "warning",
-                )
-        if nvr_obj.mail_alert_count > 0:
-            res = await asyncio.to_thread(
-                send_email_batch,
-                "NVR برگشت",
-                [f"{nvr_name} مجددا متصل شد"],
-                "success",
-                nvr_obj.group_id,
-                "nvr_recovered",
-            )
-            if res is not True:
-                await broadcast_alert(
-                    "delivery_failure",
-                    "خطای ارسال ایمیل (NVR)",
-                    f"خطا در ارسال ایمیل برای NVR {nvr_name}: {res}",
-                    "warning",
-                )
+            if not startup_grace:
+                tele_event = {
+                    "type": "nvr_recovered",
+                    "name": nvr_name,
+                    "ip": nvr_obj.ip,
+                    "group_id": nvr_obj.group_id,
+                }
+            nvr_obj.telegram_alert_count = 0
 
-        nvr_obj.telegram_alert_count = 0
-        nvr_obj.mail_alert_count = 0
+        if nvr_obj.mail_alert_count > 0:
+            if not startup_grace:
+                res = await asyncio.to_thread(
+                    send_email_batch,
+                    "NVR برگشت",
+                    [f"{nvr_name} مجددا متصل شد"],
+                    "success",
+                    nvr_obj.group_id,
+                    "nvr_recovered",
+                )
+                if res is not True:
+                    await broadcast_alert(
+                        "delivery_failure",
+                        "خطای ارسال ایمیل (NVR)",
+                        f"خطا در ارسال ایمیل برای NVR {nvr_name}: {res}",
+                        "warning",
+                    )
+            nvr_obj.mail_alert_count = 0
+
         session.add(nvr_obj)
-        return
+        return tele_event
 
     if nvr_obj.status != "Offline":
         nvr_obj.status = "Offline"
@@ -631,7 +646,7 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
     downtime_mins = int((now - (nvr_obj.last_online or now)).total_seconds() / 60)
 
     send_tele = False
-    if nvr_obj.telegram_alert_count < tele_mute:
+    if not startup_grace and nvr_obj.telegram_alert_count < tele_mute:
         if nvr_obj.telegram_alert_count == 0:
             send_tele = downtime_mins >= tele_delay
         else:
@@ -639,26 +654,19 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
             send_tele = (now - last).total_seconds() / 60 >= tele_freq
 
     if send_tele:
-        res = await asyncio.to_thread(
-            send_telegram_batch,
-            "خطای اتصال NVR",
-            [error_message],
-            "error",
-            nvr_obj.group_id,
-            "nvr_offline",
-        )
-        if res is not True:
-            await broadcast_alert(
-                "delivery_failure",
-                "خطای ارسال تلگرام (NVR)",
-                f"خطا در ارسال پیام تلگرام برای NVR {nvr_name}: {res}",
-                "warning",
-            )
+        tele_event = {
+            "type": "nvr_offline",
+            "name": nvr_name,
+            "ip": nvr_obj.ip,
+            "error": error_message,
+            "downtime_mins": downtime_mins,
+            "group_id": nvr_obj.group_id,
+        }
         nvr_obj.telegram_alert_count += 1
         nvr_obj.telegram_last_alert = now
 
     send_mail = False
-    if nvr_obj.mail_alert_count < mail_mute:
+    if not startup_grace and nvr_obj.mail_alert_count < mail_mute:
         if nvr_obj.mail_alert_count == 0:
             send_mail = downtime_mins >= mail_delay
         else:
@@ -685,6 +693,7 @@ async def process_nvr_alerts(session, nvr_obj, is_failed, error_message=None):
         nvr_obj.mail_last_alert = now
 
     session.add(nvr_obj)
+    return tele_event
 
 
 def sync_recording_schedule_config(ip, user, password, session=None):
@@ -1193,11 +1202,20 @@ def run_stats_sync_in_thread(ip, user, password):
     sync_recording_stats_from_nvr(ip, user, password)
 
 
+_monitor_startup_time = None
 last_summary_hour = -1
 
 
 async def task_ping_cameras():
-    global last_summary_hour
+    global last_summary_hour, _monitor_startup_time
+    now = datetime.now()
+
+    if _monitor_startup_time is None:
+        _monitor_startup_time = now
+        is_startup_grace = True
+    else:
+        is_startup_grace = (now - _monitor_startup_time).total_seconds() < 30
+
     with Session(engine) as session:
         nvrs = session.exec(
             select(NVR).where(NVR.enabled == True, NVR.status != "AuthError")
@@ -1211,6 +1229,7 @@ async def task_ping_cameras():
     results = await asyncio.gather(*tasks)
 
     cams_processed = []
+    cycle_nvr_events = []
 
     from collections import defaultdict
 
@@ -1284,7 +1303,16 @@ async def task_ping_cameras():
                     else f"NVR {nvr_obj.ip}"
                 )
                 error_message = f"خطا در {nvr_label}: {payload}"
-                await process_nvr_alerts(session, nvr_obj, True, error_message)
+                nvr_evt = await process_nvr_alerts(
+                    session,
+                    nvr_obj,
+                    True,
+                    error_message,
+                    startup_grace=is_startup_grace,
+                )
+                if nvr_evt:
+                    cycle_nvr_events.append(nvr_evt)
+
                 # Mark all cameras of this offline NVR as Offline and include in broadcast
                 offline_cams = session.exec(
                     select(Camera).where(Camera.nvr_ip == nvr_obj.ip)
@@ -1319,7 +1347,11 @@ async def task_ping_cameras():
                     cams_processed.append(cam)
                 continue
             else:
-                await process_nvr_alerts(session, nvr_obj, False)
+                nvr_evt = await process_nvr_alerts(
+                    session, nvr_obj, False, startup_grace=is_startup_grace
+                )
+                if nvr_evt:
+                    cycle_nvr_events.append(nvr_evt)
 
                 # Update NVR extended info
                 if isinstance(payload, tuple) and len(payload) == 2:
@@ -1474,6 +1506,7 @@ async def task_ping_cameras():
         nvr_list = session.exec(select(NVR)).all()
         nvr_groups = {n.ip: n.group_id for n in nvr_list}
 
+        # دسته‌بندی دوربین‌ها به ازای هر گروه
         groups_map = {}
         for cam in cams_processed:
             gid = nvr_groups.get(cam.nvr_ip)
@@ -1481,53 +1514,25 @@ async def task_ping_cameras():
                 groups_map[gid] = []
             groups_map[gid].append(cam)
 
+        all_group_tele_events = {}
+        group_id_to_name = {}
+
+        # کشف نام همه گروه‌ها
+        all_db_groups = session.exec(select(NVRGroup)).all()
+        group_names_db = {g.id: g.name for g in all_db_groups}
+
         for gid, group_cams in groups_map.items():
-            t_alerts, m_alerts, t_recov, m_recov = await process_batch_alerts(
-                session, group_cams
+            gname = group_names_db.get(gid, f"گروه {gid}" if gid else "دوربین‌های عمومی")
+            group_id_to_name[gid] = gname
+
+            t_events, m_alerts, m_recov = await process_batch_alerts(
+                session, group_cams, startup_grace=is_startup_grace
             )
 
-            if t_alerts:
-                res = await asyncio.to_thread(
-                    send_telegram_batch,
-                    "دوربین‌ها قطع شدند",
-                    t_alerts,
-                    "warning",
-                    gid,
-                    "camera_offline",
-                )
-                is_ok = res is True
-                status_txt = "با موفقیت انجام شد" if is_ok else "با خطا مواجه شد"
-                log_event(
-                    session,
-                    category="Alert",
-                    action="TELEGRAM_ALERT",
-                    details=f"ارسال {len(t_alerts)} هشدار تلگرام برای گروه {gid} {status_txt}",
-                    level="INFO" if is_ok else "ERROR",
-                    group_id=gid,
-                )
-                if not is_ok:
-                    await broadcast_alert(
-                        "delivery_failure",
-                        "خطای ارسال تلگرام",
-                        f"خطا در ارسال پیام تلگرام برای دوربین‌های قطع شده: {res}",
-                        "warning",
-                    )
-            if t_recov:
-                res = await asyncio.to_thread(
-                    send_telegram_batch,
-                    "دوربین‌ها برگشتند",
-                    t_recov,
-                    "success",
-                    gid,
-                    "camera_recovered",
-                )
-                if res is not True:
-                    await broadcast_alert(
-                        "delivery_failure",
-                        "خطای ارسال تلگرام",
-                        f"خطا در ارسال پیام تلگرام برای دوربین‌های متصل شده: {res}",
-                        "warning",
-                    )
+            if t_events:
+                all_group_tele_events[gid] = t_events
+
+            # ارسال ایمیل‌های گروهی
             if m_alerts:
                 res = await asyncio.to_thread(
                     send_email_batch,
@@ -1569,6 +1574,104 @@ async def task_ping_cameras():
                         "خطای ارسال ایمیل",
                         f"خطا در ارسال ایمیل برای دوربین‌های متصل شده: {res}",
                         "warning",
+                    )
+
+        # ----------------------------------------------------
+        # تجمیع کامل و ارسال تک‌پیام چرخه‌ای تلگرام (Rich Messages)
+        # ----------------------------------------------------
+        if (all_group_tele_events or cycle_nvr_events) and not is_startup_grace:
+            events_by_group = {
+                group_id_to_name.get(gid, "بدون گروه"): evts
+                for gid, evts in all_group_tele_events.items()
+                if evts
+            }
+            conf = get_config_dict()
+
+            # ۱. ارسال تک‌پیام جامع به مدیران کل (Super Admins)
+            if conf.get("TELEGRAM_ENABLED") == "true":
+                admin_chat_ids = [
+                    c.strip()
+                    for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",")
+                    if c.strip()
+                ]
+                if admin_chat_ids:
+                    admin_msg = build_aggregated_telegram_message(
+                        events_by_group=events_by_group,
+                        nvr_events=cycle_nvr_events,
+                    )
+                    res = await asyncio.to_thread(
+                        send_telegram_raw, conf, admin_msg, admin_chat_ids
+                    )
+                    is_ok = res is True
+                    log_event(
+                        session,
+                        category="Alert",
+                        action="TELEGRAM_ALERT",
+                        details=f"ارسال گزارش تجمیعی تلگرام برای مدیران ارشد ({'موفق' if is_ok else 'خطا'})",
+                        level="INFO" if is_ok else "ERROR",
+                    )
+                    if not is_ok:
+                        await broadcast_alert(
+                            "delivery_failure",
+                            "خطای ارسال تلگرام",
+                            f"خطا در ارسال پیام تجمیعی تلگرام: {res}",
+                            "warning",
+                        )
+
+            # ۲. ارسال پیام‌های تفکیک‌شده برای مدیران IT
+            all_it_users = session.exec(
+                select(User).where(User.role == "it_manager", User.is_active == True)
+            ).all()
+
+            for u in all_it_users:
+                alert_settings = session.exec(
+                    select(UserAlertSettings).where(UserAlertSettings.user_id == u.id)
+                ).first()
+                if not (
+                    alert_settings
+                    and alert_settings.telegram_enabled
+                    and alert_settings.telegram_chat_ids
+                ):
+                    continue
+
+                user_chat_ids = [
+                    c.strip()
+                    for c in alert_settings.telegram_chat_ids.split(",")
+                    if c.strip()
+                ][:1]
+                if not user_chat_ids:
+                    continue
+
+                allowed_gids = set()
+                if u.group_id is not None:
+                    allowed_gids.add(u.group_id)
+                if u.accessible_group_ids:
+                    try:
+                        for x in u.accessible_group_ids.split(","):
+                            if x.strip().isdigit():
+                                allowed_gids.add(int(x.strip()))
+                    except Exception:
+                        pass
+                has_all_access = u.group_id is None and not u.accessible_group_ids
+
+                user_events_by_group = {
+                    group_id_to_name.get(gid, "بدون گروه"): evts
+                    for gid, evts in all_group_tele_events.items()
+                    if (has_all_access or gid in allowed_gids) and evts
+                }
+                user_nvr_events = [
+                    nev
+                    for nev in cycle_nvr_events
+                    if has_all_access or (nev.get("group_id") in allowed_gids)
+                ]
+
+                if user_events_by_group or user_nvr_events:
+                    user_msg = build_aggregated_telegram_message(
+                        events_by_group=user_events_by_group,
+                        nvr_events=user_nvr_events,
+                    )
+                    await asyncio.to_thread(
+                        send_telegram_raw, conf, user_msg, user_chat_ids
                     )
 
         # Check hourly downtime summary
