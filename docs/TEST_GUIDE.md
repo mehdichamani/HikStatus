@@ -81,12 +81,13 @@ main.app.dependency_overrides[require_admin] = require_admin_override
 ```python
 from unittest import mock
 
+
 @mock.patch("requests.get")
 def test_camera_snapshot(mock_get, client):
     # شبیه‌سازی پاسخ موفق با بایت‌های تصویر
     mock_get.return_value.status_code = 200
     mock_get.return_value.content = b"fake_jpeg_data"
-    
+
     response = client.get("/api/cameras/1/snapshot")
     assert response.status_code == 200
 ```

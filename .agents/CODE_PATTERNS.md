@@ -19,13 +19,14 @@ from app.main import require_control, get_user_accessible_groups
 
 router = APIRouter(prefix="/api/v1/custom", tags=["Custom"])
 
+
 @router.post("/items", response_model=dict)
 @rate_limit(max_requests=30, window_seconds=60)  # ۱. کنترل نرخ درخواست
 def create_custom_item(
     item_data: dict,
     request: Request,
     user: dict = Depends(require_control),  # ۲. بررسی سطح دسترسی نقش (admin/it_manager)
-    db: Session = Depends(get_session)       # ۳. تزریق سشن دیتابیس
+    db: Session = Depends(get_session),  # ۳. تزریق سشن دیتابیس
 ):
     """
     توضیح عملکرد اندپوئینت
@@ -54,7 +55,7 @@ def create_custom_item(
             group_id=new_camera.group_id,
             target_type="Camera",
             target_id=str(new_camera.id),
-            details=f"دوربین جدید با نام {new_camera.name} ایجاد شد."
+            details=f"دوربین جدید با نام {new_camera.name} ایجاد شد.",
         )
 
         return {"success": True, "id": new_camera.id}
@@ -74,6 +75,7 @@ def create_custom_item(
 ```python
 from sqlmodel import Session, select
 from app.database import engine, NVR
+
 
 def update_nvr_status_background(nvr_ip: str, new_status: str):
     with Session(engine) as session:
@@ -95,14 +97,15 @@ def update_nvr_status_background(nvr_ip: str, new_status: str):
 from sqlmodel import select, col
 from app.database import Camera
 
+
 def get_cameras_for_user(user: dict, db: Session):
     statement = select(Camera)
-    
+
     # اگر کاربر به همه گروه‌ها دسترسی ندارد (غیر Admin کل)
     accessible_groups = get_user_accessible_groups(user, db)
     if accessible_groups is not None:
         statement = statement.where(col(Camera.group_id).in_(accessible_groups))
-        
+
     return db.exec(statement).all()
 ```
 
@@ -130,10 +133,11 @@ from sqlmodel import Session
 from app.database import engine, ScheduledTask
 from loguru import logger
 
+
 def run_custom_cleanup_task():
     task_id = "custom_cleanup_task"
     start_time = time.time()
-    
+
     with Session(engine) as session:
         task = session.get(ScheduledTask, task_id)
         if not task or not task.is_enabled:

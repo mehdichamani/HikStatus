@@ -173,9 +173,10 @@ def test_send_telegram_batch_structured_and_raw():
     """
     تست فراخوانی send_telegram_batch با داده ساختاریافته و خطوط خام
     """
-    with patch("app.services.alerts.get_config_dict") as mock_conf, patch(
-        "app.services.alerts.send_telegram_raw"
-    ) as mock_send_raw:
+    with (
+        patch("app.services.alerts.get_config_dict") as mock_conf,
+        patch("app.services.alerts.send_telegram_raw") as mock_send_raw,
+    ):
         mock_conf.return_value = {
             "TELEGRAM_ENABLED": "true",
             "TELEGRAM_CHAT_IDS": "123456,789012",
@@ -213,8 +214,10 @@ def test_send_telegram_batch_structured_and_raw():
         assert "<blockquote expandable>" in sent_raw_msg
 
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from app.database import Camera
 from app.services.monitor import process_batch_alerts
 
@@ -261,5 +264,3 @@ async def test_process_batch_alerts_ignores_never_online_cameras():
     # فقط دوربین واقعی باید در لیست رویدادها باشد و کانال خالی نادیده گرفته شود
     assert len(t_events) == 1
     assert t_events[0]["name"] == "دوربین قطع‌شده واقعی"
-
-

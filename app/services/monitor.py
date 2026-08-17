@@ -188,7 +188,9 @@ def sync_camera_names_from_nvr(ip, user, password, session=None):
                 log_event(
                     db_session,
                     category="Camera",
-                    action="CAMERA_ADDED" if not is_initial_sync else "CAMERA_DISCOVERED",
+                    action="CAMERA_ADDED"
+                    if not is_initial_sync
+                    else "CAMERA_DISCOVERED",
                     details=f"دوربین {cam_name} ({cam_ip}) در {nvr_name} ثبت شد",
                     level="INFO",
                     group_id=nvr_group_id,
@@ -469,9 +471,7 @@ async def process_batch_alerts(session, cams_to_check, startup_grace=False):
 
     # Load Settings
     mail_delay = int(get_setting(session, "MAIL_FIRST_ALERT_DELAY_MINUTES", 1))
-    mail_low_delay = int(
-        get_setting(session, "MAIL_LOW_IMPORTANCE_DELAY_MINUTES", 30)
-    )
+    mail_low_delay = int(get_setting(session, "MAIL_LOW_IMPORTANCE_DELAY_MINUTES", 30))
     mail_freq = int(get_setting(session, "MAIL_ALERT_FREQUENCY_MINUTES", 60))
     mail_mute = int(get_setting(session, "MAIL_MUTE_AFTER_N_ALERTS", 3))
 
@@ -1436,7 +1436,9 @@ async def task_ping_cameras():
                             )
                         elif new_status == "Online":
                             if was_ever_online:
-                                browser_recovered_by_group[nvr_obj.group_id].append(db_cam)
+                                browser_recovered_by_group[nvr_obj.group_id].append(
+                                    db_cam
+                                )
                             open_evt = session.exec(
                                 select(DowntimeEvent).where(
                                     DowntimeEvent.camera_id == db_cam.id,

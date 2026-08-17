@@ -1,9 +1,9 @@
-import asyncio
 from datetime import datetime, timedelta
+
 import pytest
 from sqlmodel import Session, select
 
-from app.database import NVR, ScheduledTask, engine
+from app.database import ScheduledTask, engine
 from app.services.monitor import (
     task_capture_camera_snapshots,
     task_sync_nvr_configs,
@@ -47,7 +47,9 @@ async def test_scheduler_startup_preserves_next_run():
     with Session(engine) as session:
         db_task = session.get(ScheduledTask, "ping_cameras")
         assert db_task is not None
-        assert db_task.next_run.strftime("%Y-%m-%d %H:%M") == future_time.strftime("%Y-%m-%d %H:%M")
+        assert db_task.next_run.strftime("%Y-%m-%d %H:%M") == future_time.strftime(
+            "%Y-%m-%d %H:%M"
+        )
 
 
 @pytest.mark.asyncio

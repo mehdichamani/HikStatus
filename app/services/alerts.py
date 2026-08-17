@@ -386,9 +386,7 @@ def build_aggregated_telegram_message(
         msg += "<blockquote expandable>\n"
         for nev in nvr_events:
             ntype = str(nev.get("type", "")).lower()
-            is_off = (
-                "offline" in ntype or "fail" in ntype or "error" in ntype
-            )
+            is_off = "offline" in ntype or "fail" in ntype or "error" in ntype
             icon = "🔴" if is_off else "🟢"
             nname = nev.get("name") or nev.get("ip") or "NVR"
             nip = nev.get("ip", "")
@@ -554,9 +552,7 @@ def send_telegram_batch(
     # ۱. ارسال به مدیران کل (Super Admins)
     if conf.get("TELEGRAM_ENABLED") == "true":
         chat_ids = [
-            c.strip()
-            for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",")
-            if c.strip()
+            c.strip() for c in conf.get("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()
         ]
         if chat_ids:
             res = send_telegram_raw(conf, msg, chat_ids)

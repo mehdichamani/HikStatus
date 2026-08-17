@@ -12,14 +12,14 @@
 ---
 
 ## 🧪 ۲. وضعیت آزمون‌ها و کیفیت کد
-* **تست‌های خودکار (Pytest):** ۳۷ از ۳۷ تست موفق (`37 passed`) در ماژول‌های:
+* **تست‌های خودکار (Pytest):** ۳۸ از ۳۸ تست موفق (`38 passed`) در ماژول‌های:
   - `test_endpoints.py` (۲۵ تست مسیرهای API و دسترسی‌ها)
   - `test_new_scenarios.py` (۲ تست سناریوهای پایش)
   - `test_nvr_health.py` (۱ تست سلامت سخت‌افزاری)
   - `test_outage.py` (۲ تست تحلیل قطعی‌ها)
   - `test_scheduler_arch.py` (۲ تست معماری زمان‌بند مستقل)
-  - `test_telegram_rich_alerts.py` (۵ تست سیستم هشدار غنی تلگرام)
-* **لینتر و فرمتر:** ابزار Ruff فعال و تنظیم‌شده در [`pyproject.toml`](file:///c:/Users/Mehdi/projects/HikStatus/pyproject.toml)
+  - `test_telegram_rich_alerts.py` (۶ تست سیستم هشدار غنی تلگرام)
+* **لینتر و فرمتر:** ابزار Ruff فعال و تنظیم‌شده در [`pyproject.toml`](file:///home/unreal/projects/HikStatus/pyproject.toml)
 
 ---
 
