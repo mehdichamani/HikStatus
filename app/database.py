@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 from datetime import datetime
 
@@ -274,6 +275,7 @@ def decrypt_password(encrypted_password: str) -> str:
         return encrypted_password
 
 
+os.makedirs("data", exist_ok=True)
 sqlite_file_name = "data/monitor.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 

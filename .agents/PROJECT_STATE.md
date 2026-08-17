@@ -6,7 +6,7 @@
 * **نسخه جاری سیستم:** `0.9.0` (در حال آماده‌سازی برای نسخه پایدار `1.0.0`)
 * **تاریخ آخرین به‌روزرسانی:** ۱۴۰۵/۰۵/۲۷
 * **وضعیت سرور وب:** FastAPI / Python 3.12+ (اجرا روی پورتهای استاندارد یا داینامیک)
-* **وضعیت زمان‌بند (Scheduler):** تفکیک‌شده و مستقل ([`scheduler_runner.py`](file:///c:/Users/Mehdi/projects/HikStatus/scheduler_runner.py))
+* **وضعیت زمان‌بند (Scheduler):** تفکیک‌شده و مستقل ([`scheduler_runner.py`](file:///home/unreal/projects/HikStatus/scheduler_runner.py))
 * **پایگاه داده:** SQLite WAL در مسیر `data/monitor.db` (با مدیریت همزمانی بالا)
 
 ---
@@ -24,15 +24,15 @@
 ---
 
 ## ⏳ ۳. طرح‌های پیشنهادی در انتظار تصمیم (Pending Proposals)
-> ⚠️ **نکته برای ایجنت‌ها:** این موارد در پوشه [`.agents/proposals/`](file:///c:/Users/Mehdi/projects/HikStatus/.agents/proposals/) قرار دارند و تا زمان تأیید صریح کاربر، نباید پیاده‌سازی شوند.
+> ⚠️ **نکته برای ایجنت‌ها:** این موارد در پوشه [`.agents/proposals/`](file:///home/unreal/projects/HikStatus/.agents/proposals/) قرار دارند و تا زمان تأیید صریح کاربر، نباید پیاده‌سازی شوند.
 
-1. **طرح بازطراحی رابط کاربری ([`proposals/UX-UI-Redesign.md`](file:///c:/Users/Mehdi/projects/HikStatus/.agents/proposals/UX-UI-Redesign.md)):**
+1. **طرح بازطراحی رابط کاربری ([`proposals/UX-UI-Redesign.md`](file:///home/unreal/projects/HikStatus/.agents/proposals/UX-UI-Redesign.md)):**
    - وضعیت: `pending`
    - خلاصه: مدرن‌سازی داشبورد با گلس‌مورفیسم، انیمیشن‌های CSS و کارت‌های وضعیت.
-2. **بهبود فرآیند تعریف NVR ([`proposals/بهبود فرآیند تعریف NVR.md`](file:///c:/Users/Mehdi/projects/HikStatus/.agents/proposals/بهبود فرآیند تعریف NVR.md)):**
+2. **بهبود فرآیند تعریف NVR ([`proposals/بهبود فرآیند تعریف NVR.md`](file:///home/unreal/projects/HikStatus/.agents/proposals/بهبود فرآیند تعریف NVR.md)):**
    - وضعیت: `pending`
    - خلاصه: افزودن قابلیت Wizard مرحله‌به‌مرحله و تست اتصال خودکار قبل از ذخیره NVR.
-3. **تجمیع اعلان‌های مرورگر ([`proposals/تجمیع اعلان‌های مرورگر و خوانش فارسی.md`](file:///c:/Users/Mehdi/projects/HikStatus/.agents/proposals/تجمیع اعلان‌های مرورگر و خوانش فارسی.md)):**
+3. **تجمیع اعلان‌های مرورگر ([`proposals/تجمیع اعلان‌های مرورگر و خوانش فارسی.md`](file:///home/unreal/projects/HikStatus/.agents/proposals/تجمیع اعلان‌های مرورگر و خوانش فارسی.md)):**
    - وضعیت: `pending`
    - خلاصه: موتور Web Audio اختصاصی با TTS فارسی و صف اعلان‌ها برای هشدار صوتی قطعی دوربین‌ها.
 
@@ -41,18 +41,18 @@
 ## 📚 ۴. ساختار مستندات پایدار سیستم
 تمامی مستندات کلیدی و استاندارد پروژه ایجاد و اعتبارسنجی شده‌اند:
 * **اسناد راهنما و محدودیت‌های ایجنت‌ها (`.agents/`):**
-  - [`.agents/PROJECT_STATE.md`](file:///c:/Users/Mehdi/projects/HikStatus/.agents/PROJECT_STATE.md) — وضعیت لحظه‌ای سیستم و تست‌ها
-  - [`.agents/CONSTRAINTS.md`](file:///c:/Users/Mehdi/projects/HikStatus/.agents/CONSTRAINTS.md) — محدودیت‌ها و کدهای فریز شده
-  - [`.agents/CODE_PATTERNS.md`](file:///c:/Users/Mehdi/projects/HikStatus/.agents/CODE_PATTERNS.md) — الگوهای استاندارد کدنویسی
-  - [`.agents/DECISIONS.md`](file:///c:/Users/Mehdi/projects/HikStatus/.agents/DECISIONS.md) — لاگ تصمیمات معماری (ADR)
-  - [`.agents/DESIGN.md`](file:///c:/Users/Mehdi/projects/HikStatus/.agents/DESIGN.md) — سیستم جامع طراحی و رابط کاربری
+  - [`.agents/PROJECT_STATE.md`](file:///home/unreal/projects/HikStatus/.agents/PROJECT_STATE.md) — وضعیت لحظه‌ای سیستم و تست‌ها
+  - [`.agents/CONSTRAINTS.md`](file:///home/unreal/projects/HikStatus/.agents/CONSTRAINTS.md) — محدودیت‌ها و کدهای فریز شده
+  - [`.agents/CODE_PATTERNS.md`](file:///home/unreal/projects/HikStatus/.agents/CODE_PATTERNS.md) — الگوهای استاندارد کدنویسی
+  - [`.agents/DECISIONS.md`](file:///home/unreal/projects/HikStatus/.agents/DECISIONS.md) — لاگ تصمیمات معماری (ADR)
+  - [`.agents/DESIGN.md`](file:///home/unreal/projects/HikStatus/.agents/DESIGN.md) — سیستم جامع طراحی و رابط کاربری
 * **مستندات فنی معماری و سیستم (`docs/`):**
-  - [`docs/DATA_MODELS.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/DATA_MODELS.md) — مدل‌های داده، جداول و اینام‌ها
-  - [`docs/CODEBASE_MAP.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/CODEBASE_MAP.md) — نقشه ساختار کدبیس و ماژول‌ها
-  - [`docs/MONITOR_LOGIC.md`](file:///c:/Users/HikStatus/docs/MONITOR_LOGIC.md) — منطق و چرخه حلقه مانیتورینگ
-  - [`docs/SETTINGS_REFERENCE.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/SETTINGS_REFERENCE.md) — مرجع جامع تنظیمات سیستم
-  - [`docs/RBAC_MATRIX.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/RBAC_MATRIX.md) — ماتریس دسترسی ۴ نقش کاربری
-  - [`docs/TEST_GUIDE.md`](file:///c:/Users/Mehdi/projects/HikStatus/docs/TEST_GUIDE.md) — راهنمای جامع آزمون‌ها و کیفیت‌سنجی
+  - [`docs/DATA_MODELS.md`](file:///home/unreal/projects/HikStatus/docs/DATA_MODELS.md) — مدل‌های داده، جداول و اینام‌ها
+  - [`docs/CODEBASE_MAP.md`](file:///home/unreal/projects/HikStatus/docs/CODEBASE_MAP.md) — نقشه ساختار کدبیس و ماژول‌ها
+  - [`docs/MONITOR_LOGIC.md`](file:///home/unreal/projects/HikStatus/docs/MONITOR_LOGIC.md) — منطق و چرخه حلقه مانیتورینگ
+  - [`docs/SETTINGS_REFERENCE.md`](file:///home/unreal/projects/HikStatus/docs/SETTINGS_REFERENCE.md) — مرجع جامع تنظیمات سیستم
+  - [`docs/RBAC_MATRIX.md`](file:///home/unreal/projects/HikStatus/docs/RBAC_MATRIX.md) — ماتریس دسترسی ۴ نقش کاربری
+  - [`docs/TEST_GUIDE.md`](file:///home/unreal/projects/HikStatus/docs/TEST_GUIDE.md) — راهنمای جامع آزمون‌ها و کیفیت‌سنجی
 
 ---
 
