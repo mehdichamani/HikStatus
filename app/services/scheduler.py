@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from sqlmodel import Session, select
 
-from app.database import ScheduledTask, engine
+from app.database import ScheduledTask, TaskExecutionLog, engine
 from app.logging_config import log_event, logger
 from app.services.monitor import (
     broadcast,
@@ -128,17 +128,18 @@ class TaskScheduler:
 
             await asyncio.sleep(2)  # Check every 2 seconds
 
-    async def _run_task_wrapper(self, task_id: str):
+    async def _run_task_wrapper(self, task_id: str, trigger_type: str = "Auto"):
         func = TASK_FUNCTIONS.get(task_id)
         if not func:
             return
 
         start_time = time.time()
+        started_dt = datetime.now()
         with Session(engine) as session:
             db_task = session.get(ScheduledTask, task_id)
             if db_task:
                 db_task.status = "Running"
-                db_task.last_run = datetime.now()
+                db_task.last_run = started_dt
                 session.add(db_task)
                 session.commit()
         await self._broadcast_status(task_id, "Running")
@@ -155,12 +156,14 @@ class TaskScheduler:
             status_str = "Failed"
             error_msg = str(e)
         finally:
-            duration = time.time() - start_time
+            finished_dt = datetime.now()
+            duration = round(time.time() - start_time, 2)
             with Session(engine) as session:
                 db_task = session.get(ScheduledTask, task_id)
+                task_name = db_task.name if db_task else task_id
                 if db_task:
                     db_task.status = "Idle"
-                    db_task.last_duration = round(duration, 2)
+                    db_task.last_duration = duration
                     db_task.last_status = status_str
                     db_task.last_error = error_msg
                     # Schedule next run based on interval
@@ -201,7 +204,20 @@ class TaskScheduler:
                             target_id=db_task.id,
                         )
 
-                    session.commit()
+                # ثبت در تاریخچه اجراها
+                exec_log = TaskExecutionLog(
+                    task_id=task_id,
+                    task_name=task_name,
+                    trigger_type=trigger_type,
+                    status=status_str,
+                    started_at=started_dt,
+                    finished_at=finished_dt,
+                    duration=duration,
+                    error_message=error_msg,
+                )
+                session.add(exec_log)
+                session.commit()
+
             self.active_tasks.pop(task_id, None)
             await self._broadcast_status(task_id, "Idle")
 
@@ -215,7 +231,7 @@ class TaskScheduler:
                     return False
 
             self.active_tasks[task_id] = asyncio.create_task(
-                self._run_task_wrapper(task_id)
+                self._run_task_wrapper(task_id, trigger_type="Manual")
             )
         return True
 

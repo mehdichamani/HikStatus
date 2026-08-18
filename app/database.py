@@ -195,6 +195,20 @@ class ScheduledTask(SQLModel, table=True):
     next_run: datetime | None = None
 
 
+class TaskExecutionLog(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    task_id: str = Field(index=True)
+    task_name: str
+    trigger_type: str = "Auto"  # Auto / Manual
+    status: str  # Success / Failed / Cancelled
+    started_at: datetime = Field(default_factory=datetime.now)
+    finished_at: datetime | None = None
+    duration: float | None = None
+    error_message: str | None = None
+    details: str | None = None
+
+
+
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     hash_bytes = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100_000)

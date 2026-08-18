@@ -59,3 +59,25 @@ async def test_monitor_tasks_accept_nvr_ip():
     await task_sync_nvr_stats(nvr_ip="192.168.1.250")
     await task_sync_nvr_health(nvr_ip="192.168.1.250")
     await task_capture_camera_snapshots(nvr_ip="192.168.1.250")
+
+
+@pytest.mark.asyncio
+async def test_scheduler_records_execution_log():
+    from app.database import TaskExecutionLog
+
+    test_scheduler = TaskScheduler()
+    # اجرای تسک پاکسازی پایگاه داده
+    await test_scheduler._run_task_wrapper("cleanup_database", trigger_type="Manual")
+
+    with Session(engine) as session:
+        logs = session.exec(
+            select(TaskExecutionLog)
+            .where(TaskExecutionLog.task_id == "cleanup_database")
+            .order_by(TaskExecutionLog.started_at.desc())
+        ).all()
+        assert len(logs) > 0
+        latest_log = logs[0]
+        assert latest_log.trigger_type == "Manual"
+        assert latest_log.status in ("Success", "Failed")
+        assert latest_log.duration is not None
+

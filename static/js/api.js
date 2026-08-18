@@ -1571,6 +1571,17 @@ export async function toggleTask(id, enabled) {
     }
 }
 
+export async function fetchTaskHistory(id, limit = 20) {
+    try {
+        const res = await window.apiFetch(`${API}/scheduler/tasks/${id}/history?limit=${limit}`);
+        if (!res.ok) throw new Error("خطا در دریافت تاریخچه تسک");
+        return await res.json();
+    } catch(e) {
+        window.showToast(e.message, 'error');
+        return [];
+    }
+}
+
 export async function warmUpSearchCache() {
     try {
         if (!nvrCache || nvrCache.length === 0) {

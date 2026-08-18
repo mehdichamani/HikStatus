@@ -40,6 +40,7 @@ from app.database import (
     OutageExplanation,
     ScheduledTask,
     Settings,
+    TaskExecutionLog,
     User,
     UserAlertSettings,
     UserSession,
@@ -1100,6 +1101,37 @@ async def stop_task_immediately(task_id: str, user: dict = Depends(require_auth)
     if not success:
         raise HTTPException(status_code=400, detail="تسک در حال اجرا نیست")
     return {"status": "stopped"}
+
+
+@app.get("/api/scheduler/tasks/{task_id}/history", dependencies=[Depends(require_auth)])
+def get_task_history(
+    task_id: str,
+    limit: int = 20,
+    session: Session = Depends(get_session),
+):
+    stmt = (
+        select(TaskExecutionLog)
+        .where(TaskExecutionLog.task_id == task_id)
+        .order_by(TaskExecutionLog.started_at.desc())
+        .limit(limit)
+    )
+    logs = session.exec(stmt).all()
+    return logs
+
+
+@app.get("/api/scheduler/history", dependencies=[Depends(require_auth)])
+def get_all_tasks_history(
+    limit: int = 50,
+    session: Session = Depends(get_session),
+):
+    stmt = (
+        select(TaskExecutionLog)
+        .order_by(TaskExecutionLog.started_at.desc())
+        .limit(limit)
+    )
+    logs = session.exec(stmt).all()
+    return logs
+
 
 
 @app.post("/api/data/purge", dependencies=[Depends(require_admin)])

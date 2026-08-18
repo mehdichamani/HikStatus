@@ -2690,12 +2690,6 @@ export function renderScheduledTasks() {
                     <div class="task-card-title">
                         <strong>${t.name}</strong>
                         <span class="task-card-desc">${t.description}</span>
-                        ${TASK_DETAILS[t.id] ? `
-                        <div class="task-card-details">
-                            <ul>
-                                ${TASK_DETAILS[t.id].map(d => `<li>${d}</li>`).join('')}
-                            </ul>
-                        </div>` : ''}
                     </div>
                     <div class="task-card-controls">
                         ${statusBadge}
@@ -2739,13 +2733,145 @@ export function renderScheduledTasks() {
                         </div>
                     </div>
                 </div>
-                <div class="task-card-footer">
-                    ${runBtn}
-                    ${stopBtn}
+                
+                <!-- اکاردئون توضیحات و تاریخچه -->
+                <div id="task-details-pane-${t.id}" class="task-expandable-content">
+                    ${TASK_DETAILS[t.id] ? `
+                    <div class="task-card-details" style="margin-top: 0;">
+                        <div style="font-size: 11px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">شرح عملیات و زیروظایف:</div>
+                        <ul>
+                            ${TASK_DETAILS[t.id].map(d => `<li>${d}</li>`).join('')}
+                        </ul>
+                    </div>` : '<div style="color: var(--text-muted); font-size: 11px;">توضیحات بیشتری برای این تسک ثبت نشده است.</div>'}
+                </div>
+
+                <div id="task-history-pane-${t.id}" class="task-expandable-content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong style="font-size: 11px; color: var(--text-primary);">تاریخچه آخرین اجراها</strong>
+                        <button class="btn btn-sm btn-ghost" onclick="window.loadAndRenderTaskHistory('${t.id}')" style="font-size: 10px; padding: 2px 6px;">🔄 به‌روزرسانی</button>
+                    </div>
+                    <div id="task-history-list-${t.id}" style="color: var(--text-muted); font-size: 11px; text-align: center; padding: 10px;">در حال بارگذاری...</div>
+                </div>
+
+                <div class="task-card-footer" style="justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button class="task-accordion-btn" id="btn-toggle-desc-${t.id}" onclick="window.toggleTaskSection('${t.id}', 'details')">
+                            <span>شرح وظایف</span>
+                            <span id="icon-desc-${t.id}">▾</span>
+                        </button>
+                        <button class="task-accordion-btn" id="btn-toggle-hist-${t.id}" onclick="window.toggleTaskSection('${t.id}', 'history')">
+                            <span>تاریخچه لاگ</span>
+                            <span id="icon-hist-${t.id}">▾</span>
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        ${runBtn}
+                        ${stopBtn}
+                    </div>
                 </div>
             </div>
         `;
     }).join('');
+}
+
+export function toggleTaskSection(taskId, section) {
+    const detailsPane = document.getElementById(`task-details-pane-${taskId}`);
+    const historyPane = document.getElementById(`task-history-pane-${taskId}`);
+    const btnDesc = document.getElementById(`btn-toggle-desc-${taskId}`);
+    const btnHist = document.getElementById(`btn-toggle-hist-${taskId}`);
+    const iconDesc = document.getElementById(`icon-desc-${taskId}`);
+    const iconHist = document.getElementById(`icon-hist-${taskId}`);
+
+    if (section === 'details') {
+        const isShown = detailsPane.classList.contains('show');
+        if (historyPane) {
+            historyPane.classList.remove('show');
+            if (btnHist) btnHist.classList.remove('active');
+            if (iconHist) iconHist.textContent = '▾';
+        }
+        if (isShown) {
+            detailsPane.classList.remove('show');
+            if (btnDesc) btnDesc.classList.remove('active');
+            if (iconDesc) iconDesc.textContent = '▾';
+        } else {
+            detailsPane.classList.add('show');
+            if (btnDesc) btnDesc.classList.add('active');
+            if (iconDesc) iconDesc.textContent = '▴';
+        }
+    } else if (section === 'history') {
+        const isShown = historyPane.classList.contains('show');
+        if (detailsPane) {
+            detailsPane.classList.remove('show');
+            if (btnDesc) btnDesc.classList.remove('active');
+            if (iconDesc) iconDesc.textContent = '▾';
+        }
+        if (isShown) {
+            historyPane.classList.remove('show');
+            if (btnHist) btnHist.classList.remove('active');
+            if (iconHist) iconHist.textContent = '▾';
+        } else {
+            historyPane.classList.add('show');
+            if (btnHist) btnHist.classList.add('active');
+            if (iconHist) iconHist.textContent = '▴';
+            window.loadAndRenderTaskHistory(taskId);
+        }
+    }
+}
+
+export async function loadAndRenderTaskHistory(taskId) {
+    const listContainer = document.getElementById(`task-history-list-${taskId}`);
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '<div style="color: var(--text-muted); padding: 8px;">در حال دریافت تاریخچه...</div>';
+    const logs = await window.fetchTaskHistory(taskId, 15);
+
+    if (!logs || logs.length === 0) {
+        listContainer.innerHTML = '<div style="color: var(--text-muted); padding: 8px;">هنوز رکوردی در تاریخچه ثبت نشده است.</div>';
+        return;
+    }
+
+    listContainer.innerHTML = `
+        <div style="overflow-x: auto;">
+            <table class="task-history-table">
+                <thead>
+                    <tr>
+                        <th>زمان اجرا</th>
+                        <th>نوع</th>
+                        <th>مدت زمان</th>
+                        <th>وضعیت</th>
+                        <th>جزئیات / خطا</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${logs.map(log => {
+                        const statusBadge = log.status === 'Success'
+                            ? `<span class="task-status-ok">موفق</span>`
+                            : log.status === 'Failed'
+                            ? `<span class="task-status-fail">ناموفق</span>`
+                            : `<span class="task-status-cancel">لغو شده</span>`;
+
+                        const triggerBadge = log.trigger_type === 'Manual'
+                            ? `<span class="task-history-badge-manual">دستی</span>`
+                            : `<span class="task-history-badge-auto">خودکار</span>`;
+
+                        const durationStr = log.duration ? window.formatDuration(log.duration) : '-';
+                        const timeStr = log.started_at ? window.displayPersianDateTime(log.started_at) : '-';
+                        const errorMsg = log.error_message ? `<span style="color: #ef4444;" title="${log.error_message}">${log.error_message.substring(0, 45)}${log.error_message.length > 45 ? '...' : ''}</span>` : '-';
+
+                        return `
+                            <tr>
+                                <td>${timeStr}</td>
+                                <td>${triggerBadge}</td>
+                                <td>${durationStr}</td>
+                                <td>${statusBadge}</td>
+                                <td>${errorMsg}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
 }
 
 export async function confirmRunTask(id, name) {

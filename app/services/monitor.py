@@ -17,6 +17,7 @@ from app.database import (
     NVRGroup,
     OutageExplanation,
     Settings,
+    TaskExecutionLog,
     User,
     UserAlertSettings,
     UserSession,
@@ -285,6 +286,9 @@ def cleanup_old_data(session, days=90):
         ).delete()
         session.query(UserSession).filter(
             UserSession.expires_at < datetime.now()
+        ).delete()
+        session.query(TaskExecutionLog).filter(
+            TaskExecutionLog.started_at < cutoff
         ).delete()
         session.commit()
     except Exception as e:
