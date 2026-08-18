@@ -1423,7 +1423,7 @@ async def task_ping_cameras():
                             action=f"CAMERA_{new_status.upper()}",
                             details=f"{db_cam.name} ({db_cam.ip})",
                             level="INFO" if new_status == "Online" else "WARNING",
-                            group_id=nvr_group_id if nvr_group_id else nvr_obj.group_id,
+                            group_id=nvr_obj.group_id,
                             target_type="Camera",
                             target_id=db_cam.id,
                         )
