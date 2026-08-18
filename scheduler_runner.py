@@ -8,8 +8,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import Session, engine, init_db
 from app.logging_config import log_event, logger
-from app.main import seed_defaults, seed_scheduled_tasks
-from app.services.monitor import set_broadcast_callback, ws_manager
+from app.main import seed_defaults, seed_scheduled_tasks, ws_manager
+from app.services.monitor import set_broadcast_callback
 from app.services.scheduler import scheduler
 
 

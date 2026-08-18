@@ -3967,6 +3967,8 @@ window.closeCamDetailsModal = function() {
 
 window.lastSnapDiff = null;
 
+window._lastTasksFallbackFetch = 0;
+
 function updateTaskProgressUI(taskId, defaultInterval, timerTextElId, progressElId, now) {
     if (!window.scheduledTasksCache) return -1;
     const task = window.scheduledTasksCache.find(t => t.id === taskId);
@@ -3974,13 +3976,26 @@ function updateTaskProgressUI(taskId, defaultInterval, timerTextElId, progressEl
     
     const nextRun = new Date(task.next_run);
     const total = task.interval || defaultInterval;
-    const diff = Math.max(0, Math.ceil((nextRun - now) / 1000));
+    const rawDiffSeconds = Math.ceil((nextRun - now) / 1000);
+    const diff = Math.max(0, rawDiffSeconds);
     
     const timerTextEl = document.getElementById(timerTextElId);
     const progressEl = document.getElementById(progressElId);
     
     if (timerTextEl) {
-        if (diff === 0) {
+        if (task.status === 'Running' || diff === 0) {
+            // اگر بیش از ۱۵ ثانیه از موعد گذشته و هنوز در حال اجرا است، برای اطمینان درخواست وضعیت جدید داده شود
+            if (rawDiffSeconds < -10 && (Date.now() - (window._lastTasksFallbackFetch || 0) > 10000)) {
+                window._lastTasksFallbackFetch = Date.now();
+                if (typeof window.apiFetch === 'function') {
+                    window.apiFetch('/api/scheduler/tasks').then(async r => {
+                        if (r.ok) {
+                            window.scheduledTasksCache = await r.json();
+                            if (typeof window.renderScheduledTasks === 'function') window.renderScheduledTasks();
+                        }
+                    }).catch(() => {});
+                }
+            }
             timerTextEl.textContent = 'بروزرسانی...';
         } else {
             const hours = Math.floor(diff / 3600);

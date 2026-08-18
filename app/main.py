@@ -316,7 +316,10 @@ async def lifespan(app: FastAPI):
     seed_defaults()
     seed_scheduled_tasks()
     set_broadcast_callback(ws_manager.broadcast)
+    # Start scheduler engine inside web app (runs in background and broadcasts to active websockets)
+    await scheduler.start()
     yield
+    await scheduler.stop()
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)

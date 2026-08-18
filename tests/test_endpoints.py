@@ -39,14 +39,17 @@ def session_fixture():
     scheduler.engine = test_engine
 
     with Session(test_engine, expire_on_commit=False) as session:
-        # مقداردهی اولیه تنظیمات پیش‌فرض برای تست‌ها
-        session.add(Settings(key="MAIL_ENABLED", value="false"))
-        session.add(Settings(key="TELEGRAM_ENABLED", value="false"))
-        session.add(Settings(key="OUTAGE_MIN_HOURS_TO_EXPLAIN", value="2"))
-        session.add(Settings(key="OUTAGE_EXPLANATION_DEADLINE_HOURS", value="24"))
+        # مقداردهی اولیه تنظیمات پیش‌فرض برای تست‌ها با استفاده از merge
+        for s in [
+            Settings(key="MAIL_ENABLED", value="false"),
+            Settings(key="TELEGRAM_ENABLED", value="false"),
+            Settings(key="OUTAGE_MIN_HOURS_TO_EXPLAIN", value="2"),
+            Settings(key="OUTAGE_EXPLANATION_DEADLINE_HOURS", value="24"),
+        ]:
+            session.merge(s)
 
         # مقداردهی وظایف زمان‌بندی‌شده
-        session.add(
+        for task_obj in [
             ScheduledTask(
                 id="task_sync_nvr_health",
                 name="Sync NVR Health",
@@ -54,9 +57,7 @@ def session_fixture():
                 interval=300,
                 is_enabled=True,
                 status="Idle",
-            )
-        )
-        session.add(
+            ),
             ScheduledTask(
                 id="task_analyze_outages",
                 name="Analyze Outages",
@@ -64,8 +65,9 @@ def session_fixture():
                 interval=3600,
                 is_enabled=True,
                 status="Idle",
-            )
-        )
+            ),
+        ]:
+            session.merge(task_obj)
 
         # ثبت کاربر مدیر با شناسه ۱ جهت جلوگیری از تداخل شناسه در تغییر رمز و CRUD کاربر
         admin_user = User(
@@ -75,7 +77,7 @@ def session_fixture():
             role="admin",
             is_active=True,
         )
-        session.add(admin_user)
+        session.merge(admin_user)
 
         session.commit()
         yield session

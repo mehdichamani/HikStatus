@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     HikStatus Native Manager (PowerShell TUI - Clean and Dual Language)

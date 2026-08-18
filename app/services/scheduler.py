@@ -69,8 +69,8 @@ class TaskScheduler:
             now = datetime.now()
             for t in tasks:
                 t.status = "Idle"  # ریست کردن وضعیت در راه‌اندازی
-                # حفظ مقدار next_run موجود در دیتابیس؛ فقط در صورت خالی بودن مقداردهی اولیه انجام می‌شود
-                if not t.next_run:
+                # اگر next_run خالی باشد یا در گذشته مانده باشد، برای اجرای فوری به now تنظیم می‌شود
+                if not t.next_run or t.next_run < now:
                     t.next_run = now
                 session.add(t)
             session.commit()
