@@ -531,5 +531,3 @@ def test_csrf_validation_allowed_and_blocked(session):
     with pytest.raises(HTTPException) as exc_info:
         main.require_auth(req_valid_proxy, None, session)
     assert exc_info.value.status_code == 401
-
-

@@ -80,4 +80,3 @@ async def test_scheduler_records_execution_log():
         assert latest_log.trigger_type == "Manual"
         assert latest_log.status in ("Success", "Failed")
         assert latest_log.duration is not None
-

@@ -212,7 +212,6 @@ class TaskExecutionLog(SQLModel, table=True):
     details: str | None = None
 
 
-
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     hash_bytes = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100_000)
@@ -823,9 +822,13 @@ def migration_016_unique_camera_nvr_channel(conn: sqlite3.Connection):
     conn.commit()
 
     # 2. Create unique index
-    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_camera_nvr_channel ON camera (nvr_ip, channel_id)")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_camera_nvr_channel ON camera (nvr_ip, channel_id)"
+    )
     conn.commit()
-    logger.info("[migration 016] Deduplicated camera table and created uq_camera_nvr_channel unique index")
+    logger.info(
+        "[migration 016] Deduplicated camera table and created uq_camera_nvr_channel unique index"
+    )
 
 
 def rollback_016_unique_camera_nvr_channel(conn: sqlite3.Connection):

@@ -1133,7 +1133,6 @@ def get_all_tasks_history(
     return logs
 
 
-
 @app.post("/api/data/purge", dependencies=[Depends(require_admin)])
 async def purge_database(session: Session = Depends(get_session)):
     seed_database(session)

@@ -160,9 +160,7 @@ class TaskScheduler:
                         started_dt, days_str, time_str
                     )
                 else:
-                    db_task.next_run = started_dt + timedelta(
-                        seconds=db_task.interval
-                    )
+                    db_task.next_run = started_dt + timedelta(seconds=db_task.interval)
                 session.add(db_task)
                 session.commit()
 
@@ -176,7 +174,9 @@ class TaskScheduler:
             await asyncio.wait_for(func(), timeout=task_timeout)
         except asyncio.TimeoutError:
             status_str = "Failed"
-            error_msg = f"زمان اجرای تسک از حد مجاز ({task_timeout} ثانیه) فراتر رفت (Timeout)"
+            error_msg = (
+                f"زمان اجرای تسک از حد مجاز ({task_timeout} ثانیه) فراتر رفت (Timeout)"
+            )
             logger.error(f"Task {task_id} timed out after {task_timeout}s")
         except asyncio.CancelledError:
             status_str = "Cancelled"
