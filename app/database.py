@@ -6,7 +6,7 @@ import secrets
 from datetime import datetime
 
 from loguru import logger
-from sqlmodel import Field, Session, SQLModel, create_engine
+from sqlmodel import Field, Session, SQLModel, UniqueConstraint, create_engine
 
 
 class NVRGroup(SQLModel, table=True):
@@ -54,6 +54,10 @@ class NVR(SQLModel, table=True):
 
 
 class Camera(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("nvr_ip", "channel_id", name="uq_camera_nvr_channel"),
+    )
+
     id: int | None = Field(default=None, primary_key=True)
     name: str
     ip: str
@@ -796,10 +800,44 @@ def rollback_015_upgrade_log_table(conn: sqlite3.Connection):
 
 
 # ---------------------------------------------------------------------------
+# Migration 016 – Deduplicate Cameras & Add Unique Index
+# ---------------------------------------------------------------------------
+
+
+def migration_016_unique_camera_nvr_channel(conn: sqlite3.Connection):
+    """Delete duplicate camera rows and create unique index on (nvr_ip, channel_id)."""
+    # 1. Keep the oldest camera row or the one that is Online for each (nvr_ip, channel_id)
+    conn.execute("""
+        DELETE FROM camera
+        WHERE id NOT IN (
+            SELECT id FROM (
+                SELECT id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY nvr_ip, channel_id
+                           ORDER BY CASE WHEN status = 'Online' THEN 0 ELSE 1 END, id ASC
+                       ) as rn
+                FROM camera
+            ) WHERE rn = 1
+        )
+    """)
+    conn.commit()
+
+    # 2. Create unique index
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_camera_nvr_channel ON camera (nvr_ip, channel_id)")
+    conn.commit()
+    logger.info("[migration 016] Deduplicated camera table and created uq_camera_nvr_channel unique index")
+
+
+def rollback_016_unique_camera_nvr_channel(conn: sqlite3.Connection):
+    conn.execute("DROP INDEX IF EXISTS uq_camera_nvr_channel")
+    logger.info("[rollback 016] Dropped uq_camera_nvr_channel index")
+
+
+# ---------------------------------------------------------------------------
 # Migration registry
 # ---------------------------------------------------------------------------
 
-CURRENT_MIGRATION_VERSION = 15
+CURRENT_MIGRATION_VERSION = 16
 
 
 MIGRATIONS = {
@@ -818,6 +856,7 @@ MIGRATIONS = {
     13: ("add_outage_explanation", migration_013_add_outage_explanation),
     14: ("add_outage_cause", migration_014_add_outage_cause),
     15: ("upgrade_log_table", migration_015_upgrade_log_table),
+    16: ("unique_camera_nvr_channel", migration_016_unique_camera_nvr_channel),
 }
 
 ROLLBACKS = {
@@ -836,6 +875,7 @@ ROLLBACKS = {
     13: rollback_013_add_outage_explanation,
     14: rollback_014_add_outage_cause,
     15: rollback_015_upgrade_log_table,
+    16: rollback_016_unique_camera_nvr_channel,
 }
 
 
