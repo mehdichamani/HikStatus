@@ -114,8 +114,10 @@ class TaskScheduler:
                         continue
 
                     # Time to run?
-                    if task.status == "Idle" and (
-                        not task.next_run or task.next_run <= now
+                    if (
+                        task.status == "Idle"
+                        and task.id not in self.active_tasks
+                        and (not task.next_run or task.next_run <= now)
                     ):
                         self.active_tasks[task.id] = asyncio.create_task(
                             self._run_task_wrapper(task.id)
@@ -135,19 +137,47 @@ class TaskScheduler:
 
         start_time = time.time()
         started_dt = datetime.now()
+
+        # محاسبه و ذخیره فوری زمان اجرای بعدی و وضعیت در حال اجرا
         with Session(engine) as session:
             db_task = session.get(ScheduledTask, task_id)
             if db_task:
                 db_task.status = "Running"
                 db_task.last_run = started_dt
+
+                if db_task.id == "analyze_outages":
+                    from app.database import Settings
+
+                    days_str = "5,6,0,1,2,3"
+                    time_str = "07:30"
+                    s_days = session.get(Settings, "OUTAGE_ANALYSIS_DAYS")
+                    s_time = session.get(Settings, "OUTAGE_ANALYSIS_TIME")
+                    if s_days:
+                        days_str = s_days.value
+                    if s_time:
+                        time_str = s_time.value
+                    db_task.next_run = get_next_analysis_run(
+                        started_dt, days_str, time_str
+                    )
+                else:
+                    db_task.next_run = started_dt + timedelta(
+                        seconds=db_task.interval
+                    )
                 session.add(db_task)
                 session.commit()
+
         await self._broadcast_status(task_id, "Running")
 
         status_str = "Success"
         error_msg = None
+        # تعریف حداکثر زمان انتظار برای تسک‌های مختلف جهت جلوگیری از قفل شدن نامحدود
+        task_timeout = 180 if task_id == "sync_nvr_stats" else 60
         try:
-            await func()
+            await asyncio.wait_for(func(), timeout=task_timeout)
+        except asyncio.TimeoutError:
+            status_str = "Failed"
+            error_msg = f"زمان اجرای تسک از حد مجاز ({task_timeout} ثانیه) فراتر رفت (Timeout)"
+            logger.error(f"Task {task_id} timed out after {task_timeout}s")
         except asyncio.CancelledError:
             status_str = "Cancelled"
             raise
@@ -166,25 +196,6 @@ class TaskScheduler:
                     db_task.last_duration = duration
                     db_task.last_status = status_str
                     db_task.last_error = error_msg
-                    # Schedule next run based on interval
-                    if db_task.id == "analyze_outages":
-                        from app.database import Settings
-
-                        days_str = "5,6,0,1,2,3"
-                        time_str = "07:30"
-                        s_days = session.get(Settings, "OUTAGE_ANALYSIS_DAYS")
-                        s_time = session.get(Settings, "OUTAGE_ANALYSIS_TIME")
-                        if s_days:
-                            days_str = s_days.value
-                        if s_time:
-                            time_str = s_time.value
-                        db_task.next_run = get_next_analysis_run(
-                            datetime.now(), days_str, time_str
-                        )
-                    else:
-                        db_task.next_run = datetime.now() + timedelta(
-                            seconds=db_task.interval
-                        )
                     session.add(db_task)
 
                     if status_str != "Success":
