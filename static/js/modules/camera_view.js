@@ -284,12 +284,15 @@ export function renderNVRRow(n, deleted = false) {
                 <span class="list-item-ip">${n.ip}</span>
                 <span class="list-item-user">(${n.user})</span>
             </div>
-            <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+            <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0; flex-wrap: wrap;">
                 <button class="btn" style="padding: 4px 10px; font-size: 12px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);" onclick="window.undoNVRDelete('${n.ip}')">
-                    بازگشت
+                    انصراف
                 </button>
-                <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="window.applyNVRDelete('${n.ip}')">
-                    حذف
+                <button class="btn" style="padding: 4px 10px; font-size: 12px; background: #f59e0b; color: white;" onclick="window.applyNVRDelete('${n.ip}', false)" title="حفظ ۳۰ روزه سوابق و عدم پایش">
+                    لغو اتصال (Unlink)
+                </button>
+                <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="window.applyNVRDelete('${n.ip}', true)" title="حذف کامل از دیتابیس و پاکسازی اسنپ‌شات‌ها">
+                    حذف دائم
                 </button>
             </div>
         </div>`;

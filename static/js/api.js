@@ -425,13 +425,24 @@ export async function deleteGroup(id) {
     try {
         await window.apiFetch(`${API}/groups/${id}`, { method: 'DELETE' });
         window.showToast('کارخانه حذف شد');
-
-        // Refresh groups and reload settings (to refresh NVR dropdowns)
+    // Refresh groups and reload settings (to refresh NVR dropdowns)
         const gRes = await window.apiFetch(`${API}/groups`);
         window.groupCache = await gRes.json();
         await window.loadSettings();
     } catch (e) {
         window.showToast('خطا در حذف کارخانه: ' + e.message, 'error');
+    }
+}
+
+export async function applyNVRDelete(ip, hard = false) {
+    try {
+        const url = `${API}/nvrs/${encodeURIComponent(ip)}${hard ? '?hard=true' : ''}`;
+        await window.apiFetch(url, { method: 'DELETE' });
+        window.pendingNVRDeletes.delete(ip);
+        window.showToast(hard ? 'NVR و تمامی سوابق آن کاملاً حذف گردید' : 'ارتباط NVR قطع و به حالت حذف موقت درآمد (Soft-Delete)');
+        await window.loadSettings();
+    } catch (e) {
+        window.showToast('خطا در حذف NVR: ' + e.message, 'error');
     }
 }
 
@@ -449,17 +460,6 @@ export async function updateNVRGroup(ip, groupId) {
         window.nvrCache = await nRes.json();
     } catch (e) {
         window.showToast('خطا در به‌روزرسانی کارخانه NVR: ' + e.message, 'error');
-    }
-}
-
-export async function applyNVRDelete(ip) {
-    try {
-        await window.apiFetch(`${API}/nvrs/${encodeURIComponent(ip)}`, { method: 'DELETE' });
-        window.pendingNVRDeletes.delete(ip);
-        window.showToast('NVR با موفقیت حذف شد');
-        await window.loadSettings();
-    } catch (e) {
-        window.showToast('خطا در حذف NVR: ' + e.message, 'error');
     }
 }
 
@@ -515,6 +515,195 @@ export async function saveNVRRow(ip) {
         await window.loadSettings();
     } catch (e) {
         window.showToast('خطا در به‌روزرسانی NVR: ' + e.message, 'error');
+    }
+}
+
+// متغیرها و توابع مربوط به پردازش غیرهمگام تحلیل فایل JSON
+let activeImportJobId = null;
+let importPollingInterval = null;
+
+function updateImportProgressUI(percent, message) {
+    const bar = document.getElementById('import-analysis-progress-bar');
+    const percentEl = document.getElementById('import-analysis-progress-percent');
+    const statusText = document.getElementById('import-analysis-status-text');
+    const stickyPercent = document.getElementById('sticky-import-percent');
+
+    if (bar) bar.style.width = `${percent}%`;
+    if (percentEl) percentEl.textContent = `${percent}%`;
+    if (statusText && message) statusText.textContent = message;
+    if (stickyPercent) stickyPercent.textContent = `${percent}%`;
+}
+
+function startImportPolling(jobId) {
+    if (importPollingInterval) clearInterval(importPollingInterval);
+
+    importPollingInterval = setInterval(async () => {
+        try {
+            const res = await window.apiFetch(`${API}/config/import/status/${jobId}`);
+            if (!res.ok) {
+                clearInterval(importPollingInterval);
+                throw new Error('خطا در دریافت وضعیت تحلیل');
+            }
+            const job = await res.json();
+            updateImportProgressUI(job.progress, job.message);
+
+            if (job.status === 'completed') {
+                clearInterval(importPollingInterval);
+                const modal = document.getElementById('modal-import-analysis');
+                const sticky = document.getElementById('sticky-import-progress');
+                if (modal) modal.classList.add('hidden');
+                if (sticky) sticky.classList.add('hidden');
+                openImportDecisionModal(job.summary);
+            } else if (job.status === 'failed') {
+                clearInterval(importPollingInterval);
+                const modal = document.getElementById('modal-import-analysis');
+                const sticky = document.getElementById('sticky-import-progress');
+                if (modal) modal.classList.add('hidden');
+                if (sticky) sticky.classList.add('hidden');
+                window.showToast(job.error || 'خطا در پردازش فایل', 'error');
+            }
+        } catch (e) {
+            clearInterval(importPollingInterval);
+            const modal = document.getElementById('modal-import-analysis');
+            const sticky = document.getElementById('sticky-import-progress');
+            if (modal) modal.classList.add('hidden');
+            if (sticky) sticky.classList.add('hidden');
+            window.showToast(e.message, 'error');
+        }
+    }, 500);
+}
+
+export function minimizeImportProgress() {
+    const modal = document.getElementById('modal-import-analysis');
+    const sticky = document.getElementById('sticky-import-progress');
+    if (modal) modal.classList.add('hidden');
+    if (sticky) sticky.classList.remove('hidden');
+}
+
+export function restoreImportProgress() {
+    const modal = document.getElementById('modal-import-analysis');
+    const sticky = document.getElementById('sticky-import-progress');
+    if (sticky) sticky.classList.add('hidden');
+    if (modal) modal.classList.remove('hidden');
+}
+
+export function closeImportDecisionModal() {
+    const decisionModal = document.getElementById('modal-import-decision');
+    if (decisionModal) decisionModal.classList.add('hidden');
+    activeImportJobId = null;
+}
+
+export function openImportDecisionModal(summary) {
+    if (!summary) return;
+    const summaryContainer = document.getElementById('import-decision-summary');
+    if (summaryContainer) {
+        summaryContainer.innerHTML = `
+            <div style="background: var(--surface-2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                <div style="font-size: 11px; color: var(--text-muted);">دستگاه‌های جدید (New)</div>
+                <div style="font-size: 16px; font-weight: 700; color: #10b981; margin-top: 2px;">${summary.new_nvrs_count} دستگاه</div>
+            </div>
+            <div style="background: var(--surface-2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                <div style="font-size: 11px; color: var(--text-muted);">نیاز به به‌روزرسانی (Modified)</div>
+                <div style="font-size: 16px; font-weight: 700; color: #f59e0b; margin-top: 2px;">${summary.modified_nvrs_count} دستگاه</div>
+            </div>
+            <div style="background: var(--surface-2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                <div style="font-size: 11px; color: var(--text-muted);">اتصال مجدد (Re-link)</div>
+                <div style="font-size: 16px; font-weight: 700; color: #3b82f6; margin-top: 2px;">${summary.relinked_nvrs_count} دستگاه</div>
+            </div>
+            <div style="background: var(--surface-2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                <div style="font-size: 11px; color: var(--text-muted);">دستگاه‌های دست‌نخورده در سامانه</div>
+                <div style="font-size: 16px; font-weight: 700; color: var(--text); margin-top: 2px;">${summary.untouched_nvrs_count} دستگاه</div>
+            </div>
+        `;
+    }
+    const decisionModal = document.getElementById('modal-import-decision');
+    if (decisionModal) decisionModal.classList.remove('hidden');
+}
+
+export async function confirmImportExecute() {
+    if (!activeImportJobId) return;
+    const btn = document.getElementById('btn-confirm-import-execute');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'در حال اعمال...';
+    }
+
+    const selectedStrategy = document.querySelector('input[name="import-strategy"]:checked')?.value || 'upsert';
+
+    try {
+        const res = await window.apiFetch(`${API}/config/import/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                job_id: activeImportJobId,
+                strategy: selectedStrategy
+            })
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: 'خطا در اعمال تنظیمات' }));
+            throw new Error(err.detail || 'خطا در اعمال تنظیمات');
+        }
+
+        const data = await res.json();
+        closeImportDecisionModal();
+        window.showToast(data.message || 'پیکربندی با موفقیت اعمال شد');
+        setTimeout(() => location.reload(), 1200);
+    } catch (e) {
+        window.showToast('خطا: ' + e.message, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'تایید و اعمال نهایی';
+        }
+    }
+}
+
+export async function importJsonConfig(input) {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+    if (!file.name.endsWith('.json')) {
+        window.showToast('فایل باید با پسوند .json باشد', 'error');
+        return;
+    }
+
+    try {
+        const text = await file.text();
+        let jsonData;
+        try {
+            jsonData = JSON.parse(text);
+        } catch (err) {
+            throw new Error('فرمت فایل JSON معتبر نیست');
+        }
+
+        // نمایش مودال لودینگ تحلیل
+        const modal = document.getElementById('modal-import-analysis');
+        const sticky = document.getElementById('sticky-import-progress');
+        if (modal) modal.classList.remove('hidden');
+        if (sticky) sticky.classList.add('hidden');
+        updateImportProgressUI(5, 'در حال ارسال فایل و شروع تحلیل...');
+
+        const res = await window.apiFetch(`${API}/config/import/analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(jsonData)
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: 'خطای نامشخص' }));
+            throw new Error(err.detail || 'خطا در شروع تحلیل فایل');
+        }
+
+        const data = await res.json();
+        activeImportJobId = data.job_id;
+        startImportPolling(activeImportJobId);
+
+    } catch (e) {
+        const modal = document.getElementById('modal-import-analysis');
+        const sticky = document.getElementById('sticky-import-progress');
+        if (modal) modal.classList.add('hidden');
+        if (sticky) sticky.classList.add('hidden');
+        window.showToast('خطا: ' + e.message, 'error');
     }
 }
 

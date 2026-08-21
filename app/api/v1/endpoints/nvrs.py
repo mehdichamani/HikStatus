@@ -1,10 +1,13 @@
+import os
 import re
+from datetime import datetime
 
 from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
     HTTPException,
+    Query,
     Request,
     Response,
 )
@@ -15,10 +18,11 @@ from app.database import (
     Camera,
     CameraChangeEvent,
     DowntimeEvent,
+    OutageExplanation,
     encrypt_password,
     get_session,
 )
-from app.logging_config import log_event
+from app.logging_config import log_event, logger
 from app.services.monitor import (
     task_sync_nvr_configs,
     task_sync_nvr_health,
@@ -26,6 +30,18 @@ from app.services.monitor import (
 )
 
 router = APIRouter()
+
+
+def delete_camera_snapshots(camera_ids: list[int]):
+    """حذف فایل‌های فیزیکی اسنپ‌شات دوربین‌ها از روی دیسک"""
+    for cid in camera_ids:
+        for ext in [".jpg", ".png", ".jpeg"]:
+            p = os.path.join("data", "snapshots", f"camera_{cid}{ext}")
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception as e:
+                    logger.warning(f"خطا در حذف فایل اسنپ‌شات {p}: {e}")
 
 
 def is_valid_ip_or_host(value: str) -> bool:
@@ -42,7 +58,12 @@ def is_valid_ip_or_host(value: str) -> bool:
 
 @router.get("", response_model=list[NVR], response_model_exclude={"password"})
 def get_nvrs(
-    request: Request, response: Response, session: Session = Depends(get_session)
+    request: Request,
+    response: Response,
+    include_unlinked: bool = Query(
+        default=False, description="نمایش NVRهای غیرفعال/حذف موقت شده"
+    ),
+    session: Session = Depends(get_session),
 ):
     import main
 
@@ -53,11 +74,15 @@ def get_nvrs(
         user = auth_fn()
 
     accessible_groups = main.get_user_accessible_groups(user, session)
+    query = select(NVR)
+    if not include_unlinked:
+        query = query.where(NVR.unlinked_at == None)
+
     if accessible_groups is None:
-        return session.exec(select(NVR)).all()
+        return session.exec(query).all()
     if not accessible_groups:
         return []
-    return session.exec(select(NVR).where(NVR.group_id.in_(accessible_groups))).all()
+    return session.exec(query.where(NVR.group_id.in_(accessible_groups))).all()
 
 
 @router.post("")
@@ -94,10 +119,43 @@ def create_nvr(
 
     existing = session.get(NVR, nvr.ip)
     if existing:
-        raise HTTPException(status_code=400, detail="این آدرس IP قبلاً ثبت شده است")
+        if existing.unlinked_at is not None:
+            # اتصال مجدد (Re-link) دستگاه از پیش ثبت شده
+            existing.unlinked_at = None
+            existing.enabled = True
+            if nvr.name:
+                existing.name = nvr.name
+            if nvr.user:
+                existing.user = nvr.user
+            if nvr.password:
+                existing.password = encrypt_password(nvr.password)
+            existing.rtsp_port = nvr.rtsp_port
+            if nvr.group_id is not None:
+                existing.group_id = nvr.group_id
+
+            session.add(existing)
+            session.commit()
+            log_event(
+                session,
+                category="NVR",
+                action="NVR_RELINK",
+                details=f"دستگاه NVR ({existing.name or existing.ip}) مجدداً متصل و فعال گردید (Re-link)",
+                level="INFO",
+                actor_username=user.get("username", "admin") if user else "admin",
+                group_id=existing.group_id,
+                target_type="NVR",
+                target_id=existing.ip,
+            )
+            background_tasks.add_task(task_sync_nvr_configs, nvr_ip=existing.ip)
+            background_tasks.add_task(task_sync_nvr_health, nvr_ip=existing.ip)
+            background_tasks.add_task(task_sync_nvr_stats, nvr_ip=existing.ip)
+            return existing
+        else:
+            raise HTTPException(status_code=400, detail="این آدرس IP قبلاً ثبت شده است")
 
     if nvr.password:
         nvr.password = encrypt_password(nvr.password)
+    nvr.unlinked_at = None
     session.add(nvr)
     session.commit()
     log_event(
@@ -121,8 +179,12 @@ def create_nvr(
 @router.delete("/{ip}")
 def delete_nvr(
     ip: str,
-    request: Request,
-    response: Response,
+    hard: bool = Query(
+        default=False,
+        description="حذف کامل فیزیکی رکوردهای دیتابیس و فایل‌های اسنپ‌شات",
+    ),
+    request: Request = None,
+    response: Response = None,
     session: Session = Depends(get_session),
 ):
     import main
@@ -144,28 +206,67 @@ def delete_nvr(
         raise HTTPException(status_code=404, detail="NVR not found")
     n_name = n.name or ip
     g_id = n.group_id
+
+    if not hard:
+        # حذف موقت (Soft-Delete / Unlink)
+        n.unlinked_at = datetime.now()
+        n.enabled = False
+        session.add(n)
+        session.commit()
+        log_event(
+            session,
+            category="NVR",
+            action="NVR_UNLINK",
+            details=f"دستگاه NVR ({n_name}) غیرفعال و ارتباط آن قطع گردید (Soft-Delete)",
+            level="WARNING",
+            actor_username=user.get("username", "admin") if user else "admin",
+            group_id=g_id,
+            target_type="NVR",
+            target_id=ip,
+        )
+        return {"ok": True, "mode": "unlinked"}
+
+    # حذف کامل قطعی (Hard-Delete)
     cams = session.exec(select(Camera).where(Camera.nvr_ip == ip)).all()
+    cam_ids = [c.id for c in cams if c.id is not None]
+    delete_camera_snapshots(cam_ids)
+
     for cam in cams:
+        # پاکسازی توضیحات و وقایع قطعی
+        explanations = session.exec(
+            select(OutageExplanation).where(OutageExplanation.camera_id == cam.id)
+        ).all()
+        for exp in explanations:
+            session.delete(exp)
+
         downtimes = session.exec(
             select(DowntimeEvent).where(DowntimeEvent.camera_id == cam.id)
         ).all()
         for dt in downtimes:
             session.delete(dt)
+
         session.delete(cam)
+
+    events = session.exec(
+        select(CameraChangeEvent).where(CameraChangeEvent.nvr_ip == ip)
+    ).all()
+    for ev in events:
+        session.delete(ev)
+
     session.delete(n)
     session.commit()
     log_event(
         session,
         category="NVR",
         action="NVR_DELETE",
-        details=f"دستگاه NVR ({n_name}) حذف شد",
+        details=f"دستگاه NVR ({n_name}) و تمامی سوابق و فایل‌های آن به‌صورت کامل حذف شدند (Hard-Delete)",
         level="WARNING",
         actor_username=user.get("username", "admin") if user else "admin",
         group_id=g_id,
         target_type="NVR",
         target_id=ip,
     )
-    return {"ok": True}
+    return {"ok": True, "mode": "purged"}
 
 
 @router.put("/{ip}")
@@ -236,6 +337,7 @@ def update_nvr(
             hdd_status=n.hdd_status,
             device_time=n.device_time,
             last_online=n.last_online,
+            unlinked_at=n.unlinked_at,
             mail_alert_count=n.mail_alert_count,
             mail_last_alert=n.mail_last_alert,
             telegram_alert_count=n.telegram_alert_count,

@@ -2622,6 +2622,85 @@
         </div>
     </div>
 
+    <!-- JSON Import Analysis Modal -->
+    <div class="modal-overlay hidden" id="modal-import-analysis">
+        <div class="modal-sheet" onclick="event.stopPropagation()" style="max-width: 480px;">
+            <div class="modal-handle"></div>
+            <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="spinner-sm" style="width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                    <h3 style="margin: 0; font-size: 15px;">تحلیل فایل پیکربندی JSON</h3>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button class="btn-icon" onclick="window.minimizeImportProgress()" title="کوچک‌سازی و ادامه در پس‌زمینه" style="width: 28px; height: 28px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 16px; text-align: center;">
+                <div style="font-size: 13px; color: var(--text-secondary);" id="import-analysis-status-text">در حال بررسی و تحلیل فایل JSON...</div>
+                <div class="progress-bar-container" style="background: var(--surface-2); border-radius: 999px; height: 8px; overflow: hidden; width: 100%; border: 1px solid var(--border);">
+                    <div id="import-analysis-progress-bar" style="background: linear-gradient(90deg, var(--primary), #3b82f6); height: 100%; width: 5%; transition: width 0.3s ease;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+                    <span>پیشرفت پردازش</span>
+                    <span id="import-analysis-progress-percent">5%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Sticky Progress Widget (Minimized State) -->
+    <div id="sticky-import-progress" class="hidden" onclick="window.restoreImportProgress()" style="position: fixed; bottom: 24px; left: 24px; z-index: 9999; background: var(--surface); border: 1px solid var(--primary); box-shadow: var(--shadow); border-radius: var(--radius); padding: 10px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer;">
+        <div class="spinner-sm" style="width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text);">در حال تحلیل JSON... (<span id="sticky-import-percent">0%</span>)</div>
+            <div style="font-size: 10px; color: var(--text-muted);">برای مشاهده و باز کردن کلیک کنید</div>
+        </div>
+    </div>
+
+    <!-- JSON Import Decision Modal -->
+    <div class="modal-overlay hidden" id="modal-import-decision" onclick="window.closeImportDecisionModal()">
+        <div class="modal-sheet" onclick="event.stopPropagation()" style="max-width: 580px;">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h3>نتیجه تحلیل و انتخاب روش ثبت</h3>
+                <button class="btn-close" onclick="window.closeImportDecisionModal()" title="بستن">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; max-height: 70vh; overflow-y: auto;">
+                <div id="import-decision-summary" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <!-- Stat chips rendered via JS -->
+                </div>
+
+                <div style="font-size: 13px; font-weight: 600; margin-top: 4px; color: var(--text);">استراتژی ورود داده را انتخاب کنید:</div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <label class="import-strategy-card" style="display: flex; gap: 12px; align-items: flex-start; padding: 12px; background: var(--surface-2); border: 2px solid var(--primary); border-radius: var(--radius-sm); cursor: pointer;">
+                        <input type="radio" name="import-strategy" value="upsert" checked style="margin-top: 3px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <span style="font-size: 13px; font-weight: 600; color: var(--text);">به‌روزرسانی و ادغام هوشمند (Upsert - پیشنهادی)</span>
+                            <span style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">دستگاه‌های جدید اضافه شده و تغییرات دستگاه‌های موجود بروزرسانی می‌شوند. سایر دستگاه‌های موجود در دیتابیس بدون تغییر حفظ خواهند شد.</span>
+                        </div>
+                    </label>
+
+                    <label class="import-strategy-card" style="display: flex; gap: 12px; align-items: flex-start; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">
+                        <input type="radio" name="import-strategy" value="replace" style="margin-top: 3px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <span style="font-size: 13px; font-weight: 600; color: var(--text);">جایگزینی رکوردهای NVR (Replace)</span>
+                            <span style="font-size: 12px; color: var(--text-muted); line-height: 1.5;">دستگاه‌های فایل ثبت شده و دستگاه‌های خارج از فایل به حالت Unlink (حذف موقت با نگهداری ۳۰ روزه سوابق) در می‌آیند.</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px;">
+                <button class="btn btn-ghost" onclick="window.closeImportDecisionModal()">انصراف</button>
+                <button class="btn btn-primary" id="btn-confirm-import-execute" onclick="window.confirmImportExecute()">تایید و اعمال نهایی</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Floating Action Buttons (FAB) -->
     <div id="fab-dash-controls" class="fab-container">
         <button class="fab-btn" id="btn-fab-edit" onclick="toggleDashEditMode()" title="شخصی‌سازی داشبورد"

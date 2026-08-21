@@ -34,6 +34,7 @@ class NVR(SQLModel, table=True):
     enabled: bool = True
     status: str = "Unknown"
     last_online: datetime | None = None
+    unlinked_at: datetime | None = Field(default=None, index=True)
     mail_alert_count: int = 0
     mail_last_alert: datetime | None = None
     telegram_alert_count: int = 0
@@ -837,10 +838,30 @@ def rollback_016_unique_camera_nvr_channel(conn: sqlite3.Connection):
 
 
 # ---------------------------------------------------------------------------
+# Migration 017 – NVR unlinked_at (Soft-Delete)
+# ---------------------------------------------------------------------------
+
+
+def migration_017_add_nvr_unlinked_at(conn: sqlite3.Connection):
+    """Add unlinked_at column to nvr and create index."""
+    if not _column_exists(conn, "nvr", "unlinked_at"):
+        conn.execute("ALTER TABLE nvr ADD COLUMN unlinked_at TIMESTAMP")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS ix_nvr_unlinked_at ON nvr (unlinked_at)"
+        )
+        logger.info("[migration 017] Added column unlinked_at to nvr")
+
+
+def rollback_017_add_nvr_unlinked_at(conn: sqlite3.Connection):
+    conn.execute("DROP INDEX IF EXISTS ix_nvr_unlinked_at")
+    logger.info("[rollback 017] Skipped column drop (SQLite)")
+
+
+# ---------------------------------------------------------------------------
 # Migration registry
 # ---------------------------------------------------------------------------
 
-CURRENT_MIGRATION_VERSION = 16
+CURRENT_MIGRATION_VERSION = 17
 
 
 MIGRATIONS = {
@@ -860,6 +881,7 @@ MIGRATIONS = {
     14: ("add_outage_cause", migration_014_add_outage_cause),
     15: ("upgrade_log_table", migration_015_upgrade_log_table),
     16: ("unique_camera_nvr_channel", migration_016_unique_camera_nvr_channel),
+    17: ("add_nvr_unlinked_at", migration_017_add_nvr_unlinked_at),
 }
 
 ROLLBACKS = {
@@ -879,6 +901,7 @@ ROLLBACKS = {
     14: rollback_014_add_outage_cause,
     15: rollback_015_upgrade_log_table,
     16: rollback_016_unique_camera_nvr_channel,
+    17: rollback_017_add_nvr_unlinked_at,
 }
 
 

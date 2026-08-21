@@ -232,7 +232,7 @@ def test_endpoint_nvrs_crud(session, client):
     # ۵. حذف NVR (DELETE)
     response = client.delete("/api/nvrs/192.168.10.5")
     assert response.status_code == 200
-    assert response.json() == {"ok": True}
+    assert response.json().get("ok") is True
 
 
 # ==================== ۴. تست‌های مدیریت گروه‌ها و پلان‌ها ====================

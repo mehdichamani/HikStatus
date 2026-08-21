@@ -290,6 +290,40 @@ def cleanup_old_data(session, days=90):
         session.query(TaskExecutionLog).filter(
             TaskExecutionLog.started_at < cutoff
         ).delete()
+
+        # پاکسازی NVRها و داده‌های یتیم (Unlinked بیش از ۳۰ روز)
+        unlinked_cutoff = datetime.now() - timedelta(days=30)
+        old_unlinked_nvrs = session.exec(
+            select(NVR).where(
+                NVR.unlinked_at != None,
+                NVR.unlinked_at < unlinked_cutoff,
+            )
+        ).all()
+
+        for old_nvr in old_unlinked_nvrs:
+            cams = session.exec(select(Camera).where(Camera.nvr_ip == old_nvr.ip)).all()
+            for cam in cams:
+                if cam.id is not None:
+                    for ext in [".jpg", ".png", ".jpeg"]:
+                        p = os.path.join("data", "snapshots", f"camera_{cam.id}{ext}")
+                        if os.path.exists(p):
+                            try:
+                                os.remove(p)
+                            except Exception as e:
+                                logger.warning(f"Error removing snapshot {p}: {e}")
+                session.query(OutageExplanation).filter(
+                    OutageExplanation.camera_id == cam.id
+                ).delete()
+                session.query(DowntimeEvent).filter(
+                    DowntimeEvent.camera_id == cam.id
+                ).delete()
+                session.delete(cam)
+
+            session.query(CameraChangeEvent).filter(
+                CameraChangeEvent.nvr_ip == old_nvr.ip
+            ).delete()
+            session.delete(old_nvr)
+
         session.commit()
     except Exception as e:
         logger.warning(f"Failed to cleanup old data: {e}")

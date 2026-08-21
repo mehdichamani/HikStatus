@@ -336,6 +336,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 or subpath.startswith("nvrs")
                 or subpath.startswith("settings")
                 or subpath.startswith("health")
+                or subpath.startswith("config")
             ):
                 request.scope["path"] = "/api/" + subpath
 
@@ -1356,18 +1357,6 @@ async def import_config_json(request: Request, session: Session = Depends(get_se
     except Exception:
         raise HTTPException(status_code=400, detail="فایل ارسالی فرمت JSON معتبر ندارد")
 
-    session.query(DowntimeEvent).delete()
-    session.query(Camera).delete()
-    session.query(MapPlan).delete()
-    session.query(UserSession).delete()
-    session.query(UserAlertSettings).delete()
-    session.query(User).delete()
-    session.query(NVR).delete()
-    session.query(NVRGroup).delete()
-    session.query(Settings).delete()
-    session.query(ScheduledTask).delete()
-    session.commit()
-
     # 1. Import Settings
     json_settings = body.get("settings", {})
     defaults = {
@@ -1426,8 +1415,13 @@ async def import_config_json(request: Request, session: Session = Depends(get_se
 
     # Save all settings present in JSON
     for key, val in json_settings.items():
-        desc = defaults.get(key, (None, None))[1]
-        session.add(Settings(key=key, value=str(val), description=desc))
+        s = session.get(Settings, key)
+        if s:
+            s.value = str(val)
+            session.add(s)
+        else:
+            desc = defaults.get(key, (None, None))[1]
+            session.add(Settings(key=key, value=str(val), description=desc))
 
     # Seed missing defaults
     for key, (def_val, desc) in defaults.items():
@@ -1438,79 +1432,122 @@ async def import_config_json(request: Request, session: Session = Depends(get_se
     # 2. Import Groups
     json_groups = body.get("groups", [])
     for g_data in json_groups:
-        session.add(
-            NVRGroup(
-                id=g_data.get("id"),
-                name=g_data["name"],
-                description=g_data.get("description"),
-                map_center_lat=g_data.get("map_center_lat"),
-                map_center_lng=g_data.get("map_center_lng"),
-                map_zoom=g_data.get("map_zoom"),
+        g_name = g_data.get("name")
+        if not g_name:
+            continue
+        g = session.exec(select(NVRGroup).where(NVRGroup.name == g_name)).first()
+        if not g:
+            session.add(
+                NVRGroup(
+                    id=g_data.get("id"),
+                    name=g_name,
+                    description=g_data.get("description"),
+                    map_center_lat=g_data.get("map_center_lat"),
+                    map_center_lng=g_data.get("map_center_lng"),
+                    map_zoom=g_data.get("map_zoom"),
+                )
             )
-        )
+        else:
+            g.description = g_data.get("description", g.description)
+            g.map_center_lat = g_data.get("map_center_lat", g.map_center_lat)
+            g.map_center_lng = g_data.get("map_center_lng", g.map_center_lng)
+            g.map_zoom = g_data.get("map_zoom", g.map_zoom)
+            session.add(g)
     session.commit()
 
     # 2.1 Import Map Plans
     json_plans = body.get("plans", [])
     for p_data in json_plans:
-        session.add(
-            MapPlan(
-                id=p_data.get("id"),
-                group_id=p_data["group_id"],
-                name=p_data["name"],
-                image_url=p_data["image_url"],
-                sort_order=p_data.get("sort_order", 0),
+        p_name = p_data.get("name")
+        p_gid = p_data.get("group_id")
+        p = session.exec(
+            select(MapPlan).where(MapPlan.name == p_name, MapPlan.group_id == p_gid)
+        ).first()
+        if not p:
+            session.add(
+                MapPlan(
+                    id=p_data.get("id"),
+                    group_id=p_gid,
+                    name=p_name,
+                    image_url=p_data.get("image_url", ""),
+                    sort_order=p_data.get("sort_order", 0),
+                )
             )
-        )
     session.commit()
 
-    # 3. Import NVRs
+    # 3. Import NVRs (Upsert)
     json_nvrs = body.get("nvrs", [])
     for n_data in json_nvrs:
-        enc_pass = ""
-        if n_data.get("password"):
-            enc_pass = encrypt_password(n_data["password"])
-        session.add(
-            NVR(
-                ip=n_data["ip"],
-                name=n_data.get("name"),
-                user=n_data["user"],
-                password=enc_pass,
-                enabled=n_data.get("enabled", True),
-                group_id=n_data.get("group_id"),
-                rtsp_port=n_data.get("rtsp_port", 554),
+        ip = n_data.get("ip")
+        if not ip:
+            continue
+        existing = session.get(NVR, ip)
+        if existing:
+            if n_data.get("name"):
+                existing.name = n_data["name"]
+            if n_data.get("user"):
+                existing.user = n_data["user"]
+            if n_data.get("password"):
+                existing.password = encrypt_password(n_data["password"])
+            if n_data.get("rtsp_port"):
+                existing.rtsp_port = int(n_data["rtsp_port"])
+            if "enabled" in n_data:
+                existing.enabled = bool(n_data["enabled"])
+            if "group_id" in n_data:
+                existing.group_id = n_data["group_id"]
+            existing.unlinked_at = None
+            session.add(existing)
+        else:
+            enc_pass = ""
+            if n_data.get("password"):
+                enc_pass = encrypt_password(n_data["password"])
+            session.add(
+                NVR(
+                    ip=ip,
+                    name=n_data.get("name"),
+                    user=n_data.get("user", "admin"),
+                    password=enc_pass,
+                    enabled=n_data.get("enabled", True),
+                    group_id=n_data.get("group_id"),
+                    rtsp_port=int(n_data.get("rtsp_port", 554)),
+                    unlinked_at=None,
+                )
             )
-        )
     session.commit()
 
     # 4. Import Users
     json_users = body.get("users", [])
     for u_data in json_users:
-        pass_hash = u_data.get("password_hash")
-        if not pass_hash and "password" in u_data:
-            pass_hash = hash_password(u_data["password"])
-        if not pass_hash:
-            pass_hash = hash_password("123456")
+        u_name = u_data.get("username")
+        if not u_name:
+            continue
+        db_user = session.exec(select(User).where(User.username == u_name)).first()
+        if not db_user:
+            pass_hash = u_data.get("password_hash")
+            if not pass_hash and "password" in u_data:
+                pass_hash = hash_password(u_data["password"])
+            if not pass_hash:
+                pass_hash = hash_password("123456")
 
-        db_user = User(
-            username=u_data["username"],
-            password_hash=pass_hash,
-            role=u_data.get("role", "it_manager"),
-            group_id=u_data.get("group_id"),
-            is_active=u_data.get("is_active", True),
-        )
-        session.add(db_user)
-        session.flush()
+            db_user = User(
+                username=u_name,
+                password_hash=pass_hash,
+                role=u_data.get("role", "it_manager"),
+                group_id=u_data.get("group_id"),
+                is_active=u_data.get("is_active", True),
+            )
+            session.add(db_user)
+            session.flush()
 
-        a_settings = u_data.get("alert_settings", {})
-        db_alert = UserAlertSettings(
-            user_id=db_user.id,
-            mail_enabled=a_settings.get("mail_enabled", True),
-            mail_recipients=a_settings.get("mail_recipients", ""),
-            telegram_enabled=a_settings.get("telegram_enabled", True),
-            telegram_chat_ids=a_settings.get("telegram_chat_ids", ""),
-        )
-        session.add(db_alert)
+            a_settings = u_data.get("alert_settings", {})
+            db_alert = UserAlertSettings(
+                user_id=db_user.id,
+                mail_enabled=a_settings.get("mail_enabled", True),
+                mail_recipients=a_settings.get("mail_recipients", ""),
+                telegram_enabled=a_settings.get("telegram_enabled", True),
+                telegram_chat_ids=a_settings.get("telegram_chat_ids", ""),
+            )
+            session.add(db_alert)
     session.commit()
 
     # 5. Import Scheduled Tasks
