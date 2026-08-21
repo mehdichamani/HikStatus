@@ -13,7 +13,8 @@ test_engine = create_engine(test_sqlite_url, connect_args={"check_same_thread": 
 
 @pytest.fixture(name="session")
 def session_fixture():
-    # ساخت مجدد دیتابیس تست
+    # اطمینان از پاک بودن ساختار قبل از ساخت و ایجاد مجدد دیتابیس تست
+    SQLModel.metadata.drop_all(test_engine)
     SQLModel.metadata.create_all(test_engine)
 
     from app import database

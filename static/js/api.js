@@ -25,29 +25,19 @@ export async function apiFetch(url, options = {}) {
 
 export async function fetchDash() {
     try {
-        const nRes = await window.apiFetch(`${API}/nvrs`);
-        window.nvrCache = await nRes.json();
+        const [nvrData, groupData, taskData, camData] = await Promise.all([
+            window.apiFetch(`${API}/nvrs`).then(r => r.ok ? r.json() : []).catch(e => { console.error('Error loading NVRs:', e); return []; }),
+            window.apiFetch(`${API}/groups`).then(r => r.ok ? r.json() : []).catch(e => { console.error('Error loading Groups:', e); return []; }),
+            window.apiFetch(`${API}/scheduler/tasks`).then(r => r.ok ? r.json() : []).catch(e => { console.error('Error loading Tasks:', e); return []; }),
+            window.apiFetch(`${API}/cameras`).then(r => r.ok ? r.json() : []).catch(e => { console.error('Error loading Cameras:', e); return []; })
+        ]);
+        window.nvrCache = nvrData || [];
+        window.groupCache = groupData || [];
+        window.scheduledTasksCache = taskData || [];
+        window.updateDashFromWS(camData || []);
     } catch (e) {
-        console.error('Error loading NVRs:', e);
+        console.error('Error in fetchDash:', e);
     }
-    try {
-        const gRes = await window.apiFetch(`${API}/groups`);
-        window.groupCache = await gRes.json();
-    } catch (e) {
-        console.error('Error loading Groups:', e);
-    }
-    try {
-        const tRes = await window.apiFetch(`${API}/scheduler/tasks`);
-        if (tRes.ok) {
-            window.scheduledTasksCache = await tRes.json();
-        }
-    } catch (e) {
-        console.error('Error loading Tasks:', e);
-    }
-    const res = await window.apiFetch(`${API}/cameras`);
-    const cams = await res.json();
-
-    window.updateDashFromWS(cams);
 }
 
 export async function loadSettings(activeTabOverride = null) {
@@ -751,46 +741,6 @@ export async function restoreDatabase(input) {
     }
 }
 
-export async function importJsonConfig(input) {
-    const file = input.files[0];
-    if (!file) return;
-    input.value = '';
-    if (!file.name.endsWith('.json')) {
-        window.showToast('فایل باید با پسوند .json باشد', 'error');
-        return;
-    }
-    if (!await window.showConfirm(`توجه: با بارگذاری این فایل، تمامی تنظیمات فعلی، لیست NVRها، گروه‌ها و کاربران کاملاً حذف شده و با اطلاعات فایل "${file.name}" جایگزین خواهند شد. آیا ادامه می‌دهید؟`)) return;
-    const statusEl = document.getElementById('import-json-status');
-    if (statusEl) statusEl.textContent = 'در حال بارگذاری...';
-    try {
-        const text = await file.text();
-        let jsonData;
-        try {
-            jsonData = JSON.parse(text);
-        } catch (err) {
-            throw new Error('فرمت فایل JSON معتبر نیست');
-        }
-
-        const res = await fetch(`${API}/config/import`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(jsonData),
-            credentials: 'include',
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ detail: 'خطای نامشخص' }));
-            throw new Error(err.detail || 'خطا در بارگذاری تنظیمات');
-        }
-        if (statusEl) statusEl.textContent = '';
-        window.showToast('پیکربندی JSON با موفقیت بارگذاری شد. در حال بازنشانی مانیتور...');
-        setTimeout(() => location.reload(), 1500);
-    } catch (e) {
-        if (statusEl) statusEl.textContent = '';
-        window.showToast('خطا: ' + e.message, 'error');
-    }
-}
 
 export function resetLogs() {
     document.getElementById('log-list').innerHTML = '';
@@ -1773,17 +1723,18 @@ export async function fetchTaskHistory(id, limit = 20) {
 
 export async function warmUpSearchCache() {
     try {
+        const promises = [];
         if (!nvrCache || nvrCache.length === 0) {
-            const nRes = await window.apiFetch(`${API}/nvrs`);
-            nvrCache = await nRes.json();
+            promises.push(window.apiFetch(`${API}/nvrs`).then(r => r.ok ? r.json() : []).then(d => { nvrCache = d; }).catch(() => {}));
         }
         if (!groupCache || groupCache.length === 0) {
-            const gRes = await window.apiFetch(`${API}/groups`);
-            groupCache = await gRes.json();
+            promises.push(window.apiFetch(`${API}/groups`).then(r => r.ok ? r.json() : []).then(d => { groupCache = d; }).catch(() => {}));
         }
         if (!dashCamerasCache || dashCamerasCache.length === 0) {
-            const res = await window.apiFetch(`${API}/cameras`);
-            dashCamerasCache = await res.json();
+            promises.push(window.apiFetch(`${API}/cameras`).then(r => r.ok ? r.json() : []).then(d => { dashCamerasCache = d; }).catch(() => {}));
+        }
+        if (promises.length > 0) {
+            await Promise.all(promises);
         }
     } catch (e) {
         console.error('Failed to warm up search cache:', e);
