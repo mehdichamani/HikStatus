@@ -1,5 +1,9 @@
 # UI/UX Redesign & Modernization Plan (HikStatus Web Interface)
 
+- **وضعیت:** `[rejected]` (جایگزین‌شده با سیستم طراحی جامع HSL در [`.agents/DESIGN.md`](file:///home/unreal/projects/HikStatus/.agents/DESIGN.md) بر اساس تصمیم [ADR-003](file:///home/unreal/projects/HikStatus/.agents/DECISIONS.md#adr-003))
+
+---
+
 ## Context & Objective
 HikStatus is an online camera status monitoring application for CCTV and security camera infrastructure. The web dashboard currently serves as the central hub for monitoring camera accessibility, latency, location mapping (Leaflet), and alert notifications. While functional, the visual aesthetic, visual hierarchy, color palette, typography scaling, and component modernism can be significantly enhanced.
 

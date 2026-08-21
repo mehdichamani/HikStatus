@@ -27,12 +27,14 @@
 ## ⏳ ۳. طرح‌های پیشنهادی در انتظار تصمیم (Pending Proposals)
 > ⚠️ **نکته برای ایجنت‌ها:** این موارد در پوشه [`.agents/proposals/`](file:///home/unreal/projects/HikStatus/.agents/proposals/) قرار دارند و تا زمان تأیید صریح کاربر، نباید پیاده‌سازی شوند.
 
-1. **طرح بازطراحی رابط کاربری ([`proposals/UX-UI-Redesign.md`](file:///home/unreal/projects/HikStatus/.agents/proposals/UX-UI-Redesign.md)):**
+1. **تجمیع اعلان‌های مرورگر و خوانش فارسی ([`proposals/تجمیع اعلان‌های مرورگر و خوانش فارسی.md`](file:///home/unreal/projects/HikStatus/.agents/proposals/%D8%AA%D8%AC%D9%85%DB%8C%D8%B9%20%D8%A7%D8%B9%D9%84%D8%A7%D9%86%E2%80%8C%D9%87%D8%A7%DB%8C%20%D9%85%D8%B1%D9%88%D8%B1%DA%AF%D8%B1%20%D9%88%20%D8%AE%D9%88%D8%A7%D9%86%D8%B4%20%D9%81%D8%A7%D8%B1%D8%B3%DB%8C.md)):**
    - وضعیت: `pending`
-   - خلاصه: مدرن‌سازی داشبورد با گلس‌مورفیسم، انیمیشن‌های CSS و کارت‌های وضعیت.
-2. **تجمیع اعلان‌های مرورگر ([`proposals/تجمیع اعلان‌های مرورگر و خوانش فارسی.md`](file:///home/unreal/projects/HikStatus/.agents/proposals/تجمیع اعلان‌های مرورگر و خوانش فارسی.md)):**
-   - وضعیت: `pending`
-   - خلاصه: موتور Web Audio اختصاصی با TTS فارسی و صف اعلان‌ها برای هشدار صوتی قطعی دوربین‌ها.
+   - خلاصه: موتور Web Audio اختصاصی با TTS فارسی و صف اعلان‌ها برای هشدار صوتی قطعی دوربین‌ها (در انتظار تایید کاربر).
+
+> 💡 **طرح‌های تکمیل‌شده / تثبیت‌شده:**
+> - طرح **«تجمیع کامل هشدارهای تلگرام با Rich Messages»** در نسخه 0.10.0 پیاده‌سازی و نهایی شد (`[implemented]`).
+> - طرح **«بهبود فرآیند تعریف NVR»** (چرخه حیات، حذف ۳۰ روزه، ویرایش IP و ورود ناهمگام JSON) به طور کامل پیاده‌سازی شد (`[implemented]`).
+> - طرح **«بازطراحی رابط کاربری»** طبق تصمیم ADR-003 با سیستم جامع طراحی در [`.agents/DESIGN.md`](file:///home/unreal/projects/HikStatus/.agents/DESIGN.md) جایگزین گردید (`[rejected / superseded]`).
 
 ---
 
