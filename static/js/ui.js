@@ -1392,9 +1392,206 @@ export function initKioskListeners() {
     });
 }
 
+// --- Persian Number to Words Converter ---
+export function numberToPersianWords(num) {
+    const n = parseInt(num, 10);
+    if (isNaN(n)) return String(num);
+    if (n === 0) return 'صفر';
+    if (n < 0) return 'منفی ' + numberToPersianWords(-n);
+
+    const ones = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه'];
+    const teens = ['ده', 'یازده', 'دوازده', 'سیزده', 'چهارده', 'پانزده', 'شانزده', 'هفده', 'هجده', 'نوزده'];
+    const tens = ['', '', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود'];
+    const hundreds = ['', 'صد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتاد', 'نهصد'];
+
+    const parts = [];
+
+    if (n >= 1000) {
+        const k = Math.floor(n / 1000);
+        parts.push((k === 1 ? 'یک هزار' : numberToPersianWords(k) + ' هزار'));
+        const rem = n % 1000;
+        if (rem > 0) parts.push(numberToPersianWords(rem));
+        return parts.join(' و ');
+    }
+
+    if (n >= 100) {
+        const h = Math.floor(n / 100);
+        parts.push(hundreds[h]);
+        const rem = n % 100;
+        if (rem > 0) parts.push(numberToPersianWords(rem));
+        return parts.join(' و ');
+    }
+
+    if (n >= 20) {
+        const t = Math.floor(n / 10);
+        parts.push(tens[t]);
+        const rem = n % 10;
+        if (rem > 0) parts.push(ones[rem]);
+        return parts.join(' و ');
+    }
+
+    if (n >= 10) {
+        return teens[n - 10];
+    }
+
+    return ones[n];
+}
+
+export function replaceNumbersWithPersianWords(text) {
+    if (!text) return '';
+    // تبدیل ارقام فارسی به لاتین برای شناسایی دقیق مقادیر عددی
+    const p2e = { '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4', '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9' };
+    const normalized = String(text).replace(/[۰-۹]/g, d => p2e[d] || d);
+    return normalized.replace(/\b\d+\b/g, match => numberToPersianWords(parseInt(match, 10)));
+}
+
+// --- Persian Text-To-Speech (TTS) Engine ---
+let availableSpeechVoices = [];
+
+export function getPersianVoices() {
+    if (!('speechSynthesis' in window)) return [];
+    const allVoices = window.speechSynthesis.getVoices() || [];
+    availableSpeechVoices = allVoices;
+    const faVoices = allVoices.filter(v => {
+        const lang = (v.lang || '').toLowerCase();
+        const name = (v.name || '').toLowerCase();
+        return lang.startsWith('fa') || lang.startsWith('per') || lang.startsWith('fas') || name.includes('persian') || name.includes('farsi') || name.includes('dilara') || name.includes('farid');
+    });
+    return faVoices.length > 0 ? faVoices : allVoices;
+}
+
+export function populatePersianVoices() {
+    const sel = document.getElementById('BROWSER_TTS_VOICE');
+    if (!sel || !('speechSynthesis' in window)) return;
+
+    const voices = getPersianVoices();
+    const savedVoice = localStorage.getItem('BROWSER_TTS_VOICE') || '';
+
+    sel.innerHTML = '';
+    if (voices.length === 0) {
+        sel.innerHTML = '<option value="">صدای پیش‌فرض سیستم</option>';
+        return;
+    }
+
+    voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.voiceURI || v.name;
+        opt.textContent = `${v.name} (${v.lang})`;
+        if ((v.voiceURI && v.voiceURI === savedVoice) || v.name === savedVoice) {
+            opt.selected = true;
+        }
+        sel.appendChild(opt);
+    });
+
+    if (!sel.value && sel.options.length > 0) {
+        sel.selectedIndex = 0;
+    }
+}
+
+export function speakPersian(text, category = 'critical') {
+    const isMuted = localStorage.getItem('BROWSER_ALERT_MUTED') === 'true';
+    if (isMuted) return;
+
+    const ttsEnabled = localStorage.getItem('BROWSER_TTS_ENABLED') !== 'false';
+    if (!ttsEnabled) {
+        playSynthesizedSound(category);
+        return;
+    }
+
+    if (category === 'recovery') {
+        const recoveryTtsEnabled = localStorage.getItem('BROWSER_TTS_RECOVERY_ENABLED') !== 'false';
+        if (!recoveryTtsEnabled) {
+            playSynthesizedSound('recovery');
+            return;
+        }
+    }
+
+    if (!('speechSynthesis' in window)) {
+        playSynthesizedSound(category);
+        return;
+    }
+
+    try {
+        window.speechSynthesis.cancel(); // لغو هرگونه صدای قبلی در صف برای پخش سریع و بدون تداخل
+
+        const spokenText = replaceNumbersWithPersianWords(text);
+        const utterance = new SpeechSynthesisUtterance(spokenText);
+
+        const voices = availableSpeechVoices.length > 0 ? availableSpeechVoices : window.speechSynthesis.getVoices();
+        const savedVoiceURI = localStorage.getItem('BROWSER_TTS_VOICE');
+        
+        let selectedVoice = null;
+        if (savedVoiceURI) {
+            selectedVoice = voices.find(v => (v.voiceURI === savedVoiceURI || v.name === savedVoiceURI));
+        }
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => {
+                const lang = (v.lang || '').toLowerCase();
+                const name = (v.name || '').toLowerCase();
+                return lang.startsWith('fa') || lang.startsWith('per') || lang.startsWith('fas') || name.includes('persian') || name.includes('farsi') || name.includes('dilara') || name.includes('farid');
+            });
+        }
+
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            utterance.lang = selectedVoice.lang || 'fa-IR';
+        } else {
+            utterance.lang = 'fa-IR';
+        }
+
+        const rate = parseFloat(localStorage.getItem('BROWSER_TTS_RATE') || '1.0');
+        utterance.rate = Math.max(0.7, Math.min(rate, 1.5));
+        utterance.volume = 1.0;
+
+        utterance.onerror = (e) => {
+            console.warn('Persian TTS utterance error, falling back to chime:', e);
+            playSynthesizedSound(category);
+        };
+
+        window.speechSynthesis.speak(utterance);
+    } catch (e) {
+        console.error('Persian TTS execution failed, falling back to chime:', e);
+        playSynthesizedSound(category);
+    }
+}
+
+export function testPersianTTS() {
+    const sampleText = "هشدار: اتصال دو دستگاه ان‌وی‌آر و شش دوربین در کارخانه شماره یک قطع شد.";
+    const originalMute = localStorage.getItem('BROWSER_ALERT_MUTED');
+    localStorage.setItem('BROWSER_ALERT_MUTED', 'false');
+    
+    window.showToast("در حال پخش تست خوانش صوتی فارسی...");
+    speakPersian(sampleText, 'critical');
+
+    localStorage.setItem('BROWSER_ALERT_MUTED', originalMute);
+}
+
+export function toggleBrowserTTS(checkbox) {
+    localStorage.setItem('BROWSER_TTS_ENABLED', checkbox.checked ? 'true' : 'false');
+    window.showToast(checkbox.checked ? "خوانش صوتی فارسی فعال شد" : "خوانش صوتی فارسی غیرفعال شد");
+}
+
+export function onTTSRateChange(input) {
+    const rateVal = parseFloat(input.value) || 1.0;
+    localStorage.setItem('BROWSER_TTS_RATE', rateVal.toFixed(1));
+    const label = document.getElementById('tts-rate-val');
+    if (label) label.textContent = `${rateVal.toFixed(1)}x`;
+}
+
+export function onTTSVoiceChange(select) {
+    localStorage.setItem('BROWSER_TTS_VOICE', select.value);
+}
+
+export function toggleTTSRecovery(checkbox) {
+    localStorage.setItem('BROWSER_TTS_RECOVERY_ENABLED', checkbox.checked ? 'true' : 'false');
+}
+
 export function initBrowserAlerts() {
     if (localStorage.getItem('BROWSER_ALERT_ENABLED') === null) localStorage.setItem('BROWSER_ALERT_ENABLED', 'false');
     if (localStorage.getItem('BROWSER_ALERT_MUTED') === null) localStorage.setItem('BROWSER_ALERT_MUTED', 'false');
+    if (localStorage.getItem('BROWSER_TTS_ENABLED') === null) localStorage.setItem('BROWSER_TTS_ENABLED', 'true');
+    if (localStorage.getItem('BROWSER_TTS_RECOVERY_ENABLED') === null) localStorage.setItem('BROWSER_TTS_RECOVERY_ENABLED', 'true');
+    if (localStorage.getItem('BROWSER_TTS_RATE') === null) localStorage.setItem('BROWSER_TTS_RATE', '1.0');
     
     const categories = ['critical', 'recovery', 'warning'];
     categories.forEach(cat => {
@@ -1406,6 +1603,12 @@ export function initBrowserAlerts() {
         }
     });
 
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = () => {
+            populatePersianVoices();
+        };
+    }
+
     window.updateBrowserAlertsUI();
 }
 
@@ -1416,6 +1619,21 @@ export function updateBrowserAlertsUI() {
 
     elEnabled.checked = localStorage.getItem('BROWSER_ALERT_ENABLED') === 'true';
     elMuted.checked = localStorage.getItem('BROWSER_ALERT_MUTED') === 'true';
+
+    // TTS UI Elements
+    const elTtsEnabled = document.getElementById('BROWSER_TTS_ENABLED');
+    const elTtsRecovery = document.getElementById('BROWSER_TTS_RECOVERY_ENABLED');
+    const elTtsRate = document.getElementById('BROWSER_TTS_RATE');
+    const elTtsRateVal = document.getElementById('tts-rate-val');
+
+    if (elTtsEnabled) elTtsEnabled.checked = localStorage.getItem('BROWSER_TTS_ENABLED') !== 'false';
+    if (elTtsRecovery) elTtsRecovery.checked = localStorage.getItem('BROWSER_TTS_RECOVERY_ENABLED') !== 'false';
+    if (elTtsRate) {
+        const rate = localStorage.getItem('BROWSER_TTS_RATE') || '1.0';
+        elTtsRate.value = rate;
+        if (elTtsRateVal) elTtsRateVal.textContent = `${parseFloat(rate).toFixed(1)}x`;
+    }
+    populatePersianVoices();
 
     const categories = ['critical', 'recovery', 'warning'];
     categories.forEach(cat => {
@@ -1585,10 +1803,11 @@ export function sendTestNotification() {
     const notification = new Notification("تست اعلان HikStatus", {
         body: "سیستم اعلان مرورگر به درستی کار می‌کند!",
         icon: '/static/logo.webp',
+        tag: `hikstatus-test-${Date.now()}`,
         dir: 'rtl'
     });
     
-    window.playSynthesizedSound('recovery');
+    speakPersian("تست اعلان سیستم با موفقیت اجرا شد", 'recovery');
     window.showToast("اعلان آزمایشی ارسال شد");
     
     notification.onclick = () => {
@@ -1612,7 +1831,7 @@ export function handleIncomingAlert(msg) {
         const notification = new Notification(msg.title, {
             body: msg.body,
             icon: '/static/logo.webp',
-            tag: `hikstatus-${category}`,
+            tag: `hikstatus-${category}-${Date.now()}`,
             dir: 'rtl'
         });
         notification.onclick = () => {
@@ -1622,7 +1841,8 @@ export function handleIncomingAlert(msg) {
         };
     }
 
-    window.playSynthesizedSound(category);
+    const speechText = msg.speech_text || msg.body || msg.title;
+    speakPersian(speechText, category);
 }
 
 export function populateMapGroupSelect() {

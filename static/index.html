@@ -1576,6 +1576,51 @@
                                 </div>
                             </div>
 
+                            <!-- Persian TTS Settings -->
+                            <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 18px;">🗣️</span>
+                                        <strong style="color: var(--text); font-size: 14px;">خوانش صوتی هوشمند فارسی (Persian Text-to-Speech)</strong>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="BROWSER_TTS_ENABLED" onchange="toggleBrowserTTS(this)" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.6;">
+                                    تبدیل خودکار و هوشمند وضعیت سیستم به جملات گفتاری روان فارسی بر اساس کل رخدادهای چرخه پایش (مثال: «هشدار: ۲ دستگاه ان‌وی‌آر و ۱۸ دوربین در ۳ گروه قطع شدند»).
+                                </p>
+
+                                <div class="settings-fields-grid" style="grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                                    <div class="form-field-group" style="margin: 0;">
+                                        <label class="form-label" style="font-size: 12px; margin-bottom: 6px; display: block;">موتور / صدای گوینده فارسی:</label>
+                                        <select id="BROWSER_TTS_VOICE" class="form-control" onchange="onTTSVoiceChange(this)" style="font-size: 12px; width: 100%; padding: 6px 10px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px;">
+                                            <option value="">در حال کشف صداها...</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-field-group" style="margin: 0;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                            <label class="form-label" style="font-size: 12px; margin: 0;">سرعت گفتار:</label>
+                                            <span id="tts-rate-val" style="font-size: 12px; color: var(--primary); font-weight: bold;">1.0x</span>
+                                        </div>
+                                        <input type="range" id="BROWSER_TTS_RATE" min="0.8" max="1.4" step="0.1" value="1.0" oninput="onTTSRateChange(this)" style="width: 100%; accent-color: var(--primary); cursor: pointer;">
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px dashed var(--border); gap: 12px; flex-wrap: wrap;">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text);">
+                                        <input type="checkbox" id="BROWSER_TTS_RECOVERY_ENABLED" onchange="toggleTTSRecovery(this)" checked>
+                                        <span>خوانش صوتی برای رویدادهای وصل مجدد (Recovery)</span>
+                                    </label>
+                                    <button class="btn btn-outline" onclick="testPersianTTS()" style="font-size: 11px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;">
+                                        <span>🗣️</span>
+                                        <span>تست خوانش صوتی فارسی</span>
+                                    </button>
+                                </div>
+                            </div>
+
                             <div
                                 style="border-top: 1px solid var(--border); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
                                 <div class="form-field-group" style="margin: 0;">

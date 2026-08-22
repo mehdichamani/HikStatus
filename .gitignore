@@ -29,3 +29,6 @@ monitor_events.csv
 # obsidian files
 .agents/.obsidian/
 .mimocode/
+
+# Agent Plans
+implementation_plan.md

@@ -64,7 +64,276 @@ async def broadcast(message):
         await _broadcast_callback(message)
 
 
-async def broadcast_alert(event_type, title, body, alert_type, count: int = 1):
+def build_aggregated_browser_alert(
+    cycle_nvr_events=None,
+    offline_by_group=None,
+    recovered_by_group=None,
+    session=None,
+) -> dict | None:
+    """تولید پیام تجمیعی واحد مرورگر در انتهای چرخه پایش (Cycle-Level Aggregation)
+
+    شامل تیتر، بدنه و متن گفتار صوتی فارسی (speech_text).
+    """
+    cycle_nvr_events = cycle_nvr_events or []
+    offline_by_group = offline_by_group or {}
+    recovered_by_group = recovered_by_group or {}
+
+    # فیلتر و تفکیک رویدادهای NVR
+    nvr_off_list = [
+        n
+        for n in cycle_nvr_events
+        if any(
+            k in str(n.get("type", "")).lower()
+            for k in ["offline", "fail", "error", "auth"]
+        )
+    ]
+    nvr_on_list = [
+        n
+        for n in cycle_nvr_events
+        if any(k in str(n.get("type", "")).lower() for k in ["recovered", "online"])
+    ]
+
+    # تجمیع کلیه دوربین‌های قطع و وصل شده در طول چرخه
+    all_off_cams = [c for cams in offline_by_group.values() if cams for c in cams]
+    all_rec_cams = [c for cams in recovered_by_group.values() if cams for c in cams]
+
+    nvr_off_count = len(nvr_off_list)
+    nvr_on_count = len(nvr_on_list)
+    cam_off_count = len(all_off_cams)
+    cam_on_count = len(all_rec_cams)
+
+    total_changes = nvr_off_count + nvr_on_count + cam_off_count + cam_on_count
+    if total_changes == 0:
+        return None
+
+    def get_group_name(gid):
+        if not gid:
+            return ""
+        if session:
+            try:
+                grp = session.get(NVRGroup, gid)
+                if grp and grp.name:
+                    return grp.name
+            except Exception:
+                pass
+        return f"گروه {gid}"
+
+    # سناریو ۱: صرفاً رویدادهای قطعی (بدون وصل مجدد)
+    if nvr_on_count == 0 and cam_on_count == 0:
+        alert_type = "error"
+
+        # ۱-۱: تک دوربین قطع
+        if nvr_off_count == 0 and cam_off_count == 1:
+            c = all_off_cams[0]
+            c_name = getattr(c, "name", str(c))
+            c_ip = getattr(c, "ip", "")
+            ip_str = f" ({c_ip})" if c_ip else ""
+            title = f"قطع ارتباط: {c_name}"
+            body = f"ارتباط دوربین {c_name}{ip_str} قطع شد"
+            speech_text = f"هشدار: ارتباط دوربین {c_name} قطع شد"
+            event_type = "camera_offline"
+
+        # ۱-۲: چند دوربین قطع (بدون NVR)
+        elif nvr_off_count == 0 and cam_off_count > 1:
+            event_type = "camera_offline"
+            names_list = [getattr(c, "name", str(c)) for c in all_off_cams]
+            names_str = "، ".join(names_list[:3])
+            if len(names_list) > 3:
+                names_str += f" و {len(names_list) - 3} دوربین دیگر"
+
+            active_gids = [gid for gid, cams in offline_by_group.items() if cams]
+            num_groups = len(active_gids)
+
+            if num_groups == 1 and active_gids[0] is not None:
+                gname = get_group_name(active_gids[0])
+                grp_suffix = f" [{gname}]" if gname else ""
+                grp_speech = f" در {gname}" if gname else ""
+                title = f"قطع ارتباط تجمیعی {cam_off_count} دوربین{grp_suffix}"
+                body = (
+                    f"{cam_off_count} دوربین در {gname} قطع شدند: {names_str}"
+                    if gname
+                    else f"{cam_off_count} دوربین قطع شدند: {names_str}"
+                )
+                speech_text = f"هشدار: {cam_off_count} دوربین{grp_speech} قطع شدند"
+            elif num_groups > 1:
+                title = f"قطع ارتباط تجمیعی {cam_off_count} دوربین در {num_groups} گروه"
+                body = (
+                    f"{cam_off_count} دوربین در {num_groups} گروه قطع شدند: {names_str}"
+                )
+                speech_text = (
+                    f"هشدار: {cam_off_count} دوربین در {num_groups} گروه قطع شدند"
+                )
+            else:
+                title = f"قطع ارتباط تجمیعی {cam_off_count} دوربین"
+                body = f"{cam_off_count} دوربین قطع شدند: {names_str}"
+                speech_text = f"هشدار: {cam_off_count} دوربین قطع شدند"
+
+        # ۱-۳: تک NVR قطع (بدون دوربین مستقل)
+        elif nvr_off_count == 1 and cam_off_count == 0:
+            n = nvr_off_list[0]
+            n_name = n.get("name") or n.get("ip") or "NVR"
+            n_ip = n.get("ip", "")
+            err = n.get("error")
+            ip_str = f" ({n_ip})" if n_ip else ""
+            title = f"قطع ارتباط NVR: {n_name}"
+            body = f"اتصال NVR {n_name}{ip_str} قطع شد"
+            if err:
+                body += f" - {err}"
+            speech_text = f"هشدار: اتصال دستگاه ان‌وی‌آر {n_name} قطع شد"
+            event_type = "nvr_offline"
+
+        # ۱-۴: چند NVR یا ترکیبی از NVR و دوربین قطع
+        else:
+            event_type = "nvr_offline" if cam_off_count == 0 else "camera_offline"
+            parts_title = []
+            parts_speech = []
+            if nvr_off_count > 0:
+                parts_title.append(f"{nvr_off_count} NVR")
+                parts_speech.append(f"{nvr_off_count} دستگاه ان‌وی‌آر")
+            if cam_off_count > 0:
+                parts_title.append(f"{cam_off_count} دوربین")
+                parts_speech.append(f"{cam_off_count} دوربین")
+
+            active_gids = [gid for gid, cams in offline_by_group.items() if cams]
+            num_groups = len(active_gids)
+            grp_speech = f" در {num_groups} گروه" if num_groups > 1 else ""
+
+            title = f"قطع ارتباط تجمیعی {' و '.join(parts_title)}"
+            speech_text = f"هشدار: {' و '.join(parts_speech)}{grp_speech} قطع شدند"
+
+            body_items = []
+            if nvr_off_count > 0:
+                n_names = "، ".join(
+                    [n.get("name") or n.get("ip", "") for n in nvr_off_list[:2]]
+                )
+                body_items.append(f"{nvr_off_count} NVR ({n_names})")
+            if cam_off_count > 0:
+                c_names = "، ".join(
+                    [getattr(c, "name", str(c)) for c in all_off_cams[:3]]
+                )
+                if len(all_off_cams) > 3:
+                    c_names += f" و {len(all_off_cams) - 3} مورد دیگر"
+                body_items.append(f"{cam_off_count} دوربین ({c_names})")
+            body = " و ".join(body_items) + " قطع شدند"
+
+    # سناریو ۲: صرفاً رویدادهای بازیابی و وصل مجدد (بدون قطعی)
+    elif nvr_off_count == 0 and cam_off_count == 0:
+        alert_type = "success"
+
+        # ۲-۱: تک دوربین وصل
+        if nvr_on_count == 0 and cam_on_count == 1:
+            c = all_rec_cams[0]
+            c_name = getattr(c, "name", str(c))
+            c_ip = getattr(c, "ip", "")
+            ip_str = f" ({c_ip})" if c_ip else ""
+            title = f"اتصال مجدد: {c_name}"
+            body = f"ارتباط دوربین {c_name}{ip_str} مجدداً برقرار شد"
+            speech_text = f"ارتباط دوربین {c_name} مجدداً برقرار شد"
+            event_type = "camera_recovered"
+
+        # ۲-۲: چند دوربین وصل (بدون NVR)
+        elif nvr_on_count == 0 and cam_on_count > 1:
+            event_type = "camera_recovered"
+            names_list = [getattr(c, "name", str(c)) for c in all_rec_cams]
+            names_str = "، ".join(names_list[:3])
+            if len(names_list) > 3:
+                names_str += f" و {len(names_list) - 3} دوربین دیگر"
+
+            active_gids = [gid for gid, cams in recovered_by_group.items() if cams]
+            num_groups = len(active_gids)
+
+            if num_groups == 1 and active_gids[0] is not None:
+                gname = get_group_name(active_gids[0])
+                grp_suffix = f" [{gname}]" if gname else ""
+                grp_speech = f" در {gname}" if gname else ""
+                title = f"اتصال مجدد تجمیعی {cam_on_count} دوربین{grp_suffix}"
+                body = (
+                    f"{cam_on_count} دوربین در {gname} مجدداً متصل شدند: {names_str}"
+                    if gname
+                    else f"{cam_on_count} دوربین مجدداً متصل شدند: {names_str}"
+                )
+                speech_text = (
+                    f"ارتباط {cam_on_count} دوربین{grp_speech} مجدداً برقرار شد"
+                )
+            elif num_groups > 1:
+                title = f"اتصال مجدد تجمیعی {cam_on_count} دوربین در {num_groups} گروه"
+                body = (
+                    f"{cam_on_count} دوربین در {num_groups} گروه متصل شدند: {names_str}"
+                )
+                speech_text = (
+                    f"ارتباط {cam_on_count} دوربین در {num_groups} گروه مجدداً برقرار شد"
+                )
+            else:
+                title = f"اتصال مجدد تجمیعی {cam_on_count} دوربین"
+                body = f"{cam_on_count} دوربین متصل شدند: {names_str}"
+                speech_text = f"ارتباط {cam_on_count} دوربین مجدداً برقرار شد"
+
+        # ۲-۳: تک NVR وصل
+        elif nvr_on_count == 1 and cam_on_count == 0:
+            n = nvr_on_list[0]
+            n_name = n.get("name") or n.get("ip") or "NVR"
+            title = f"اتصال مجدد NVR: {n_name}"
+            body = f"اتصال NVR {n_name} مجدداً برقرار شد"
+            speech_text = f"اتصال دستگاه ان‌وی‌آر {n_name} مجدداً برقرار شد"
+            event_type = "nvr_recovered"
+
+        # ۲-۴: چند NVR یا ترکیبی وصل
+        else:
+            event_type = "nvr_recovered" if cam_on_count == 0 else "camera_recovered"
+            parts_title = []
+            parts_speech = []
+            if nvr_on_count > 0:
+                parts_title.append(f"{nvr_on_count} NVR")
+                parts_speech.append(f"{nvr_on_count} دستگاه ان‌وی‌آر")
+            if cam_on_count > 0:
+                parts_title.append(f"{cam_on_count} دوربین")
+                parts_speech.append(f"{cam_on_count} دوربین")
+
+            title = f"اتصال مجدد تجمیعی {' و '.join(parts_title)}"
+            speech_text = f"ارتباط {' و '.join(parts_speech)} مجدداً برقرار شد"
+            body = f"{' و '.join(parts_title)} مجدداً متصل شدند"
+
+    # سناریو ۳: رویدادهای همزمان قطع و وصل
+    else:
+        alert_type = "warning"
+        event_type = "camera_offline"
+
+        parts_off_title = []
+        parts_off_speech = []
+        if nvr_off_count > 0:
+            parts_off_title.append(f"{nvr_off_count} NVR")
+            parts_off_speech.append(f"{nvr_off_count} دستگاه ان‌وی‌آر")
+        if cam_off_count > 0:
+            parts_off_title.append(f"{cam_off_count} دوربین")
+            parts_off_speech.append(f"{cam_off_count} دوربین")
+
+        parts_on_title = []
+        parts_on_speech = []
+        if nvr_on_count > 0:
+            parts_on_title.append(f"{nvr_on_count} NVR")
+            parts_on_speech.append(f"{nvr_on_count} دستگاه ان‌وی‌آر")
+        if cam_on_count > 0:
+            parts_on_title.append(f"{cam_on_count} دوربین")
+            parts_on_speech.append(f"{cam_on_count} دوربین")
+
+        title = f"گزارش تجمیعی: {' و '.join(parts_off_title)} قطع، {' و '.join(parts_on_title)} وصل"
+        body = f"قطع: {' و '.join(parts_off_title)} | وصل مجدد: {' و '.join(parts_on_title)}"
+        speech_text = f"هشدار: {' و '.join(parts_off_speech)} قطع و {' و '.join(parts_on_speech)} وصل شدند"
+
+    return {
+        "type": "alert",
+        "title": title,
+        "body": body,
+        "alert_type": alert_type,
+        "event_type": event_type,
+        "count": total_changes,
+        "speech_text": speech_text,
+    }
+
+
+async def broadcast_alert(
+    event_type, title, body, alert_type, count: int = 1, speech_text: str | None = None
+):
     """Deliver browser alerts only when their central policy permits it."""
     if is_notification_enabled(event_type, "browser"):
         await broadcast(
@@ -75,6 +344,7 @@ async def broadcast_alert(event_type, title, body, alert_type, count: int = 1):
                 "alert_type": alert_type,
                 "event_type": event_type,
                 "count": count,
+                "speech_text": speech_text or title,
             }
         )
 
@@ -626,18 +896,18 @@ async def process_nvr_alerts(
                 target_type="NVR",
                 target_id=nvr_obj.ip,
             )
-            await broadcast_alert(
-                "nvr_recovered",
-                "اتصال مجدد NVR",
-                f"اتصال NVR {nvr_name} مجدداً برقرار شد",
-                "success",
-            )
+            tele_event = {
+                "type": "nvr_recovered",
+                "name": nvr_name,
+                "ip": nvr_obj.ip,
+                "group_id": nvr_obj.group_id,
+            }
 
         nvr_obj.status = "Online"
         nvr_obj.last_online = now
 
         if nvr_obj.telegram_alert_count > 0:
-            if not startup_grace:
+            if not startup_grace and not tele_event:
                 tele_event = {
                     "type": "nvr_recovered",
                     "name": nvr_name,
@@ -681,12 +951,14 @@ async def process_nvr_alerts(
             target_type="NVR",
             target_id=nvr_obj.ip,
         )
-        await broadcast_alert(
-            "nvr_offline",
-            "خطای اتصال NVR",
-            f"اتصال NVR {nvr_name} قطع شد: {error_message}",
-            "error",
-        )
+        tele_event = {
+            "type": "nvr_offline",
+            "name": nvr_name,
+            "ip": nvr_obj.ip,
+            "error": error_message,
+            "downtime_mins": 0,
+            "group_id": nvr_obj.group_id,
+        }
 
     downtime_mins = int((now - (nvr_obj.last_online or now)).total_seconds() / 60)
 
@@ -1304,8 +1576,14 @@ async def task_ping_cameras():
                     target_type="NVR",
                     target_id=nvr_obj.ip,
                 )
-                await broadcast_alert(
-                    "nvr_auth_error", "خطای احراز هویت NVR", error_message, "error"
+                cycle_nvr_events.append(
+                    {
+                        "type": "nvr_auth_error",
+                        "name": nvr_obj.name or nvr_obj.ip,
+                        "ip": nvr_obj.ip,
+                        "error": error_message,
+                        "group_id": nvr_obj.group_id,
+                    }
                 )
                 # Mark all cameras of this NVR as Offline since we cannot authenticate to poll them
                 offline_cams = session.exec(
@@ -1494,54 +1772,6 @@ async def task_ping_cameras():
                     session.add(db_cam)
 
                 cams_processed.append(db_cam)
-
-        # Broadcast aggregated browser alerts per group for offline cameras
-        for gid, cams in browser_offline_by_group.items():
-            count = len(cams)
-            if count == 0:
-                continue
-            grp_name = ""
-            if gid:
-                grp = session.get(NVRGroup, gid)
-                if grp and grp.name:
-                    grp_name = f" [{grp.name}]"
-            if count == 1:
-                c = cams[0]
-                title = f"قطع ارتباط: {c.name}"
-                body = f"ارتباط دوربین {c.name} ({c.ip}) قطع شد"
-            else:
-                names_str = "، ".join([c.name for c in cams[:3]])
-                if count > 3:
-                    names_str += f" و {count - 3} دوربین دیگر"
-                title = f"قطع ارتباط تجمیعی {count} دوربین{grp_name}"
-                body = f"{count} دوربین قطع شدند: {names_str}"
-
-            await broadcast_alert("camera_offline", title, body, "error", count=count)
-
-        # Broadcast aggregated browser alerts per group for recovered cameras
-        for gid, cams in browser_recovered_by_group.items():
-            count = len(cams)
-            if count == 0:
-                continue
-            grp_name = ""
-            if gid:
-                grp = session.get(NVRGroup, gid)
-                if grp and grp.name:
-                    grp_name = f" [{grp.name}]"
-            if count == 1:
-                c = cams[0]
-                title = f"اتصال مجدد: {c.name}"
-                body = f"ارتباط دوربین {c.name} ({c.ip}) مجدداً برقرار شد"
-            else:
-                names_str = "، ".join([c.name for c in cams[:3]])
-                if count > 3:
-                    names_str += f" و {count - 3} دوربین دیگر"
-                title = f"اتصال مجدد تجمیعی {count} دوربین{grp_name}"
-                body = f"{count} دوربین مجدداً متصل شدند: {names_str}"
-
-            await broadcast_alert(
-                "camera_recovered", title, body, "success", count=count
-            )
 
         nvr_list = session.exec(select(NVR)).all()
         nvr_groups = {n.ip: n.group_id for n in nvr_list}
@@ -1741,6 +1971,18 @@ async def task_ping_cameras():
             last_summary_hour = now.hour
 
         session.commit()
+
+        # ارسال تک‌پیام جامع تجمیعی مرورگر در پایان چرخه پایش
+        browser_alert = build_aggregated_browser_alert(
+            cycle_nvr_events=cycle_nvr_events,
+            offline_by_group=browser_offline_by_group,
+            recovered_by_group=browser_recovered_by_group,
+            session=session,
+        )
+        if browser_alert and not is_startup_grace:
+            evt_type = browser_alert.get("event_type", "camera_offline")
+            if is_notification_enabled(evt_type, "browser"):
+                await broadcast(browser_alert)
 
         cam_data = []
         for c in cams_processed:
